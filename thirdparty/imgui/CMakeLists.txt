@@ -12,6 +12,6 @@ add_library(${PROJECT_NAME}
     "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_opengl3.cpp"
 )
 
-target_include_directories(imgui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/imgui")
+target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/imgui")
 
-target_link_libraries(imgui PUBLIC glfw glad)
+target_link_libraries(${PROJECT_NAME} PUBLIC glfw glad)

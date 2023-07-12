@@ -6,6 +6,8 @@
 
 #include <glm/glm.hpp>
 
+#include <spdlog/spdlog.h>
+
 #include "assert_macro.hpp"
 
 std::unique_ptr<bool, application::glfw_deinitializer> application::is_glfw_initialized(new bool(glfwInit() == GLFW_TRUE));
@@ -23,17 +25,17 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     ASSERT(is_glfw_initialized != nullptr && *is_glfw_initialized, "GLFW error", 
         (glfwGetError(&glfw_error_msg), glfw_error_msg != nullptr ? glfw_error_msg : "unrecognized error"));
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, true);
 
     m_window = glfwCreateWindow(width, height, m_title.c_str(), nullptr, nullptr);
     ASSERT(m_window != nullptr, "GLFW error", 
         (_destroy(), glfwGetError(&glfw_error_msg), glfw_error_msg != nullptr ? glfw_error_msg : "unrecognized error"));
 
     glfwMakeContextCurrent(m_window);
-    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    ASSERT(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress), "GLAD error", "failed to initialize GLAD");
     glfwSwapInterval(1);
 
     _framebuffer_resize_callback(m_window, width, height);
@@ -110,7 +112,7 @@ void application::run() noexcept {
     ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-    ImGui_ImplOpenGL3_Init("#version 330");
+    ImGui_ImplOpenGL3_Init("#version 430");
 
     while (!glfwWindowShouldClose(m_window)) {
         glClear(GL_COLOR_BUFFER_BIT);
