@@ -2,6 +2,10 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include <imgui/imgui.h>
+#include <imgui/backends/imgui_impl_glfw.h>
+#include <imgui/backends/imgui_impl_opengl3.h>
+
 #include <string>
 #include <memory>
 
@@ -17,6 +21,13 @@ private:
 
 private:
     void _destroy() noexcept;
+
+private:
+    void _init_imgui(const char* glsl_version) const noexcept;
+    void _shutdown_imgui() const noexcept;
+
+    void _imgui_frame_begin() const noexcept;
+    void _imgui_frame_end() const noexcept;
 
 private:
     static void _framebuffer_resize_callback(GLFWwindow* window, int32_t width, int32_t height) noexcept;
