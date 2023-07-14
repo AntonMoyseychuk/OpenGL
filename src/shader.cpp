@@ -36,22 +36,22 @@ bool shader::create(const char *vs_filepath, const char *fs_filepath) const noex
     return m_program_id != 0;
 }
 
-bool shader::use() const noexcept {
-    const bool prev_state = m_is_use;
+bool shader::bind() const noexcept {
+    const bool prev_state = m_is_binded;
 
     glUseProgram(m_program_id);
-    m_is_use = (m_program_id != 0);
+    m_is_binded = (m_program_id != 0);
 
     return prev_state;
 }
 
-bool shader::stop_using() const noexcept {
+bool shader::unbind() const noexcept {
     glUseProgram(0);
-    return (m_is_use = false);
+    return (m_is_binded = false);
 }
 
-bool shader::is_used() const noexcept {
-    return m_is_use;
+bool shader::is_binded() const noexcept {
+    return m_is_binded;
 }
 
 void shader::uniform(const char *name, bool value) const noexcept {

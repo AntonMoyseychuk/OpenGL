@@ -15,9 +15,9 @@ public:
 
     bool create(const char* vs_filepath, const char* fs_filepath) const noexcept;
 
-    bool use() const noexcept;
-    bool stop_using() const noexcept;
-    bool is_used() const noexcept;
+    bool bind() const noexcept;
+    bool unbind() const noexcept;
+    bool is_binded() const noexcept;
 
     void uniform(const char* name, bool            value) const noexcept;
     void uniform(const char* name, float           value) const noexcept;
@@ -47,12 +47,12 @@ private:
 private:
     mutable std::unordered_map<std::string, uint32_t> m_uniform_locations;
     mutable uint32_t m_program_id = 0;
-    mutable bool m_is_use = false;
+    mutable bool m_is_binded = false;
 };
 
 template <typename glUniformFunc, typename... Args>
 inline void shader::_set_uniform(glUniformFunc gl_uniform, const char *name, Args&&... args) const noexcept {
-    const bool prev_state = use();
+    const bool prev_state = bind();
     
     const std::string u_name(name);
     if (m_uniform_locations.find(u_name) != m_uniform_locations.cend()) {
@@ -67,7 +67,7 @@ inline void shader::_set_uniform(glUniformFunc gl_uniform, const char *name, Arg
     }
 
     if (prev_state == false) {
-       stop_using();
+       unbind();
     }
 }
 

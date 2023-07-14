@@ -112,7 +112,7 @@ void application::run() noexcept {
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
 
-        simple_shader.use();
+        simple_shader.bind();
         simple_shader.uniform("u_intensity", sinf(glfwGetTime()) / 2.0f + 0.5f);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
