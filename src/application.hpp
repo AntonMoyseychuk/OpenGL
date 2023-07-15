@@ -2,9 +2,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include <imgui/imgui.h>
-#include <imgui/backends/imgui_impl_glfw.h>
-#include <imgui/backends/imgui_impl_opengl3.h>
+#include "camera.hpp"
 
 #include <string>
 #include <memory>
@@ -30,7 +28,26 @@ private:
     void _imgui_frame_end() const noexcept;
 
 private:
-    static void _framebuffer_resize_callback(GLFWwindow* window, int32_t width, int32_t height) noexcept;
+    struct framebuf_resize_controller {
+    public:
+        static framebuf_resize_controller& get() noexcept;
+        static void on_resize(GLFWwindow* window, int32_t width, int32_t height) noexcept;
+
+    private:
+        framebuf_resize_controller() = default;
+        framebuf_resize_controller(float fov, float aspect, float near, float far);
+
+    public:
+        float fov;
+        float aspect;
+        float near;
+        float far;
+        uint32_t width;
+        uint32_t height;
+        glm::mat4 projection;
+    };
+
+    static framebuf_resize_controller& framebuffer;
 
 private:
     struct glfw_deinitializer {
@@ -43,5 +60,5 @@ private:
     std::string m_title;
     GLFWwindow* m_window = nullptr;
 
-    float m_fov;
+    camera m_camera;
 };

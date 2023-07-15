@@ -1,13 +1,15 @@
 #include "application.hpp"
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include <imgui/imgui.h>
+#include <imgui/backends/imgui_impl_glfw.h>
+#include <imgui/backends/imgui_impl_opengl3.h>
 
 #include "assert.hpp"
 #include "shader.hpp"
 #include "texture.hpp"
 
 std::unique_ptr<bool, application::glfw_deinitializer> application::is_glfw_initialized(new bool(glfwInit() == GLFW_TRUE));
+application::framebuf_resize_controller& application::framebuffer = application::framebuf_resize_controller::get();
 
 application &application::get(const std::string_view &title, uint32_t width, uint32_t height) noexcept {
     static application app(title, width, height);
@@ -15,7 +17,7 @@ application &application::get(const std::string_view &title, uint32_t width, uin
 }
 
 application::application(const std::string_view &title, uint32_t width, uint32_t height)
-    : m_title(title), m_fov(45.0f)
+    : m_title(title), m_camera(glm::vec3(0.0f, 0.0f, 5.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, 45.0f)
 {
     const char* glfw_error_msg = nullptr;
 
@@ -35,8 +37,12 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     ASSERT(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress), "GLAD error", "failed to initialize GLAD");
     glfwSwapInterval(1);
 
-    _framebuffer_resize_callback(m_window, width, height);
-    glfwSetFramebufferSizeCallback(m_window, &application::_framebuffer_resize_callback);
+    framebuffer.fov = 45.0f;
+    framebuffer.near = 0.1f;
+    framebuffer.far = 100.0f;
+
+    framebuffer.on_resize(m_window, width, height);
+    glfwSetFramebufferSizeCallback(m_window, &framebuf_resize_controller::on_resize);
 
     glEnable(GL_DEPTH_TEST);
 
@@ -79,10 +85,6 @@ void application::_imgui_frame_begin() const noexcept {
 void application::_imgui_frame_end() const noexcept {
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-}
-
-void application::_framebuffer_resize_callback(GLFWwindow *window, int32_t width, int32_t height) noexcept {
-    glViewport(0, 0, width, height);
 }
 
 void application::run() noexcept {
@@ -147,33 +149,63 @@ void application::run() noexcept {
     //     0, 2, 1,
     //     0, 3, 2
     // };
-
+    //
     // uint32_t EBO;
     // glGenBuffers(1, &EBO);
     // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indexes), indexes, GL_STATIC_DRAW);
 
-    texture texture0;
-    texture0.create(RESOURCE_DIR "textures/minecraft_block.png", texture::config(GL_TEXTURE_2D, GL_CLAMP_TO_BORDER, GL_CLAMP_TO_BORDER, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true));
+    const texture::config config(GL_TEXTURE_2D, GL_CLAMP_TO_BORDER, GL_CLAMP_TO_BORDER, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true);
 
-    texture texture1;
-    texture1.create(RESOURCE_DIR "textures/cat.png", texture::config(GL_TEXTURE_2D, GL_CLAMP_TO_BORDER, GL_CLAMP_TO_BORDER, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true));
+    texture texture0, texture1;
+    texture0.create(RESOURCE_DIR "textures/minecraft_block.png", config);
+    texture1.create(RESOURCE_DIR "textures/cat.png", config);
 
     shader shader;
     shader.create(RESOURCE_DIR "shaders/texture.vert", RESOURCE_DIR "shaders/texture.frag");
     shader.uniform("u_texture0", 0);
     shader.uniform("u_texture1", 1);
-    shader.uniform("u_view", glm::lookAt(glm::vec3(0.0f, 0.0f, 5.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
-    shader.uniform("u_projection", glm::perspective(glm::radians(m_fov), 720.0f / 640.0f, 0.05f, 100.0f));
 
-    float intensity = 1.0f;
-    shader.uniform("u_intensity", intensity);
+    shader.uniform("u_view", m_camera.get_view());
+    shader.uniform("u_projection", framebuffer.projection);
 
     ImGuiIO& io = ImGui::GetIO();
 
     while (!glfwWindowShouldClose(m_window)) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glfwPollEvents();
+
+        {
+            if (glfwGetKey(m_window, GLFW_KEY_W)) {
+                m_camera.move(m_camera.get_speed() * m_camera.get_forward() * io.DeltaTime);
+                shader.uniform("u_view", m_camera.get_view());
+            } else if (glfwGetKey(m_window, GLFW_KEY_S)) {
+                m_camera.move(-m_camera.get_speed() * m_camera.get_forward() * io.DeltaTime);
+                shader.uniform("u_view", m_camera.get_view());
+            }
+            if (glfwGetKey(m_window, GLFW_KEY_D)) {
+                m_camera.move(m_camera.get_speed() * m_camera.get_right() * io.DeltaTime);
+                shader.uniform("u_view", m_camera.get_view());
+            } else if (glfwGetKey(m_window, GLFW_KEY_A)) {
+                m_camera.move(-m_camera.get_speed() * m_camera.get_right() * io.DeltaTime);
+                shader.uniform("u_view", m_camera.get_view());
+            }
+
+            if (glfwGetKey(m_window, GLFW_KEY_RIGHT)) {
+                m_camera.rotate(-glm::radians(m_camera.get_sensitivity()) * io.DeltaTime, glm::vec2(0.0f, 1.0f));
+                shader.uniform("u_view", m_camera.get_view());
+            } else if (glfwGetKey(m_window, GLFW_KEY_LEFT)) {
+                m_camera.rotate(glm::radians(m_camera.get_sensitivity()) * io.DeltaTime, glm::vec2(0.0f, 1.0f));
+                shader.uniform("u_view", m_camera.get_view());
+            }
+            if (glfwGetKey(m_window, GLFW_KEY_UP)) {
+                m_camera.rotate(-glm::radians(m_camera.get_sensitivity()) * io.DeltaTime, glm::vec2(1.0f, 0.0f));
+                shader.uniform("u_view", m_camera.get_view());
+            } else if (glfwGetKey(m_window, GLFW_KEY_DOWN)) {
+                m_camera.rotate(glm::radians(m_camera.get_sensitivity()) * io.DeltaTime, glm::vec2(1.0f, 0.0f));
+                shader.uniform("u_view", m_camera.get_view());
+            }
+        }
 
         shader.bind();
         shader.uniform("u_model", glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f)));
@@ -182,8 +214,8 @@ void application::run() noexcept {
         texture1.activate_unit(1);
 
         glBindVertexArray(VAO);
-        // glDrawElements(GL_TRIANGLES, sizeof(indexes) / sizeof(indexes[0]), GL_UNSIGNED_INT, nullptr);
         glDrawArrays(GL_TRIANGLES, 0, 36);
+        // glDrawElements(GL_TRIANGLES, sizeof(indexes) / sizeof(indexes[0]), GL_UNSIGNED_INT, nullptr);
 
         {
             _imgui_frame_begin();
@@ -192,12 +224,15 @@ void application::run() noexcept {
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
             ImGui::End();
 
-            ImGui::Begin("Settings");
-            if (ImGui::SliderFloat("intensity", &intensity, 0.0f, 1.0f)) {
-                shader.uniform("u_intensity", intensity);
+            ImGui::Begin("Camera");
+            if (ImGui::DragFloat3("position", &m_camera.get_position().x) ||
+                ImGui::SliderFloat("speed", &m_camera.get_speed(), 1.0f, 100.0f) ||
+                ImGui::SliderFloat("sensitivity", &m_camera.get_sensitivity(), 1.0f, 100.0f)) {
+                shader.uniform("u_view", m_camera.get_view());
             }
-            if (ImGui::SliderFloat("field of view", &m_fov, 0.0f, 180.0f)) {
-                shader.uniform("u_projection", glm::perspective(glm::radians(m_fov), 720.0f / 640.0f, 0.05f, 100.0f));
+            if (ImGui::SliderFloat("field of view", &framebuffer.fov, 0.0f, 180.0f)) {
+                framebuffer.on_resize(m_window, framebuffer.width, framebuffer.height);
+                shader.uniform("u_projection", framebuffer.projection);
             }
             ImGui::End();
 
@@ -213,4 +248,25 @@ void application::glfw_deinitializer::operator()(bool *is_glfw_initialized) noex
     if (is_glfw_initialized != nullptr) {
         *is_glfw_initialized = false;
     }
+}
+
+application::framebuf_resize_controller::framebuf_resize_controller(float fov, float aspect, float near, float far)
+    : fov(fov), aspect(aspect), near(near), far(far), projection(glm::perspective(glm::radians(fov), aspect, near, far)) 
+{
+}
+
+application::framebuf_resize_controller &application::framebuf_resize_controller::get() noexcept {
+    static framebuf_resize_controller state;
+    return state;
+}
+
+void application::framebuf_resize_controller::on_resize(GLFWwindow *window, int32_t width, int32_t height) noexcept {
+    glViewport(0, 0, width, height);
+
+    framebuffer.width = width;
+    framebuffer.height = height;
+    
+    framebuffer.aspect = static_cast<float>(width) / height;
+    
+    framebuffer.projection = glm::perspective(glm::radians(framebuffer.fov), framebuffer.aspect, framebuffer.near, framebuffer.far);
 }
