@@ -42,4 +42,6 @@ private:
 private:
     std::string m_title;
     GLFWwindow* m_window = nullptr;
+
+    float m_fov;
 };

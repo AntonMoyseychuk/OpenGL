@@ -15,7 +15,7 @@ application &application::get(const std::string_view &title, uint32_t width, uin
 }
 
 application::application(const std::string_view &title, uint32_t width, uint32_t height)
-    : m_title(title)
+    : m_title(title), m_fov(45.0f)
 {
     const char* glfw_error_msg = nullptr;
 
@@ -37,6 +37,8 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
     _framebuffer_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &application::_framebuffer_resize_callback);
+
+    glEnable(GL_DEPTH_TEST);
 
     _init_imgui("#version 430");
 }
@@ -89,32 +91,67 @@ void application::run() noexcept {
     glBindVertexArray(VAO);
 
     float vertices[] = {
-       -0.5f, -0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   0.0f, 0.0f,
-       -0.5f,  0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   0.0f, 1.0f,
-        0.5f,  0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 1.0f,
-        0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
     };
 
     uint32_t VBO;
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
 
-    size_t indexes[] = {
-        0, 2, 1,
-        0, 3, 2
-    };
+    // size_t indexes[] = {
+    //     0, 2, 1,
+    //     0, 3, 2
+    // };
 
-    uint32_t EBO;
-    glGenBuffers(1, &EBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indexes), indexes, GL_STATIC_DRAW);
+    // uint32_t EBO;
+    // glGenBuffers(1, &EBO);
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indexes), indexes, GL_STATIC_DRAW);
 
     texture texture0;
     texture0.create(RESOURCE_DIR "textures/minecraft_block.png", texture::config(GL_TEXTURE_2D, GL_CLAMP_TO_BORDER, GL_CLAMP_TO_BORDER, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true));
@@ -126,6 +163,8 @@ void application::run() noexcept {
     shader.create(RESOURCE_DIR "shaders/texture.vert", RESOURCE_DIR "shaders/texture.frag");
     shader.uniform("u_texture0", 0);
     shader.uniform("u_texture1", 1);
+    shader.uniform("u_view", glm::lookAt(glm::vec3(0.0f, 0.0f, 5.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
+    shader.uniform("u_projection", glm::perspective(glm::radians(m_fov), 720.0f / 640.0f, 0.05f, 100.0f));
 
     float intensity = 1.0f;
     shader.uniform("u_intensity", intensity);
@@ -133,10 +172,18 @@ void application::run() noexcept {
     ImGuiIO& io = ImGui::GetIO();
 
     while (!glfwWindowShouldClose(m_window)) {
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glfwPollEvents();
 
         shader.bind();
+        shader.uniform("u_model", glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f)));
+
+        texture0.activate_unit(0);
+        texture1.activate_unit(1);
+
+        glBindVertexArray(VAO);
+        // glDrawElements(GL_TRIANGLES, sizeof(indexes) / sizeof(indexes[0]), GL_UNSIGNED_INT, nullptr);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         {
             _imgui_frame_begin();
@@ -149,16 +196,13 @@ void application::run() noexcept {
             if (ImGui::SliderFloat("intensity", &intensity, 0.0f, 1.0f)) {
                 shader.uniform("u_intensity", intensity);
             }
+            if (ImGui::SliderFloat("field of view", &m_fov, 0.0f, 180.0f)) {
+                shader.uniform("u_projection", glm::perspective(glm::radians(m_fov), 720.0f / 640.0f, 0.05f, 100.0f));
+            }
             ImGui::End();
 
             _imgui_frame_end();
         }
-
-        texture0.activate_unit(0);
-        texture1.activate_unit(1);
-
-        glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, sizeof(indexes) / sizeof(indexes[0]), GL_UNSIGNED_INT, nullptr);
 
         glfwSwapBuffers(m_window);
     }

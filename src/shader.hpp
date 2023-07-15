@@ -1,6 +1,7 @@
 #pragma once
 #include <glad/glad.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <spdlog/spdlog.h>
 
@@ -19,14 +20,14 @@ public:
     bool unbind() const noexcept;
     bool is_binded() const noexcept;
 
-    void uniform(const char* name, bool             value) const noexcept;
-    void uniform(const char* name, float            value) const noexcept;
-    void uniform(const char* name, double           value) const noexcept;
-    void uniform(const char* name, int32_t          value) const noexcept;
-    void uniform(const char* name, uint32_t         value) const noexcept;
-    void uniform(const char* name, const glm::vec3& value) const noexcept;
-    void uniform(const char* name, const glm::vec4& value) const noexcept;
-    void uniform(const char* name, const glm::mat4& value) const noexcept;
+    void uniform(const char* name, bool             uniform) const noexcept;
+    void uniform(const char* name, float            uniform) const noexcept;
+    void uniform(const char* name, double           uniform) const noexcept;
+    void uniform(const char* name, int32_t          uniform) const noexcept;
+    void uniform(const char* name, uint32_t         uniform) const noexcept;
+    void uniform(const char* name, const glm::vec3& uniform) const noexcept;
+    void uniform(const char* name, const glm::vec4& uniform) const noexcept;
+    void uniform(const char* name, const glm::mat4& uniform) const noexcept;
 
 private:
     template <typename glUniformFunc, typename ... Args>

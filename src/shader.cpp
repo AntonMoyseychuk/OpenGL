@@ -43,36 +43,36 @@ bool shader::is_binded() const noexcept {
     return m_is_binded;
 }
 
-void shader::uniform(const char *name, bool value) const noexcept {
-    _set_uniform(glUniform1ui, name, value);
+void shader::uniform(const char *name, bool uniform) const noexcept {
+    _set_uniform(glUniform1ui, name, uniform);
 }
 
-void shader::uniform(const char *name, float value) const noexcept {
-    _set_uniform(glUniform1f, name, value);
+void shader::uniform(const char *name, float uniform) const noexcept {
+    _set_uniform(glUniform1f, name, uniform);
 }
 
-void shader::uniform(const char *name, double value) const noexcept {
-    _set_uniform(glUniform1d, name, value);
+void shader::uniform(const char *name, double uniform) const noexcept {
+    _set_uniform(glUniform1d, name, uniform);
 }
 
-void shader::uniform(const char *name, int32_t value) const noexcept {
-    _set_uniform(glUniform1i, name, value);
+void shader::uniform(const char *name, int32_t uniform) const noexcept {
+    _set_uniform(glUniform1i, name, uniform);
 }
 
-void shader::uniform(const char *name, uint32_t value) const noexcept {
-    _set_uniform(glUniform1ui, name, value);
+void shader::uniform(const char *name, uint32_t uniform) const noexcept {
+    _set_uniform(glUniform1ui, name, uniform);
 }
 
-void shader::uniform(const char *name, const glm::vec3& value) const noexcept {
-    _set_uniform(glUniform3fv, name, 1, &value.x);
+void shader::uniform(const char *name, const glm::vec3& uniform) const noexcept {
+    _set_uniform(glUniform3fv, name, 1, glm::value_ptr(uniform));
 }
 
-void shader::uniform(const char *name, const glm::vec4& value) const noexcept {
-    _set_uniform(glUniform4fv, name, 1, &value[0]);
+void shader::uniform(const char *name, const glm::vec4& uniform) const noexcept {
+    _set_uniform(glUniform4fv, name, 1, glm::value_ptr(uniform));
 }
 
-void shader::uniform(const char *name, const glm::mat4& value) const noexcept {
-    _set_uniform(glUniformMatrix4fv, name, 1, false, &value[0][0]);
+void shader::uniform(const char *name, const glm::mat4& uniform) const noexcept {
+    _set_uniform(glUniformMatrix4fv, name, 1, false, glm::value_ptr(uniform));
 }
 
 std::string shader::_read_shader_data_from_file(const char *filepath) noexcept {
