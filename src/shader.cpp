@@ -6,18 +6,42 @@
 std::unordered_map<std::string, uint32_t> shader::precompiled_shaders;
 
 uint32_t shader::create(const char *vs_filepath, const char *fs_filepath) const noexcept {
+    int32_t success;
+    
     uint32_t vs_id = _create_shader(GL_VERTEX_SHADER, vs_filepath);
-    if (vs_id == 0) {
+    glGetShaderiv(vs_id, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        int32_t error_msg_len = 0;
+        glGetShaderiv(vs_id, GL_INFO_LOG_LENGTH, &error_msg_len);
+
+        char* error_msg = (char*)alloca(error_msg_len);
+        glGetShaderInfoLog(vs_id, error_msg_len, nullptr, error_msg);
+        spdlog::error("{} shader compilation error: {}", vs_filepath, error_msg);
+
+        glDeleteShader(vs_id);
         return false;
     }
 
     uint32_t fs_id = _create_shader(GL_FRAGMENT_SHADER, fs_filepath);
-    if (fs_id == 0) {
+    glGetShaderiv(fs_id, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        int32_t error_msg_len = 0;
+        glGetShaderiv(fs_id, GL_INFO_LOG_LENGTH, &error_msg_len);
+
+        char* error_msg = (char*)alloca(error_msg_len);
+        glGetShaderInfoLog(fs_id, error_msg_len, nullptr, error_msg);
+        spdlog::error("{} shader compilation error: {}", fs_filepath, error_msg);
+
+        glDeleteShader(fs_id);
         return false;
     }
 
     m_program_id = _create_shader_program(vs_id, fs_id);
 
+    return m_program_id;
+}
+
+uint32_t shader::get_id() const noexcept {
     return m_program_id;
 }
 
@@ -75,6 +99,14 @@ void shader::uniform(const char *name, const glm::mat4& uniform) const noexcept 
     _set_uniform(glUniformMatrix4fv, name, 1, false, glm::value_ptr(uniform));
 }
 
+bool shader::operator==(const shader &shader) const noexcept {
+    return m_program_id == shader.m_program_id;
+}
+
+bool shader::operator!=(const shader &shader) const noexcept {
+    return !this->operator==(shader);
+}
+
 std::string shader::_read_shader_data_from_file(const char *filepath) noexcept {
     std::ifstream file(filepath);
 
@@ -93,18 +125,6 @@ uint32_t shader::_compile_shader(GLenum shader_type, const char *source) noexcep
     const uint32_t id = glCreateShader(shader_type);
     glShaderSource(id, 1, &source, nullptr);
     glCompileShader(id);
-
-    int32_t success;
-    glGetShaderiv(id, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        int32_t error_msg_len = 0;
-        glGetShaderiv(id, GL_INFO_LOG_LENGTH, &error_msg_len);
-
-        char* error_msg = (char*)alloca(error_msg_len);
-        glGetShaderInfoLog(id, error_msg_len, nullptr, error_msg);
-        spdlog::error("{} shader compilation error: {}", (shader_type == GL_VERTEX_SHADER ? "vertex" : "fragment"), error_msg);
-        return 0;
-    }
 
     return id;
 }

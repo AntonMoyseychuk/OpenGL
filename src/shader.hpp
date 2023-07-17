@@ -15,6 +15,7 @@ public:
     shader() = default;
 
     uint32_t create(const char* vs_filepath, const char* fs_filepath) const noexcept;
+    uint32_t get_id() const noexcept;
 
     bool bind() const noexcept;
     bool unbind() const noexcept;
@@ -28,6 +29,9 @@ public:
     void uniform(const char* name, const glm::vec3& uniform) const noexcept;
     void uniform(const char* name, const glm::vec4& uniform) const noexcept;
     void uniform(const char* name, const glm::mat4& uniform) const noexcept;
+
+    bool operator==(const shader& shader) const noexcept;
+    bool operator!=(const shader& shader) const noexcept;
 
 private:
     template <typename glUniformFunc, typename ... Args>

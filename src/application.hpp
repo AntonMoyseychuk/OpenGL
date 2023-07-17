@@ -61,4 +61,6 @@ private:
     GLFWwindow* m_window = nullptr;
 
     camera m_camera;
+    bool m_wireframed = false;
+    bool m_fixed_camera = false;
 };
