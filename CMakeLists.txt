@@ -10,6 +10,7 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/glad)
 add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/glm)
 add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/imgui)
 add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/spdlog)
+add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/assimp)
 
 file(GLOB_RECURSE SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 
@@ -29,4 +30,4 @@ if (MSVC)
     set_target_properties("${CMAKE_PROJECT_NAME}" PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
 endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad glm imgui spdlog)
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad glm imgui spdlog assimp)

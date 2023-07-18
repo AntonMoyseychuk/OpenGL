@@ -5,7 +5,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
-#include "assert.hpp"
+#include "debug.hpp"
+#include "log.hpp"
 
 std::unordered_map<std::string, texture::texture_data> texture::preloaded_textures;
 
@@ -19,27 +20,27 @@ uint32_t texture::create(const char *filepath, const config& config) const noexc
     stbi_set_flip_vertically_on_load(true);
     uint8_t* texture_data = stbi_load(filepath, (int*)&m_data.width, (int*)&m_data.height, (int*)&m_data.channel_count, 0);
     if (texture_data == nullptr) {
-        spdlog::error("texture error: couldn't load texture from {}", filepath);
+        LOG_ERROR("texture error", "couldn't load texture from " + std::string(filepath));
         return 0;
     }
 
-    glGenTextures(1, &m_data.id);
+    OGL_CALL(glGenTextures(1, &m_data.id));
     if (bind(); !is_binded()) {
-        spdlog::error("texture error: texture binding failed");
+        LOG_ERROR("texture error", "texture binding failed");
         stbi_image_free(texture_data);    
         return 0;
     }
 
     const uint32_t format = m_data.channel_count == 3 ? GL_RGB : GL_RGBA;
-    glTexImage2D(m_config.type, 0, format, m_data.width, m_data.height, 0, format, GL_UNSIGNED_BYTE, texture_data);
+    OGL_CALL(glTexImage2D(m_config.type, 0, format, m_data.width, m_data.height, 0, format, GL_UNSIGNED_BYTE, texture_data));
     if (config.generate_mipmap) {
-        glGenerateMipmap(m_config.type);
+        OGL_CALL(glGenerateMipmap(m_config.type));
     }
 
-    glTextureParameteri(m_config.type, GL_TEXTURE_WRAP_S, m_config.wrap_s);
-    glTextureParameteri(m_config.type, GL_TEXTURE_WRAP_T, m_config.wrap_t);
-    glTextureParameteri(m_config.type, GL_TEXTURE_MIN_FILTER, m_config.min_filter);
-    glTextureParameteri(m_config.type, GL_TEXTURE_MAG_FILTER, m_config.mag_filter);
+    OGL_CALL(glTexParameteri(m_config.type, GL_TEXTURE_WRAP_S, m_config.wrap_s));
+    OGL_CALL(glTexParameteri(m_config.type, GL_TEXTURE_WRAP_T, m_config.wrap_t));
+    OGL_CALL(glTexParameteri(m_config.type, GL_TEXTURE_MIN_FILTER, m_config.min_filter));
+    OGL_CALL(glTexParameteri(m_config.type, GL_TEXTURE_MAG_FILTER, m_config.mag_filter));
 
     stbi_image_free(texture_data);
 
@@ -51,19 +52,19 @@ uint32_t texture::create(const char *filepath, const config& config) const noexc
 void texture::activate_unit(uint32_t unit) const noexcept {
 #ifdef _DEBUG
     int32_t max_units_count;
-    glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_units_count);
+    OGL_CALL(glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_units_count));
     ASSERT(unit < max_units_count, "texture error", "unit value is greater than GL_MAX_TEXTURE_UNITS");
 #endif
 
     m_data.texture_unit = GL_TEXTURE0 + unit;
-    glActiveTexture(m_data.texture_unit);
+    OGL_CALL(glActiveTexture(m_data.texture_unit));
     bind();
 }
 
 bool texture::bind() const noexcept {
     const bool was_binded = m_is_binded;
 
-    glBindTexture(m_config.type, m_data.id);
+    OGL_CALL(glBindTexture(m_config.type, m_data.id));
     m_is_binded = (m_data.id != 0);
 
     return was_binded;
@@ -72,7 +73,7 @@ bool texture::bind() const noexcept {
 bool texture::unbind() const noexcept {
     const bool was_binded = m_is_binded;
 
-    glBindTexture(m_config.type, 0);
+    OGL_CALL(glBindTexture(m_config.type, 0));
     m_is_binded = false;
 
     return was_binded;

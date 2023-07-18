@@ -4,10 +4,14 @@
 #include <imgui/backends/imgui_impl_glfw.h>
 #include <imgui/backends/imgui_impl_opengl3.h>
 
-#include "assert.hpp"
+#include "debug.hpp"
 
 #include "shader.hpp"
 #include "texture.hpp"
+
+#include "light/spot_light.hpp"
+#include "light/point_light.hpp"
+#include "light/directional_light.hpp"
 
 #include <algorithm>
 
@@ -34,6 +38,10 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
+#ifdef _DEBUG
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+#endif
+
     m_window = glfwCreateWindow(width, height, m_title.c_str(), nullptr, nullptr);
     ASSERT(m_window != nullptr, "GLFW error", 
         (_destroy(), glfwGetError(&glfw_error_msg), glfw_error_msg != nullptr ? glfw_error_msg : "unrecognized error"));
@@ -42,54 +50,19 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     ASSERT(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress), "GLAD error", "failed to initialize GLAD");
     glfwSwapInterval(1);
 
+#ifdef _DEBUG
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+#endif
+
     framebuffer.fov = 45.0f;
     framebuffer.near = 0.1f;
     framebuffer.far = 100.0f;
-
     framebuffer.on_resize(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &framebuf_resize_controller::on_resize);
 
-    glEnable(GL_DEPTH_TEST);
+    OGL_CALL(glEnable(GL_DEPTH_TEST));
 
     _init_imgui("#version 430");
-}
-
-application::~application() {
-    _destroy();
-    _shutdown_imgui();
-}
-
-void application::_destroy() noexcept {
-    glfwDestroyWindow(m_window);
-}
-
-void application::_init_imgui(const char *glsl_version) const noexcept {
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-    ImGui::StyleColorsDark();
-
-    ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-    ImGui_ImplOpenGL3_Init("#version 430 core");
-}
-
-void application::_shutdown_imgui() const noexcept {
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-}
-
-void application::_imgui_frame_begin() const noexcept {
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-}
-
-void application::_imgui_frame_end() const noexcept {
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
 void application::run() noexcept {
@@ -138,31 +111,31 @@ void application::run() noexcept {
     };
 
     uint32_t obj_vao;
-    glGenVertexArrays(1, &obj_vao);
-    glBindVertexArray(obj_vao);
+    OGL_CALL(glGenVertexArrays(1, &obj_vao));
+    OGL_CALL(glBindVertexArray(obj_vao));
 
     uint32_t obj_vbo;
-    glGenBuffers(1, &obj_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, obj_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vert), cube_vert, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, false, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, false, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
+    OGL_CALL(glGenBuffers(1, &obj_vbo));
+    OGL_CALL(glBindBuffer(GL_ARRAY_BUFFER, obj_vbo));
+    OGL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vert), cube_vert, GL_STATIC_DRAW));
+    OGL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, false, 8 * sizeof(float), (void*)0));
+    OGL_CALL(glEnableVertexAttribArray(0));
+    OGL_CALL(glVertexAttribPointer(1, 3, GL_FLOAT, false, 8 * sizeof(float), (void*)(3 * sizeof(float))));
+    OGL_CALL(glEnableVertexAttribArray(1));
+    OGL_CALL(glVertexAttribPointer(2, 2, GL_FLOAT, false, 8 * sizeof(float), (void*)(6 * sizeof(float))));
+    OGL_CALL(glEnableVertexAttribArray(2));
 
 
     uint32_t light_vao;
-    glGenVertexArrays(1, &light_vao);
-    glBindVertexArray(light_vao);
+    OGL_CALL(glGenVertexArrays(1, &light_vao));
+    OGL_CALL(glBindVertexArray(light_vao));
 
     uint32_t light_vbo;
-    glGenBuffers(1, &light_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, light_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vert), cube_vert, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    OGL_CALL(glGenBuffers(1, &light_vbo));
+    OGL_CALL(glBindBuffer(GL_ARRAY_BUFFER, light_vbo));
+    OGL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vert), cube_vert, GL_STATIC_DRAW));
+    OGL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, false, 8 * sizeof(float), (void*)0));
+    OGL_CALL(glEnableVertexAttribArray(0));
 
 
     const texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true);
@@ -174,28 +147,19 @@ void application::run() noexcept {
     texture specular_map;
     specular_map.create(RESOURCE_DIR "textures/container_specular.png", config);
 
-    shader directional_light_shader, point_light_shader, spot_light_shader;
-    directional_light_shader.create(RESOURCE_DIR "shaders/light.vert", RESOURCE_DIR "shaders/directional_light.frag");
-    directional_light_shader.uniform("u_material.diffuse", 0);
-    directional_light_shader.uniform("u_material.specular", 1);
-    directional_light_shader.uniform("u_material.emission", 2);
-    point_light_shader.create(RESOURCE_DIR "shaders/light.vert", RESOURCE_DIR "shaders/point_light.frag");
-    point_light_shader.uniform("u_material.diffuse", 0);
-    point_light_shader.uniform("u_material.specular", 1);
-    point_light_shader.uniform("u_material.emission", 2);
-    spot_light_shader.create(RESOURCE_DIR "shaders/light.vert", RESOURCE_DIR "shaders/spot_light.frag");
-    spot_light_shader.uniform("u_material.diffuse", 0);
-    spot_light_shader.uniform("u_material.specular", 1);
-    spot_light_shader.uniform("u_material.emission", 2);
 
     shader light_source_shader;
     light_source_shader.create(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/light_source.frag");
 
+    shader scene_shader;
+    scene_shader.create(RESOURCE_DIR "shaders/light.vert", RESOURCE_DIR "shaders/light.frag");
+    scene_shader.uniform("u_material.diffuse", 0);
+    scene_shader.uniform("u_material.specular", 1);
+    scene_shader.uniform("u_material.emission", 2);
+
     ImGuiIO& io = ImGui::GetIO();
 
-    glm::vec3 point_light_color(1.0f), dir_light_color(1.0f), spot_light_color(1.0f), point_light_position(1.5f, 1.0f, 4.5f), light_direction(-1.0f, -1.0f, -1.0f);
-    float material_shininess = 64.0f, cutoff = 12.5f;
-    double linear_coef = 0.09, quadratic_coef = 0.032;
+    float material_shininess = 64.0f;
 
     std::vector<glm::vec3> transforms = {
         glm::vec3( 0.0f,  0.0f,  0.0f), 
@@ -210,10 +174,27 @@ void application::run() noexcept {
         glm::vec3(-1.3f,  1.0f, -1.5f)
     };
 
-    shader curr_shader = spot_light_shader;
+    std::vector<point_light> point_lights = {
+        point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-3.0f,  3.0f, -3.0f), 0.09f, 0.032f),
+        point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 3.0f), 0.09f, 0.032f),
+        point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-3.0f, -3.0f,  3.0f), 0.09f, 0.032f),
+        point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 3.0f, -3.0f, -3.0f), 0.09f, 0.032f),
+    };
+
+    std::vector<spot_light> spot_lights = {
+        spot_light(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 0.0f,  5.0f, -2.0f), glm::vec3( 0.0f, -1.0f, 0.0f), 15.0f),
+        spot_light(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 0.0f, -5.0f, -2.0f), glm::vec3( 0.0f,  1.0f, 0.0f), 15.0f),
+        spot_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-5.0f,  0.0f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
+        spot_light(glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 5.0f,  0.0f, -2.0f), glm::vec3(-1.0f,  0.0f, 0.0f), 15.0f),
+    };
+
+    scene_shader.uniform("u_point_lights_count", (uint32_t)point_lights.size());
+    scene_shader.uniform("u_spot_lights_count", (uint32_t)spot_lights.size());
+
+    directional_light directional_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-1.0f, -1.0f, -1.0f));
 
     while (!glfwWindowShouldClose(m_window)) {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
         glfwPollEvents();
 
         if (!m_fixed_camera) {
@@ -249,115 +230,170 @@ void application::run() noexcept {
         specular_map.activate_unit(1);
         emission_map.activate_unit(2);
 
-        if (curr_shader == point_light_shader) {
-            glBindVertexArray(light_vao);
-            light_source_shader.bind();
-            light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), point_light_position), glm::vec3(0.2f)));
-            light_source_shader.uniform("u_view", m_camera.get_view());
-            light_source_shader.uniform("u_projection", framebuffer.projection);
-            light_source_shader.uniform("u_view_position", m_camera.position);
-            light_source_shader.uniform("u_light_settings.color", point_light_color);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+        OGL_CALL(glBindVertexArray(light_vao));
+        light_source_shader.bind();
+        light_source_shader.uniform("u_view", m_camera.get_view());
+        light_source_shader.uniform("u_projection", framebuffer.projection);
+        for (size_t i = 0; i < point_lights.size(); ++i) {
+            light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), point_lights[i].position), glm::vec3(0.2f)));
+            light_source_shader.uniform("u_light_settings.color", point_lights[i].color);
+            OGL_CALL(glDrawArrays(GL_TRIANGLES, 0, 36));
+        }
+        for (size_t i = 0; i < spot_lights.size(); ++i) {
+            light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), spot_lights[i].position), glm::vec3(0.2f)));
+            light_source_shader.uniform("u_light_settings.color", spot_lights[i].color);
+            OGL_CALL(glDrawArrays(GL_TRIANGLES, 0, 36));
         }
 
-        glBindVertexArray(obj_vao);
-        curr_shader.bind();
+        OGL_CALL(glBindVertexArray(obj_vao));
+        scene_shader.bind();
         
-        curr_shader.uniform("u_view", m_camera.get_view());
-        curr_shader.uniform("u_projection", framebuffer.projection);
-        curr_shader.uniform("u_view_position", m_camera.position);
+        scene_shader.uniform("u_view", m_camera.get_view());
+        scene_shader.uniform("u_projection", framebuffer.projection);
+        scene_shader.uniform("u_view_position", m_camera.position);
         const double t = glfwGetTime();
-        curr_shader.uniform("u_time", t - size_t(t));
-        if (curr_shader == directional_light_shader) {
-            curr_shader.uniform("u_light.direction", glm::normalize(light_direction));
-            
-            curr_shader.uniform("u_light.ambient", dir_light_color * glm::vec3(0.05f));
-            curr_shader.uniform("u_light.diffuse", dir_light_color * glm::vec3(0.5f));
-            curr_shader.uniform("u_light.specular", dir_light_color * glm::vec3(1.0f));
-        } else if (curr_shader == point_light_shader) {
-            curr_shader.uniform("u_light.position", point_light_position);
+        scene_shader.uniform("u_time", t - size_t(t));
 
-            curr_shader.uniform("u_light.linear", linear_coef);
-            curr_shader.uniform("u_light.quadratic", quadratic_coef);
-            
-            curr_shader.uniform("u_light.ambient", point_light_color * glm::vec3(0.05f));
-            curr_shader.uniform("u_light.diffuse", point_light_color * glm::vec3(0.5f));
-            curr_shader.uniform("u_light.specular", point_light_color * glm::vec3(1.0f));
-        } else if (curr_shader == spot_light_shader) {
-            curr_shader.uniform("u_light.position", m_camera.position);
-            curr_shader.uniform("u_light.direction", m_camera.get_forward());
-            curr_shader.uniform("u_light.cutoff", glm::cos(glm::radians(cutoff)));
+        scene_shader.uniform("u_material.shininess", material_shininess);
 
-            curr_shader.uniform("u_light.ambient", spot_light_color * glm::vec3(0.05f));
-            curr_shader.uniform("u_light.diffuse", spot_light_color * glm::vec3(0.5f));
-            curr_shader.uniform("u_light.specular", spot_light_color * glm::vec3(1.0f));
+        for (size_t i = 0; i < point_lights.size(); ++i) {
+            const std::string str_i = std::to_string(i);
+            
+            scene_shader.uniform(("u_point_lights[" + str_i + "].position").c_str(), point_lights[i].position);
+
+            scene_shader.uniform(("u_point_lights[" + str_i + "].linear"   ).c_str(), point_lights[i].linear);
+            scene_shader.uniform(("u_point_lights[" + str_i + "].quadratic").c_str(), point_lights[i].quadratic);
+            
+            scene_shader.uniform(("u_point_lights[" + str_i + "].ambient" ).c_str(), point_lights[i].color * point_lights[i].ambient);
+            scene_shader.uniform(("u_point_lights[" + str_i + "].diffuse" ).c_str(), point_lights[i].color * point_lights[i].diffuse);
+            scene_shader.uniform(("u_point_lights[" + str_i + "].specular").c_str(), point_lights[i].color * point_lights[i].specular);
         }
-        curr_shader.uniform("u_material.shininess", material_shininess);
+        for (size_t i = 0; i < spot_lights.size(); ++i) {
+            const std::string str_i = std::to_string(i);
+            
+            scene_shader.uniform(("u_spot_lights[" + str_i + "].position" ).c_str(), spot_lights[i].position);
+            scene_shader.uniform(("u_spot_lights[" + str_i + "].direction").c_str(), glm::normalize(spot_lights[i].direction));
+            scene_shader.uniform(("u_spot_lights[" + str_i + "].cutoff"   ).c_str(), glm::cos(glm::radians(spot_lights[i].cutoff)));
+
+            scene_shader.uniform(("u_spot_lights[" + str_i + "].ambient" ).c_str(),  spot_lights[i].color * spot_lights[i].ambient);
+            scene_shader.uniform(("u_spot_lights[" + str_i + "].diffuse" ).c_str(),  spot_lights[i].color * spot_lights[i].diffuse);
+            scene_shader.uniform(("u_spot_lights[" + str_i + "].specular").c_str(), spot_lights[i].color * spot_lights[i].specular);
+        }
+
+        scene_shader.uniform("u_dir_light.direction", glm::normalize(directional_light.direction));
+        scene_shader.uniform("u_dir_light.ambient", directional_light.color  * directional_light.ambient);
+        scene_shader.uniform("u_dir_light.diffuse", directional_light.color  * directional_light.diffuse);
+        scene_shader.uniform("u_dir_light.specular", directional_light.color * directional_light.specular);
         
         for (size_t i = 0; i < transforms.size(); ++i) {
             const glm::mat4 model = glm::translate(glm::mat4(1.0f), transforms[i]);
-            curr_shader.uniform("u_model", model);
-            curr_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model)));
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+            scene_shader.uniform("u_model", model);
+            scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model)));
+            OGL_CALL(glDrawArrays(GL_TRIANGLES, 0, 36));
         }
 
         {
+            using namespace ImGui;
             _imgui_frame_begin();
 
-            ImGui::Begin("Information");
-                if (ImGui::Checkbox("wireframe mode", &m_wireframed)) {
-                    glPolygonMode(GL_FRONT_AND_BACK, (m_wireframed ? GL_LINE : GL_FILL));
+            Begin("Information");
+                Text("OpenGL version: %s", glGetString(GL_VERSION)); NewLine();
+                
+                if (Checkbox("wireframe mode", &m_wireframed)) {
+                    OGL_CALL(glPolygonMode(GL_FRONT_AND_BACK, (m_wireframed ? GL_LINE : GL_FILL)));
                 }
-                ImGui::Checkbox("fixed camera mode", &m_fixed_camera);
-                ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-            ImGui::End();
+                Checkbox("fixed camera mode", &m_fixed_camera);
+                if (NewLine(), ColorEdit3("background color", glm::value_ptr(m_clear_color))) {
+                    OGL_CALL(glClearColor(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f));
+                }
 
-            ImGui::Begin("Camera");
-                if (ImGui::DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f) ||
-                    ImGui::DragFloat("speed", &m_camera.speed, 0.1f) ||
-                    ImGui::DragFloat("sensitivity", &m_camera.sensitivity, 0.1f)
+                Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            End();
+
+            Begin("Camera");
+                if (DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f) ||
+                    DragFloat("speed", &m_camera.speed, 0.1f) ||
+                    DragFloat("sensitivity", &m_camera.sensitivity, 0.1f)
                 ) {
                     m_camera.speed = std::clamp(m_camera.speed, 1.0f, std::numeric_limits<float>::max());
                     m_camera.sensitivity = std::clamp(m_camera.sensitivity, 0.1f, std::numeric_limits<float>::max());
                 }
-                if (ImGui::SliderFloat("field of view", &framebuffer.fov, 1.0f, 179.0f)) {
+                if (SliderFloat("field of view", &framebuffer.fov, 1.0f, 179.0f)) {
                     framebuffer.on_resize(m_window, framebuffer.width, framebuffer.height);
                 }
-            ImGui::End();
+            End();
 
-            ImGui::Begin("Light");
-                ImGui::Text("type: "); 
-                if (curr_shader == directional_light_shader) {
-                    ImGui::SameLine(); ImGui::TextColored(ImColor(0.0f, 1.0f, 0.0f), "directional");
+            Begin("Light");
+                TextColored({1.0f, 0.0f, 0.0f, 1.0f}, "directional-light"); 
+                DragFloat3("direction##dl", glm::value_ptr(directional_light.direction), 0.1f); 
+                ColorEdit3("color##dl", glm::value_ptr(directional_light.color));
 
-                    ImGui::NewLine(); ImGui::DragFloat3("direction", glm::value_ptr(light_direction), 0.01f);
-                    ImGui::ColorEdit3("color", glm::value_ptr(dir_light_color));
-                } else if (curr_shader == point_light_shader) {
-                    ImGui::SameLine(); ImGui::TextColored(ImColor(0.0f, 1.0f, 0.0f), "point");
-
-                    ImGui::NewLine(); ImGui::DragFloat3("position", glm::value_ptr(point_light_position), 0.1f);
-                    ImGui::InputDouble("linear", &linear_coef);
-                    ImGui::InputDouble("quadratic", &quadratic_coef);
-                    ImGui::ColorEdit3("color", glm::value_ptr(point_light_color));
-                } else if (curr_shader == spot_light_shader) {
-                    ImGui::SameLine(); ImGui::TextColored(ImColor(0.0f, 1.0f, 0.0f), "spot");
-                    
-                    ImGui::NewLine(); ImGui::SliderFloat("cutoff", &cutoff, 0.0f, 180.0f);
-                    ImGui::ColorEdit3("color", glm::value_ptr(spot_light_color));
+                for(size_t i = 0; i < point_lights.size(); ++i) {
+                    NewLine(); TextColored({0.0f, 1.0f, 0.0f, 1.0f}, "point-light-%s", std::to_string(i).c_str()); 
+                    DragFloat3(("position##pl" + std::to_string(i)).c_str(), glm::value_ptr(point_lights[i].position), 0.1f);
+                    ColorEdit3(("color##pl" + std::to_string(i)).c_str() , glm::value_ptr(point_lights[i].color));
+                    InputFloat(("linear##pl" + std::to_string(i)).c_str(), &point_lights[i].linear);
+                    InputFloat(("quadratic##pl" + std::to_string(i)).c_str(), &point_lights[i].quadratic);
                 }
-            ImGui::End();
 
-            ImGui::Begin("Plane");
-                if (ImGui::DragFloat("shininess", &material_shininess, 1.0f)) {
+                for(size_t i = 0; i < spot_lights.size(); ++i) {
+                    NewLine(); TextColored({0.0f, 0.0f, 1.0f, 1.0f}, "spot-light-%s", std::to_string(i).c_str()); 
+                    DragFloat3(("position##sl" + std::to_string(i)).c_str(), glm::value_ptr(spot_lights[i].position), 0.1f);
+                    DragFloat3(("direction##sl" + std::to_string(i)).c_str(), glm::value_ptr(spot_lights[i].direction), 0.1f);
+                    ColorEdit3(("color##sl" + std::to_string(i)).c_str(), glm::value_ptr(spot_lights[i].color));
+                    SliderFloat(("cutoff##sl" + std::to_string(i)).c_str(), &spot_lights[i].cutoff, 1.0f, 179.0f);
+                }
+            End();
+
+            Begin("Material");
+                if (DragFloat("shininess", &material_shininess, 1.0f)) {
                     material_shininess = std::clamp(material_shininess, 1.0f, std::numeric_limits<float>::max());
                 }
-            ImGui::End();
+            End();
 
             _imgui_frame_end();
         }
 
         glfwSwapBuffers(m_window);
     }
+}
+
+application::~application() {
+    _destroy();
+    _shutdown_imgui();
+}
+
+void application::_destroy() noexcept {
+    glfwDestroyWindow(m_window);
+}
+
+void application::_init_imgui(const char *glsl_version) const noexcept {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForOpenGL(m_window, true);
+    ImGui_ImplOpenGL3_Init("#version 430 core");
+}
+
+void application::_shutdown_imgui() const noexcept {
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+}
+
+void application::_imgui_frame_begin() const noexcept {
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+}
+
+void application::_imgui_frame_end() const noexcept {
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
 void application::glfw_deinitializer::operator()(bool *is_glfw_initialized) noexcept {
@@ -378,7 +414,7 @@ application::framebuf_resize_controller &application::framebuf_resize_controller
 }
 
 void application::framebuf_resize_controller::on_resize(GLFWwindow *window, int32_t width, int32_t height) noexcept {
-    glViewport(0, 0, width, height);
+    OGL_CALL(glViewport(0, 0, width, height));
 
     framebuffer.width = width;
     framebuffer.height = height;

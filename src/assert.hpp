@@ -1,12 +1,13 @@
 #pragma once
+#include "log.hpp"
+
 #include <stdio.h>
 #include <debugbreak.h>
-#include <spdlog/spdlog.h>
 
 #ifdef _DEBUG
     #define ASSERT(condition, tag, msg) do { \
         if (!(condition)) { \
-            spdlog::error("{}: {}\n[file]: {} ({})\n[function]: {}", (tag), &(msg)[0], __FILE__, __LINE__, __FUNCTION__);\
+            LOG_ERROR(tag, msg);\
             debug_break(); \
         } \
     } while(0);

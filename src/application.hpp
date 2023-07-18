@@ -61,6 +61,8 @@ private:
     GLFWwindow* m_window = nullptr;
 
     camera m_camera;
+    glm::vec3 m_clear_color = glm::vec3(0.0f);
+
     bool m_wireframed = false;
     bool m_fixed_camera = false;
 };
