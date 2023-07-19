@@ -37,9 +37,9 @@ struct SpotLight {
 };
 
 struct Material {
-    sampler2D diffuse;
-    sampler2D specular;
-    sampler2D emission;
+    sampler2D diffuse0;
+    sampler2D specular0;
+    sampler2D emission0;
 
     float shininess;
 };
@@ -115,8 +115,8 @@ vec3 calculate_spot_light(SpotLight light, vec3 normal, vec3 diffuse_map, vec3 s
 }
 
 void main() {
-    const vec3 diffuse_map = texture(u_material.diffuse, in_texcoord).rgb;
-    const vec3 specular_map = texture(u_material.specular, in_texcoord).rgb;
+    const vec3 diffuse_map = texture(u_material.diffuse0, in_texcoord).rgb;
+    const vec3 specular_map = texture(u_material.specular0, in_texcoord).rgb;
 
     const vec3 normal = normalize(in_normal);
 
@@ -131,7 +131,7 @@ void main() {
     }
 
     const vec2 emision_map_coord = vec2(in_texcoord.x, (1.0 - in_texcoord.y) - u_time);
-    const vec3 emission_map = texture(u_material.emission, (emision_map_coord)).rgb * floor(vec3(1.0) - specular_map);
+    const vec3 emission_map = texture(u_material.emission0, (emision_map_coord)).rgb * floor(vec3(1.0) - specular_map);
     out_color += emission_map;
 
     frag_color = vec4(out_color, 1.0);

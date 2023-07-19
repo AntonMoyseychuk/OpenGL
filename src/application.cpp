@@ -8,6 +8,7 @@
 
 #include "shader.hpp"
 #include "texture.hpp"
+#include "model.hpp"
 
 #include "light/spot_light.hpp"
 #include "light/point_light.hpp"
@@ -66,6 +67,15 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 }
 
 void application::run() noexcept {
+    // const texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true);
+    
+    // texture diffuse_map;
+    // diffuse_map.create(RESOURCE_DIR "textures/container.png", config);
+    // texture emission_map;
+    // emission_map.create(RESOURCE_DIR "textures/matrix.jpg", config);
+    // texture specular_map;
+    // specular_map.create(RESOURCE_DIR "textures/container_specular.png", config);
+    
     float cube_vert[] = {
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
          0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
@@ -73,35 +83,35 @@ void application::run() noexcept {
          0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
         -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-
+    
         -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  0.0f, 0.0f,
          0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  1.0f, 0.0f,
          0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  1.0f, 1.0f,
          0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  1.0f, 1.0f,
         -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  0.0f, 1.0f,
         -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  0.0f, 0.0f,
-
+    
         -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
         -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
         -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
         -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
         -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
         -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-
+    
          0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
          0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
          0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
          0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
          0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
          0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-
+    
         -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
          0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
          0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
          0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
         -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
         -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-
+    
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
          0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
          0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
@@ -109,57 +119,22 @@ void application::run() noexcept {
         -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
     };
+    
+    mesh mesh;
+    mesh.create(std::vector<mesh::vertex>((mesh::vertex*)cube_vert, (mesh::vertex*)cube_vert + sizeof(cube_vert) / sizeof(mesh::vertex)), {}, {}/*std::vector<texture> { 
+        { texture::type::DIFFUSE, diffuse_map },
+        { texture::type::SPECULAR, specular_map },
+        { texture::type::EMISSION, emission_map },
+    }*/);
 
-    uint32_t obj_vao;
-    OGL_CALL(glGenVertexArrays(1, &obj_vao));
-    OGL_CALL(glBindVertexArray(obj_vao));
-
-    uint32_t obj_vbo;
-    OGL_CALL(glGenBuffers(1, &obj_vbo));
-    OGL_CALL(glBindBuffer(GL_ARRAY_BUFFER, obj_vbo));
-    OGL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vert), cube_vert, GL_STATIC_DRAW));
-    OGL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, false, 8 * sizeof(float), (void*)0));
-    OGL_CALL(glEnableVertexAttribArray(0));
-    OGL_CALL(glVertexAttribPointer(1, 3, GL_FLOAT, false, 8 * sizeof(float), (void*)(3 * sizeof(float))));
-    OGL_CALL(glEnableVertexAttribArray(1));
-    OGL_CALL(glVertexAttribPointer(2, 2, GL_FLOAT, false, 8 * sizeof(float), (void*)(6 * sizeof(float))));
-    OGL_CALL(glEnableVertexAttribArray(2));
-
-
-    uint32_t light_vao;
-    OGL_CALL(glGenVertexArrays(1, &light_vao));
-    OGL_CALL(glBindVertexArray(light_vao));
-
-    uint32_t light_vbo;
-    OGL_CALL(glGenBuffers(1, &light_vbo));
-    OGL_CALL(glBindBuffer(GL_ARRAY_BUFFER, light_vbo));
-    OGL_CALL(glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vert), cube_vert, GL_STATIC_DRAW));
-    OGL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, false, 8 * sizeof(float), (void*)0));
-    OGL_CALL(glEnableVertexAttribArray(0));
-
-
-    const texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true);
-
-    texture diffuse_map;
-    diffuse_map.create(RESOURCE_DIR "textures/container.png", config);
-    texture emission_map;
-    emission_map.create(RESOURCE_DIR "textures/matrix.jpg", config);
-    texture specular_map;
-    specular_map.create(RESOURCE_DIR "textures/container_specular.png", config);
-
+    model model;
+    model.create(RESOURCE_DIR "models/backpack/backpack.obj");
 
     shader light_source_shader;
     light_source_shader.create(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/light_source.frag");
 
     shader scene_shader;
     scene_shader.create(RESOURCE_DIR "shaders/light.vert", RESOURCE_DIR "shaders/light.frag");
-    scene_shader.uniform("u_material.diffuse", 0);
-    scene_shader.uniform("u_material.specular", 1);
-    scene_shader.uniform("u_material.emission", 2);
-
-    ImGuiIO& io = ImGui::GetIO();
-
-    float material_shininess = 64.0f;
 
     std::vector<glm::vec3> transforms = {
         glm::vec3( 0.0f,  0.0f,  0.0f), 
@@ -173,25 +148,26 @@ void application::run() noexcept {
         glm::vec3( 1.5f,  0.2f, -1.5f), 
         glm::vec3(-1.3f,  1.0f, -1.5f)
     };
-
     std::vector<point_light> point_lights = {
         point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-3.0f,  3.0f, -3.0f), 0.09f, 0.032f),
         point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 3.0f), 0.09f, 0.032f),
         point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-3.0f, -3.0f,  3.0f), 0.09f, 0.032f),
         point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 3.0f, -3.0f, -3.0f), 0.09f, 0.032f),
     };
-
     std::vector<spot_light> spot_lights = {
         spot_light(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 0.0f,  5.0f, -2.0f), glm::vec3( 0.0f, -1.0f, 0.0f), 15.0f),
         spot_light(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 0.0f, -5.0f, -2.0f), glm::vec3( 0.0f,  1.0f, 0.0f), 15.0f),
         spot_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-5.0f,  0.0f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
         spot_light(glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 5.0f,  0.0f, -2.0f), glm::vec3(-1.0f,  0.0f, 0.0f), 15.0f),
     };
+    directional_light directional_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-1.0f, -1.0f, -1.0f));
 
     scene_shader.uniform("u_point_lights_count", (uint32_t)point_lights.size());
     scene_shader.uniform("u_spot_lights_count", (uint32_t)spot_lights.size());
 
-    directional_light directional_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-1.0f, -1.0f, -1.0f));
+
+    ImGuiIO& io = ImGui::GetIO();
+    float material_shininess = 64.0f;
 
     while (!glfwWindowShouldClose(m_window)) {
         OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
@@ -226,28 +202,21 @@ void application::run() noexcept {
             }
         }
 
-        diffuse_map.activate_unit(0);
-        specular_map.activate_unit(1);
-        emission_map.activate_unit(2);
-
-        OGL_CALL(glBindVertexArray(light_vao));
         light_source_shader.bind();
         light_source_shader.uniform("u_view", m_camera.get_view());
         light_source_shader.uniform("u_projection", framebuffer.projection);
         for (size_t i = 0; i < point_lights.size(); ++i) {
             light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), point_lights[i].position), glm::vec3(0.2f)));
             light_source_shader.uniform("u_light_settings.color", point_lights[i].color);
-            OGL_CALL(glDrawArrays(GL_TRIANGLES, 0, 36));
+            mesh.draw(light_source_shader);
         }
         for (size_t i = 0; i < spot_lights.size(); ++i) {
             light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), spot_lights[i].position), glm::vec3(0.2f)));
             light_source_shader.uniform("u_light_settings.color", spot_lights[i].color);
-            OGL_CALL(glDrawArrays(GL_TRIANGLES, 0, 36));
+            mesh.draw(light_source_shader);
         }
-
-        OGL_CALL(glBindVertexArray(obj_vao));
-        scene_shader.bind();
         
+        scene_shader.bind();
         scene_shader.uniform("u_view", m_camera.get_view());
         scene_shader.uniform("u_projection", framebuffer.projection);
         scene_shader.uniform("u_view_position", m_camera.position);
@@ -285,12 +254,16 @@ void application::run() noexcept {
         scene_shader.uniform("u_dir_light.diffuse", directional_light.color  * directional_light.diffuse);
         scene_shader.uniform("u_dir_light.specular", directional_light.color * directional_light.specular);
         
-        for (size_t i = 0; i < transforms.size(); ++i) {
-            const glm::mat4 model = glm::translate(glm::mat4(1.0f), transforms[i]);
-            scene_shader.uniform("u_model", model);
-            scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model)));
-            OGL_CALL(glDrawArrays(GL_TRIANGLES, 0, 36));
-        }
+        scene_shader.uniform("u_model", glm::mat4(1.0f));
+        scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(glm::mat4(1.0f))));
+        model.draw(scene_shader);
+
+        // for (size_t i = 0; i < transforms.size(); ++i) {
+        //     const glm::mat4 model_mat = glm::translate(glm::mat4(1.0f), transforms[i]);
+        //     scene_shader.uniform("u_model", model_mat);
+        //     scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_mat)));
+        //     model.draw(scene_shader);
+        // }
 
         {
             using namespace ImGui;

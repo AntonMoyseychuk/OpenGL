@@ -4,6 +4,34 @@
 #include <unordered_map>
 
 class texture {
+public:
+    enum class type { NONE, DIFFUSE, SPECULAR, EMISSION, NORMAL };
+
+    struct config {
+        config() = default;
+        config(uint32_t target, uint32_t wrap_s, uint32_t wrap_t, uint32_t min_filter, uint32_t mag_filter, bool generate_mipmap, type type = type::NONE);
+
+        uint32_t target;
+        uint32_t wrap_s;
+        uint32_t wrap_t;
+        uint32_t min_filter;
+        uint32_t mag_filter;
+        type type;
+        bool generate_mipmap;
+    };
+
+public:
+    texture() = default;
+    void create(const std::string& filepath, const config& config) const noexcept;
+
+    void activate_unit(uint32_t unit) const noexcept;
+
+    void bind() const noexcept;
+    void unbind() const noexcept;
+
+    uint32_t get_id() const noexcept;
+    type get_type() const noexcept;
+
 private:
     struct texture_data {
         uint32_t id = 0;
@@ -12,36 +40,11 @@ private:
         uint32_t height = 0;
         uint32_t channel_count = 0;
     };
-
-public:
-    struct config {
-        config() = default;
-        config(uint32_t type, uint32_t wrap_s, uint32_t wrap_t, uint32_t min_filter, uint32_t mag_filter, bool generate_mipmap);
-
-        uint32_t type;
-        uint32_t wrap_s;
-        uint32_t wrap_t;
-        uint32_t min_filter;
-        uint32_t mag_filter;
-        bool generate_mipmap;
-    };
-
-public:
-    texture() = default;
-    uint32_t create(const char* filepath, const config& config) const noexcept;
-
-    void activate_unit(uint32_t unit) const noexcept;
-
-    bool bind() const noexcept;
-    bool unbind() const noexcept;
-    bool is_binded() const noexcept;
-
+    
+private:
+    static std::unordered_map<std::string, texture> preloaded_textures;
 
 private:
-    static std::unordered_map<std::string, texture_data> preloaded_textures;
-
-private:
-    mutable texture_data m_data;
-    mutable config m_config;
-    mutable bool m_is_binded = false;
+    texture_data m_data;
+    config m_config;
 };
