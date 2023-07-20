@@ -21,8 +21,8 @@ private:
     void _destroy() noexcept;
 
 private:
-    void _init_imgui(const char* glsl_version) const noexcept;
-    void _shutdown_imgui() const noexcept;
+    void _imgui_init(const char* glsl_version) const noexcept;
+    void _imgui_shutdown() const noexcept;
 
     void _imgui_frame_begin() const noexcept;
     void _imgui_frame_end() const noexcept;
@@ -64,5 +64,4 @@ private:
     glm::vec3 m_clear_color = glm::vec3(0.0f);
 
     bool m_wireframed = false;
-    bool m_fixed_camera = false;
 };

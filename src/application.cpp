@@ -4,6 +4,8 @@
 #include <imgui/backends/imgui_impl_glfw.h>
 #include <imgui/backends/imgui_impl_opengl3.h>
 
+#include <glm/gtc/quaternion.hpp>
+
 #include "debug.hpp"
 
 #include "shader.hpp"
@@ -25,7 +27,7 @@ application &application::get(const std::string_view &title, uint32_t width, uin
 }
 
 application::application(const std::string_view &title, uint32_t width, uint32_t height)
-    : m_title(title), m_camera(glm::vec3(0.0f, 1.0f, 10.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 12.0f, 2.0f)
+    : m_title(title), m_camera(glm::vec3(0.0f, 1.0f, 10.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 12.0f, 10.0f)
 {
     const char* glfw_error_msg = nullptr;
 
@@ -61,20 +63,37 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     framebuffer.on_resize(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &framebuf_resize_controller::on_resize);
 
+    
+    m_camera.set_active(m_window);
+    glfwSetCursorPosCallback(m_window, &camera::mouse_callback);
+
     OGL_CALL(glEnable(GL_DEPTH_TEST));
 
-    _init_imgui("#version 430");
+    _imgui_init("#version 430");
 }
 
 void application::run() noexcept {
     // const texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true);
-    
+    //
     // texture diffuse_map;
     // diffuse_map.create(RESOURCE_DIR "textures/container.png", config);
     // texture emission_map;
     // emission_map.create(RESOURCE_DIR "textures/matrix.jpg", config);
     // texture specular_map;
     // specular_map.create(RESOURCE_DIR "textures/container_specular.png", config);
+    //
+    // std::vector<glm::vec3> transforms = {
+    //     glm::vec3( 0.0f,  0.0f,  0.0f), 
+    //     glm::vec3( 2.0f,  5.0f, -15.0f), 
+    //     glm::vec3(-1.5f, -2.2f, -2.5f),  
+    //     glm::vec3(-3.8f, -2.0f, -12.3f),  
+    //     glm::vec3( 2.4f, -0.4f, -3.5f),  
+    //     glm::vec3(-1.7f,  3.0f, -7.5f),  
+    //     glm::vec3( 1.3f, -2.0f, -2.5f),  
+    //     glm::vec3( 1.5f,  2.0f, -2.5f), 
+    //     glm::vec3( 1.5f,  0.2f, -1.5f), 
+    //     glm::vec3(-1.3f,  1.0f, -1.5f)
+    // };
     
     float cube_vert[] = {
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
@@ -121,11 +140,13 @@ void application::run() noexcept {
     };
     
     mesh mesh;
-    mesh.create(std::vector<mesh::vertex>((mesh::vertex*)cube_vert, (mesh::vertex*)cube_vert + sizeof(cube_vert) / sizeof(mesh::vertex)), {}, {}/*std::vector<texture> { 
-        { texture::type::DIFFUSE, diffuse_map },
-        { texture::type::SPECULAR, specular_map },
-        { texture::type::EMISSION, emission_map },
-    }*/);
+    mesh.create(std::vector<mesh::vertex>((mesh::vertex*)cube_vert, (mesh::vertex*)cube_vert + sizeof(cube_vert) / sizeof(mesh::vertex)), {}, {});
+
+    struct transform {
+        glm::vec3 scale = glm::vec3(1.0f);
+        glm::vec3 position = glm::vec3(0.0f);
+        glm::vec3 rotation = glm::vec3(0.0f);
+    } transform;
 
     model model;
     model.create(RESOURCE_DIR "models/backpack/backpack.obj");
@@ -136,18 +157,7 @@ void application::run() noexcept {
     shader scene_shader;
     scene_shader.create(RESOURCE_DIR "shaders/light.vert", RESOURCE_DIR "shaders/light.frag");
 
-    std::vector<glm::vec3> transforms = {
-        glm::vec3( 0.0f,  0.0f,  0.0f), 
-        glm::vec3( 2.0f,  5.0f, -15.0f), 
-        glm::vec3(-1.5f, -2.2f, -2.5f),  
-        glm::vec3(-3.8f, -2.0f, -12.3f),  
-        glm::vec3( 2.4f, -0.4f, -3.5f),  
-        glm::vec3(-1.7f,  3.0f, -7.5f),  
-        glm::vec3( 1.3f, -2.0f, -2.5f),  
-        glm::vec3( 1.5f,  2.0f, -2.5f), 
-        glm::vec3( 1.5f,  0.2f, -1.5f), 
-        glm::vec3(-1.3f,  1.0f, -1.5f)
-    };
+    
     std::vector<point_light> point_lights = {
         point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-3.0f,  3.0f, -3.0f), 0.09f, 0.032f),
         point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 3.0f), 0.09f, 0.032f),
@@ -169,11 +179,13 @@ void application::run() noexcept {
     ImGuiIO& io = ImGui::GetIO();
     float material_shininess = 64.0f;
 
-    while (!glfwWindowShouldClose(m_window)) {
-        OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+    while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
+        OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
-        if (!m_fixed_camera) {
+        m_camera.update_dt(io.DeltaTime);
+
+        if (!m_camera.is_fixed) {
             if (glfwGetKey(m_window, GLFW_KEY_SPACE)) {
                 m_camera.move(m_camera.get_up() * io.DeltaTime);
             } else if (glfwGetKey(m_window, GLFW_KEY_LEFT_CONTROL)) {
@@ -190,16 +202,16 @@ void application::run() noexcept {
                 m_camera.move(-m_camera.get_right() * io.DeltaTime);
             }
 
-            if (glfwGetKey(m_window, GLFW_KEY_RIGHT)) {
-                m_camera.rotate(-glm::radians(45.0f) * io.DeltaTime, glm::vec2(0.0f, 1.0f));
-            } else if (glfwGetKey(m_window, GLFW_KEY_LEFT)) {
-                m_camera.rotate(glm::radians(45.0f) * io.DeltaTime, glm::vec2(0.0f, 1.0f));
-            }
-            if (glfwGetKey(m_window, GLFW_KEY_UP)) {
-                m_camera.rotate(-glm::radians(45.0f) * io.DeltaTime, glm::vec2(1.0f, 0.0f));
-            } else if (glfwGetKey(m_window, GLFW_KEY_DOWN)) {
-                m_camera.rotate(glm::radians(45.0f) * io.DeltaTime, glm::vec2(1.0f, 0.0f));
-            }
+            // if (glfwGetKey(m_window, GLFW_KEY_RIGHT)) {
+            //     m_camera.rotate(glm::radians(45.0f) * io.DeltaTime, glm::vec2(0.0f, -1.0f));
+            // } else if (glfwGetKey(m_window, GLFW_KEY_LEFT)) {
+            //     m_camera.rotate(glm::radians(45.0f) * io.DeltaTime, glm::vec2(0.0f, 1.0f));
+            // }
+            // if (glfwGetKey(m_window, GLFW_KEY_UP)) {
+            //     m_camera.rotate(glm::radians(45.0f) * io.DeltaTime, glm::vec2(-1.0f, 0.0f));
+            // } else if (glfwGetKey(m_window, GLFW_KEY_DOWN)) {
+            //     m_camera.rotate(glm::radians(45.0f) * io.DeltaTime, glm::vec2(1.0f, 0.0f));
+            // }
         }
 
         light_source_shader.bind();
@@ -254,8 +266,11 @@ void application::run() noexcept {
         scene_shader.uniform("u_dir_light.diffuse", directional_light.color  * directional_light.diffuse);
         scene_shader.uniform("u_dir_light.specular", directional_light.color * directional_light.specular);
         
-        scene_shader.uniform("u_model", glm::mat4(1.0f));
-        scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(glm::mat4(1.0f))));
+        const glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), transform.position) 
+            * glm::mat4_cast(glm::quat(transform.rotation * (glm::pi<float>() / 180.0f)))
+            * glm::scale(glm::mat4(1.0f), transform.scale);
+        scene_shader.uniform("u_model", model_matrix);
+        scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
         model.draw(scene_shader);
 
         // for (size_t i = 0; i < transforms.size(); ++i) {
@@ -275,7 +290,7 @@ void application::run() noexcept {
                 if (Checkbox("wireframe mode", &m_wireframed)) {
                     OGL_CALL(glPolygonMode(GL_FRONT_AND_BACK, (m_wireframed ? GL_LINE : GL_FILL)));
                 }
-                Checkbox("fixed camera mode", &m_fixed_camera);
+                
                 if (NewLine(), ColorEdit3("background color", glm::value_ptr(m_clear_color))) {
                     OGL_CALL(glClearColor(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f));
                 }
@@ -293,6 +308,17 @@ void application::run() noexcept {
                 }
                 if (SliderFloat("field of view", &framebuffer.fov, 1.0f, 179.0f)) {
                     framebuffer.on_resize(m_window, framebuffer.width, framebuffer.height);
+                }
+
+                if (glfwGetKey(m_window, GLFW_KEY_1)) {
+                    m_camera.is_fixed = !m_camera.is_fixed;
+
+                    glfwSetInputMode(m_window, GLFW_CURSOR, (m_camera.is_fixed ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+
+                if (Checkbox("fixed (Press \'1\')", &m_camera.is_fixed)) {
+                    glfwSetInputMode(m_window, GLFW_CURSOR, (m_camera.is_fixed ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED));
                 }
             End();
 
@@ -318,7 +344,11 @@ void application::run() noexcept {
                 }
             End();
 
-            Begin("Material");
+            Begin("Backpack");
+                DragFloat3("position##backpack", glm::value_ptr(transform.position), 0.1f);
+                DragFloat3("rotation##backpack", glm::value_ptr(transform.rotation));
+                SliderFloat3("scale##backpack", glm::value_ptr(transform.scale), 0.0f, 10.0f);
+
                 if (DragFloat("shininess", &material_shininess, 1.0f)) {
                     material_shininess = std::clamp(material_shininess, 1.0f, std::numeric_limits<float>::max());
                 }
@@ -333,14 +363,14 @@ void application::run() noexcept {
 
 application::~application() {
     _destroy();
-    _shutdown_imgui();
+    _imgui_shutdown();
 }
 
 void application::_destroy() noexcept {
     glfwDestroyWindow(m_window);
 }
 
-void application::_init_imgui(const char *glsl_version) const noexcept {
+void application::_imgui_init(const char *glsl_version) const noexcept {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -352,7 +382,7 @@ void application::_init_imgui(const char *glsl_version) const noexcept {
     ImGui_ImplOpenGL3_Init("#version 430 core");
 }
 
-void application::_shutdown_imgui() const noexcept {
+void application::_imgui_shutdown() const noexcept {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
