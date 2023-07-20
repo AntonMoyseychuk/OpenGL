@@ -10,7 +10,7 @@
 
 class camera {
     public:
-        camera(const glm::vec3& position, const glm::vec3& look_at, const glm::vec3& up, float speed, float sensitivity, bool is_fixed = true);
+        camera(const glm::vec3& position, const glm::vec3& look_at, const glm::vec3& up, float fov, float speed, float sensitivity, bool is_fixed = true);
 
         void rotate(float angle_radians, const glm::vec2& axis) noexcept;
         void move(const glm::vec3& offset) noexcept;
@@ -24,9 +24,13 @@ class camera {
         void set_active(GLFWwindow* window) const noexcept;
         bool is_active() const noexcept;
 
-        static void mouse_callback(GLFWwindow* window, double xpos, double ypos) noexcept;
         static void update_dt(float dt) noexcept;
+        static camera* get_active_camera() noexcept;
 
+    public:
+        static void mouse_callback(GLFWwindow* window, double xpos, double ypos) noexcept;
+        static void wheel_scroll_callback(GLFWwindow* window, double xoffset, double yoffset) noexcept;
+        
     private:
         void _recalculate_rotation(float delta_pitch, float delta_yaw) noexcept;
 
@@ -38,6 +42,7 @@ class camera {
         glm::vec3 position;
         float speed;
         float sensitivity;
+        float fov;
         bool is_fixed;
 
     private:

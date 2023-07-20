@@ -28,26 +28,23 @@ private:
     void _imgui_frame_end() const noexcept;
 
 private:
-    struct framebuf_resize_controller {
-    public:
-        static framebuf_resize_controller& get() noexcept;
-        static void on_resize(GLFWwindow* window, int32_t width, int32_t height) noexcept;
+    struct proj_framebuffer {
+        proj_framebuffer() = default;
+        proj_framebuffer(float aspect, float near, float far);
 
-    private:
-        framebuf_resize_controller() = default;
-        framebuf_resize_controller(float fov, float aspect, float near, float far);
-
-    public:
-        float fov;
         float aspect;
         float near;
         float far;
         uint32_t width;
         uint32_t height;
+
         glm::mat4 projection;
     };
+    
+    static proj_framebuffer framebuffer;
 
-    static framebuf_resize_controller& framebuffer;
+    static void _on_resize_callback(GLFWwindow* window, int width, int height) noexcept;
+    static void _on_mouse_wheel_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) noexcept;
 
 private:
     struct glfw_deinitializer {

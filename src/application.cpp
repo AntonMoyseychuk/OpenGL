@@ -19,7 +19,7 @@
 #include <algorithm>
 
 std::unique_ptr<bool, application::glfw_deinitializer> application::is_glfw_initialized(new bool(glfwInit() == GLFW_TRUE));
-application::framebuf_resize_controller& application::framebuffer = application::framebuf_resize_controller::get();
+application::proj_framebuffer application::framebuffer;
 
 application &application::get(const std::string_view &title, uint32_t width, uint32_t height) noexcept {
     static application app(title, width, height);
@@ -27,7 +27,7 @@ application &application::get(const std::string_view &title, uint32_t width, uin
 }
 
 application::application(const std::string_view &title, uint32_t width, uint32_t height)
-    : m_title(title), m_camera(glm::vec3(0.0f, 1.0f, 10.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 12.0f, 10.0f)
+    : m_title(title), m_camera(glm::vec3(0.0f, 1.0f, 10.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 12.0f, 10.0f)
 {
     const char* glfw_error_msg = nullptr;
 
@@ -57,15 +57,15 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 #endif
 
-    framebuffer.fov = 45.0f;
-    framebuffer.near = 0.1f;
-    framebuffer.far = 100.0f;
-    framebuffer.on_resize(m_window, width, height);
-    glfwSetFramebufferSizeCallback(m_window, &framebuf_resize_controller::on_resize);
-
-    
     m_camera.set_active(m_window);
     glfwSetCursorPosCallback(m_window, &camera::mouse_callback);
+    
+    glfwSetScrollCallback(m_window, &application::_on_mouse_wheel_scroll_callback);
+
+    framebuffer.near = 0.1f;
+    framebuffer.far = 100.0f;
+    _on_resize_callback(m_window, width, height);
+    glfwSetFramebufferSizeCallback(m_window, &_on_resize_callback);
 
     OGL_CALL(glEnable(GL_DEPTH_TEST));
 
@@ -201,17 +201,6 @@ void application::run() noexcept {
             } else if (glfwGetKey(m_window, GLFW_KEY_A)) {
                 m_camera.move(-m_camera.get_right() * io.DeltaTime);
             }
-
-            // if (glfwGetKey(m_window, GLFW_KEY_RIGHT)) {
-            //     m_camera.rotate(glm::radians(45.0f) * io.DeltaTime, glm::vec2(0.0f, -1.0f));
-            // } else if (glfwGetKey(m_window, GLFW_KEY_LEFT)) {
-            //     m_camera.rotate(glm::radians(45.0f) * io.DeltaTime, glm::vec2(0.0f, 1.0f));
-            // }
-            // if (glfwGetKey(m_window, GLFW_KEY_UP)) {
-            //     m_camera.rotate(glm::radians(45.0f) * io.DeltaTime, glm::vec2(-1.0f, 0.0f));
-            // } else if (glfwGetKey(m_window, GLFW_KEY_DOWN)) {
-            //     m_camera.rotate(glm::radians(45.0f) * io.DeltaTime, glm::vec2(1.0f, 0.0f));
-            // }
         }
 
         light_source_shader.bind();
@@ -300,25 +289,22 @@ void application::run() noexcept {
 
             Begin("Camera");
                 if (DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f) ||
-                    DragFloat("speed", &m_camera.speed, 0.1f) ||
-                    DragFloat("sensitivity", &m_camera.sensitivity, 0.1f)
+                    DragFloat("speed", &m_camera.speed, 0.1f) || DragFloat("sensitivity", &m_camera.sensitivity, 0.1f)
                 ) {
                     m_camera.speed = std::clamp(m_camera.speed, 1.0f, std::numeric_limits<float>::max());
                     m_camera.sensitivity = std::clamp(m_camera.sensitivity, 0.1f, std::numeric_limits<float>::max());
                 }
-                if (SliderFloat("field of view", &framebuffer.fov, 1.0f, 179.0f)) {
-                    framebuffer.on_resize(m_window, framebuffer.width, framebuffer.height);
-                }
-
-                if (glfwGetKey(m_window, GLFW_KEY_1)) {
-                    m_camera.is_fixed = !m_camera.is_fixed;
-
-                    glfwSetInputMode(m_window, GLFW_CURSOR, (m_camera.is_fixed ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED));
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                if (SliderFloat("field of view", &m_camera.fov, 1.0f, 179.0f)) {
+                    _on_resize_callback(m_window, framebuffer.width, framebuffer.height);
                 }
 
                 if (Checkbox("fixed (Press \'1\')", &m_camera.is_fixed)) {
                     glfwSetInputMode(m_window, GLFW_CURSOR, (m_camera.is_fixed ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED));
+                } else if (glfwGetKey(m_window, GLFW_KEY_1)) {
+                    m_camera.is_fixed = !m_camera.is_fixed;
+
+                    glfwSetInputMode(m_window, GLFW_CURSOR, (m_camera.is_fixed ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 }
             End();
 
@@ -406,17 +392,15 @@ void application::glfw_deinitializer::operator()(bool *is_glfw_initialized) noex
     }
 }
 
-application::framebuf_resize_controller::framebuf_resize_controller(float fov, float aspect, float near, float far)
-    : fov(fov), aspect(aspect), near(near), far(far), projection(glm::perspective(glm::radians(fov), aspect, near, far)) 
+application::proj_framebuffer::proj_framebuffer(float aspect, float near, float far)
+    : aspect(aspect), near(near), far(far)
 {
+    const camera* active_camera = camera::get_active_camera();
+    ASSERT(active_camera != nullptr, "framebuffer error", "no one camera is active");
+    projection = glm::perspective(glm::radians(active_camera->fov), aspect, near, far);
 }
 
-application::framebuf_resize_controller &application::framebuf_resize_controller::get() noexcept {
-    static framebuf_resize_controller state;
-    return state;
-}
-
-void application::framebuf_resize_controller::on_resize(GLFWwindow *window, int32_t width, int32_t height) noexcept {
+void application::_on_resize_callback(GLFWwindow *window, int width, int height) noexcept {
     OGL_CALL(glViewport(0, 0, width, height));
 
     framebuffer.width = width;
@@ -424,5 +408,13 @@ void application::framebuf_resize_controller::on_resize(GLFWwindow *window, int3
     
     framebuffer.aspect = static_cast<float>(width) / height;
     
-    framebuffer.projection = glm::perspective(glm::radians(framebuffer.fov), framebuffer.aspect, framebuffer.near, framebuffer.far);
+    const camera* active_camera = camera::get_active_camera();
+    ASSERT(active_camera != nullptr, "framebuffer error", "no one camera is active");
+
+    framebuffer.projection = glm::perspective(glm::radians(active_camera->fov), framebuffer.aspect, framebuffer.near, framebuffer.far);
+}
+
+void application::_on_mouse_wheel_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) noexcept {
+    camera::wheel_scroll_callback(window, xoffset, yoffset);
+    _on_resize_callback(window, framebuffer.width, framebuffer.height);
 }
