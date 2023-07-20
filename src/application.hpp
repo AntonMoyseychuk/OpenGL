@@ -28,10 +28,11 @@ private:
     void _imgui_frame_end() const noexcept;
 
 private:
-    struct proj_framebuffer {
-        proj_framebuffer() = default;
-        proj_framebuffer(float aspect, float near, float far);
+    static void _on_window_resize_callback(GLFWwindow* window, int width, int height) noexcept;
+    static void _on_mouse_wheel_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) noexcept;
 
+private:
+    struct proj_framebuffer {
         float aspect;
         float near;
         float far;
@@ -42,9 +43,6 @@ private:
     };
     
     static proj_framebuffer framebuffer;
-
-    static void _on_resize_callback(GLFWwindow* window, int width, int height) noexcept;
-    static void _on_mouse_wheel_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) noexcept;
 
 private:
     struct glfw_deinitializer {

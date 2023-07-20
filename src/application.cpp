@@ -64,8 +64,8 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
     framebuffer.near = 0.1f;
     framebuffer.far = 100.0f;
-    _on_resize_callback(m_window, width, height);
-    glfwSetFramebufferSizeCallback(m_window, &_on_resize_callback);
+    _on_window_resize_callback(m_window, width, height);
+    glfwSetFramebufferSizeCallback(m_window, &_on_window_resize_callback);
 
     OGL_CALL(glEnable(GL_DEPTH_TEST));
 
@@ -73,27 +73,29 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 }
 
 void application::run() noexcept {
-    // const texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true);
-    //
-    // texture diffuse_map;
-    // diffuse_map.create(RESOURCE_DIR "textures/container.png", config);
-    // texture emission_map;
-    // emission_map.create(RESOURCE_DIR "textures/matrix.jpg", config);
-    // texture specular_map;
-    // specular_map.create(RESOURCE_DIR "textures/container_specular.png", config);
-    //
-    // std::vector<glm::vec3> transforms = {
-    //     glm::vec3( 0.0f,  0.0f,  0.0f), 
-    //     glm::vec3( 2.0f,  5.0f, -15.0f), 
-    //     glm::vec3(-1.5f, -2.2f, -2.5f),  
-    //     glm::vec3(-3.8f, -2.0f, -12.3f),  
-    //     glm::vec3( 2.4f, -0.4f, -3.5f),  
-    //     glm::vec3(-1.7f,  3.0f, -7.5f),  
-    //     glm::vec3( 1.3f, -2.0f, -2.5f),  
-    //     glm::vec3( 1.5f,  2.0f, -2.5f), 
-    //     glm::vec3( 1.5f,  0.2f, -1.5f), 
-    //     glm::vec3(-1.3f,  1.0f, -1.5f)
-    // };
+    texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture::type::DIFFUSE);
+    
+    texture diffuse_map;
+    diffuse_map.create(RESOURCE_DIR "textures/container.png", config);
+    texture emission_map;
+    config.type = texture::type::EMISSION;
+    emission_map.create(RESOURCE_DIR "textures/matrix.jpg", config);
+    texture specular_map;
+    config.type = texture::type::SPECULAR;
+    specular_map.create(RESOURCE_DIR "textures/container_specular.png", config);
+    
+    std::vector<glm::vec3> transforms = {
+        glm::vec3( 0.0f,  0.0f,  0.0f), 
+        glm::vec3( 2.0f,  5.0f, -15.0f), 
+        glm::vec3(-1.5f, -2.2f, -2.5f),  
+        glm::vec3(-3.8f, -2.0f, -12.3f),  
+        glm::vec3( 2.4f, -0.4f, -3.5f),  
+        glm::vec3(-1.7f,  3.0f, -7.5f),  
+        glm::vec3( 1.3f, -2.0f, -2.5f),  
+        glm::vec3( 1.5f,  2.0f, -2.5f), 
+        glm::vec3( 1.5f,  0.2f, -1.5f), 
+        glm::vec3(-1.3f,  1.0f, -1.5f)
+    };
     
     float cube_vert[] = {
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
@@ -140,24 +142,19 @@ void application::run() noexcept {
     };
     
     mesh mesh;
-    mesh.create(std::vector<mesh::vertex>((mesh::vertex*)cube_vert, (mesh::vertex*)cube_vert + sizeof(cube_vert) / sizeof(mesh::vertex)), {}, {});
+    mesh.create(std::vector<mesh::vertex>((mesh::vertex*)cube_vert, (mesh::vertex*)cube_vert + sizeof(cube_vert) / sizeof(mesh::vertex)), {}, {
+        diffuse_map, specular_map, emission_map
+    });
 
     struct transform {
-        glm::vec3 scale = glm::vec3(1.0f);
+        glm::vec3 scale = glm::vec3(0.01f);
         glm::vec3 position = glm::vec3(0.0f);
         glm::vec3 rotation = glm::vec3(0.0f);
     } transform;
 
     model model;
-    model.create(RESOURCE_DIR "models/backpack/backpack.obj");
+    model.create(RESOURCE_DIR "models/Sponza/sponza.obj");
 
-    shader light_source_shader;
-    light_source_shader.create(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/light_source.frag");
-
-    shader scene_shader;
-    scene_shader.create(RESOURCE_DIR "shaders/light.vert", RESOURCE_DIR "shaders/light.frag");
-
-    
     std::vector<point_light> point_lights = {
         point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-3.0f,  3.0f, -3.0f), 0.09f, 0.032f),
         point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 3.0f), 0.09f, 0.032f),
@@ -170,8 +167,13 @@ void application::run() noexcept {
         spot_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-5.0f,  0.0f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
         spot_light(glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 5.0f,  0.0f, -2.0f), glm::vec3(-1.0f,  0.0f, 0.0f), 15.0f),
     };
-    directional_light directional_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-1.0f, -1.0f, -1.0f));
+    directional_light directional_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.8f), glm::vec3(1.0f), glm::vec3(-1.0f, -1.0f, -1.0f));
 
+    shader light_source_shader;
+    light_source_shader.create(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/light_source.frag");
+
+    shader scene_shader;
+    scene_shader.create(RESOURCE_DIR "shaders/light.vert", RESOURCE_DIR "shaders/light.frag");
     scene_shader.uniform("u_point_lights_count", (uint32_t)point_lights.size());
     scene_shader.uniform("u_spot_lights_count", (uint32_t)spot_lights.size());
 
@@ -266,7 +268,7 @@ void application::run() noexcept {
         //     const glm::mat4 model_mat = glm::translate(glm::mat4(1.0f), transforms[i]);
         //     scene_shader.uniform("u_model", model_mat);
         //     scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_mat)));
-        //     model.draw(scene_shader);
+        //     mesh.draw(scene_shader);
         // }
 
         {
@@ -295,7 +297,7 @@ void application::run() noexcept {
                     m_camera.sensitivity = std::clamp(m_camera.sensitivity, 0.1f, std::numeric_limits<float>::max());
                 }
                 if (SliderFloat("field of view", &m_camera.fov, 1.0f, 179.0f)) {
-                    _on_resize_callback(m_window, framebuffer.width, framebuffer.height);
+                    _on_window_resize_callback(m_window, framebuffer.width, framebuffer.height);
                 }
 
                 if (Checkbox("fixed (Press \'1\')", &m_camera.is_fixed)) {
@@ -392,15 +394,7 @@ void application::glfw_deinitializer::operator()(bool *is_glfw_initialized) noex
     }
 }
 
-application::proj_framebuffer::proj_framebuffer(float aspect, float near, float far)
-    : aspect(aspect), near(near), far(far)
-{
-    const camera* active_camera = camera::get_active_camera();
-    ASSERT(active_camera != nullptr, "framebuffer error", "no one camera is active");
-    projection = glm::perspective(glm::radians(active_camera->fov), aspect, near, far);
-}
-
-void application::_on_resize_callback(GLFWwindow *window, int width, int height) noexcept {
+void application::_on_window_resize_callback(GLFWwindow *window, int width, int height) noexcept {
     OGL_CALL(glViewport(0, 0, width, height));
 
     framebuffer.width = width;
@@ -416,5 +410,5 @@ void application::_on_resize_callback(GLFWwindow *window, int width, int height)
 
 void application::_on_mouse_wheel_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) noexcept {
     camera::wheel_scroll_callback(window, xoffset, yoffset);
-    _on_resize_callback(window, framebuffer.width, framebuffer.height);
+    _on_window_resize_callback(window, framebuffer.width, framebuffer.height);
 }

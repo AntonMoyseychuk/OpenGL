@@ -56,7 +56,7 @@ dkms.conf
 /.vs
 /.vscode
 
-source/models
-source/textures
+resource/models
+resource/textures
 
 CMakeSettings.json

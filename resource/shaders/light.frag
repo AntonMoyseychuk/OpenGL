@@ -115,23 +115,23 @@ vec3 calculate_spot_light(SpotLight light, vec3 normal, vec3 diffuse_map, vec3 s
 }
 
 void main() {
-    const vec3 diffuse_map = texture(u_material.diffuse0, in_texcoord).rgb;
-    const vec3 specular_map = texture(u_material.specular0, in_texcoord).rgb;
+    const vec4 diffuse_map = texture(u_material.diffuse0, in_texcoord);
+    const vec4 specular_map = texture(u_material.specular0, in_texcoord);
 
     const vec3 normal = normalize(in_normal);
 
-    vec3 out_color = calculate_directional_light(u_dir_light, normal, diffuse_map, specular_map);
+    vec3 out_color = calculate_directional_light(u_dir_light, normal, diffuse_map.rgb, specular_map.rgb);
 
     for (uint i = 0; i < u_point_lights_count; ++i) {
-        out_color += calculate_point_light(u_point_lights[i], normal, diffuse_map, specular_map);
+        out_color += calculate_point_light(u_point_lights[i], normal, diffuse_map.rgb, specular_map.rgb);
     }
 
     for (uint i = 0; i < u_spot_lights_count; ++i) {
-        out_color += calculate_spot_light(u_spot_lights[i], normal, diffuse_map, specular_map);
+        out_color += calculate_spot_light(u_spot_lights[i], normal, diffuse_map.rgb, specular_map.rgb);
     }
 
     const vec2 emision_map_coord = vec2(in_texcoord.x, (1.0 - in_texcoord.y) - u_time);
-    const vec3 emission_map = texture(u_material.emission0, (emision_map_coord)).rgb * floor(vec3(1.0) - specular_map);
+    const vec3 emission_map = texture(u_material.emission0, (emision_map_coord)).rgb * floor(vec3(1.0) - specular_map.rgb);
     out_color += emission_map;
 
     frag_color = vec4(out_color, 1.0);
