@@ -1,7 +1,4 @@
 #pragma once
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-
 #include <glm/glm.hpp>
 
 #include <unordered_set>
@@ -11,7 +8,6 @@
 class camera {
     public:
         camera() = default;
-        ~camera();
         camera(const glm::vec3& position, const glm::vec3& look_at, const glm::vec3& up, float fov, float speed, float sensitivity, bool is_fixed = true);
 
         void create(const glm::vec3& position, const glm::vec3& look_at, const glm::vec3& up, float fov, float speed, float sensitivity, bool is_fixed = true) const noexcept;
@@ -25,23 +21,16 @@ class camera {
 
         glm::mat4 get_view() const noexcept;
 
-        void set_active(GLFWwindow* window) const noexcept;
-        bool is_active() const noexcept;
-
     public:
         static void update_dt(float dt) noexcept;
-        static camera* get_active_camera() noexcept;
 
     public:
-        static void mouse_callback(GLFWwindow* window, double xpos, double ypos) noexcept;
-        static void wheel_scroll_callback(GLFWwindow* window, double xoffset, double yoffset) noexcept;
+        void mouse_callback(double xpos, double ypos) noexcept;
+        void wheel_scroll_callback(double yoffset) noexcept;
         
     private:
         void _recalculate_rotation(float delta_pitch, float delta_yaw) noexcept;
 
-    private:
-        static std::atomic<camera*> active_camera;
-        static std::atomic<float> dt;
 
     public:
         glm::vec3 position;
@@ -51,13 +40,15 @@ class camera {
         bool is_fixed;
 
     private:
+        static std::atomic<float> dt;
+
+    private:
         glm::vec3 m_forward;
         glm::vec3 m_right;
         glm::vec3 m_up;
 
         glm::dvec2 m_last_cursor_pos;
 
-    public:
         float m_pitch;
         float m_yaw;
     };

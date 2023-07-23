@@ -56,15 +56,14 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 #endif
 
-    m_camera.set_active(m_window);
-    glfwSetCursorPosCallback(m_window, &camera::mouse_callback);
-    
-    glfwSetScrollCallback(m_window, &application::_on_mouse_wheel_scroll_callback);
+    glfwSetCursorPosCallback(m_window, &application::_mouse_callback);
+    glfwSetScrollCallback(m_window, &application::_mouse_wheel_scroll_callback);
 
     m_proj_settings.near = 0.1f;
     m_proj_settings.far = 100.0f;
-    _on_window_resize_callback(m_window, width, height);
-    glfwSetFramebufferSizeCallback(m_window, &_on_window_resize_callback);
+    _window_resize_callback(m_window, width, height);
+    glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
+
 
     OGL_CALL(glEnable(GL_DEPTH_TEST));
     OGL_CALL(glEnable(GL_STENCIL_TEST));
@@ -309,7 +308,7 @@ void application::run() noexcept {
                 m_camera.sensitivity = std::clamp(m_camera.sensitivity, 0.1f, std::numeric_limits<float>::max());
             }
             if (ImGui::SliderFloat("field of view", &m_camera.fov, 1.0f, 179.0f)) {
-                _on_window_resize_callback(m_window, m_proj_settings.width, m_proj_settings.height);
+                _window_resize_callback(m_window, m_proj_settings.width, m_proj_settings.height);
             }
 
             if (ImGui::Checkbox("fixed (Press \'1\')", &m_camera.is_fixed)) {
@@ -406,26 +405,34 @@ void application::glfw_deinitializer::operator()(bool *is_glfw_initialized) noex
     }
 }
 
-void application::_on_window_resize_callback(GLFWwindow *window, int width, int height) noexcept {
+void application::_window_resize_callback(GLFWwindow *window, int width, int height) noexcept {
     OGL_CALL(glViewport(0, 0, width, height));
 
-    application* self = static_cast<application*>(glfwGetWindowUserPointer(window));
+    application* app = static_cast<application*>(glfwGetWindowUserPointer(window));
+    ASSERT(app != nullptr, "", "application instance is not set");
 
-    self->m_proj_settings.width = width;
-    self->m_proj_settings.height = height;
+    app->m_proj_settings.width = width;
+    app->m_proj_settings.height = height;
     
-    self->m_proj_settings.aspect = static_cast<float>(width) / height;
+    app->m_proj_settings.aspect = static_cast<float>(width) / height;
     
-    const camera* active_camera = camera::get_active_camera();
-    ASSERT(active_camera != nullptr, "framebuffer error", "no one camera is active");
+    const camera& active_camera = app->m_camera;
 
-    self->m_proj_settings.projection_mat = glm::perspective(glm::radians(active_camera->fov), self->m_proj_settings.aspect, self->m_proj_settings.near, self->m_proj_settings.far);
+    app->m_proj_settings.projection_mat = glm::perspective(glm::radians(active_camera.fov), app->m_proj_settings.aspect, app->m_proj_settings.near, app->m_proj_settings.far);
 }
 
-void application::_on_mouse_wheel_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) noexcept {
-    camera::wheel_scroll_callback(window, xoffset, yoffset);
+void application::_mouse_callback(GLFWwindow *window, double xpos, double ypos) noexcept {
+    application* app = static_cast<application*>(glfwGetWindowUserPointer(window));
+    ASSERT(app != nullptr, "", "application instance is not set");
 
-    application* self = static_cast<application*>(glfwGetWindowUserPointer(window));
+    app->m_camera.mouse_callback(xpos, ypos);
+}
+
+void application::_mouse_wheel_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) noexcept {
+    application* app = static_cast<application*>(glfwGetWindowUserPointer(window));
+    ASSERT(app != nullptr, "", "application instance is not set");
+
+    app->m_camera.wheel_scroll_callback(yoffset);
     
-    _on_window_resize_callback(window, self->m_proj_settings.width, self->m_proj_settings.height);
+    _window_resize_callback(window, app->m_proj_settings.width, app->m_proj_settings.height);
 }

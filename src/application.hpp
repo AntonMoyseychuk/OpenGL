@@ -28,8 +28,9 @@ private:
     void _imgui_frame_end() const noexcept;
 
 private:
-    static void _on_window_resize_callback(GLFWwindow* window, int width, int height) noexcept;
-    static void _on_mouse_wheel_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) noexcept;
+    static void _window_resize_callback(GLFWwindow* window, int width, int height) noexcept;
+    static void _mouse_callback(GLFWwindow *window, double xpos, double ypos) noexcept;
+    static void _mouse_wheel_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) noexcept;
 
 private:
     struct projection_settings {

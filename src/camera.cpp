@@ -5,19 +5,12 @@
 
 #include "application.hpp"
 
-std::atomic<camera*> camera::active_camera = nullptr;
 std::atomic<float> camera::dt = 0.0f;
 
 
 camera::camera(const glm::vec3 &position, const glm::vec3 &look_at, const glm::vec3 &up, float fov, float speed, float sensitivity, bool is_fixed)
 {
     create(position, look_at, up, fov, speed, sensitivity, is_fixed);
-}
-
-camera::~camera() {
-    if (active_camera == this) {
-        active_camera = nullptr;
-    }
 }
 
 void camera::create(const glm::vec3 &position, const glm::vec3 &look_at, const glm::vec3 &up, 
@@ -61,47 +54,28 @@ glm::mat4 camera::get_view() const noexcept {
     return glm::lookAt(position, position + m_forward, m_up);
 }
 
-void camera::set_active(GLFWwindow* window) const noexcept {
-    camera* self = const_cast<camera*>(this);
-    
-    active_camera.store(self);
-    glfwGetCursorPos(window, &self->m_last_cursor_pos.x, &self->m_last_cursor_pos.y);
-}
-
-bool camera::is_active() const noexcept {
-    return active_camera == this;
-}
-
-void camera::mouse_callback(GLFWwindow *window, double xpos, double ypos) noexcept {
-    if (active_camera.load() != nullptr) {
-        const glm::dvec2 last_pos = active_camera.load()->m_last_cursor_pos;
-
-        active_camera.load()->m_last_cursor_pos.x = xpos;
-        active_camera.load()->m_last_cursor_pos.y = ypos;
-
-        if (!active_camera.load()->is_fixed) {
-            double xoffset = (xpos - last_pos.x) * active_camera.load()->sensitivity * camera::dt.load();
-            double yoffset = (ypos - last_pos.y) * active_camera.load()->sensitivity * camera::dt.load(); 
-
-            active_camera.load()->_recalculate_rotation(yoffset, xoffset);
-        }
-    }
-}
-
-void camera::wheel_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) noexcept {    
-    if (active_camera.load() != nullptr) {
-        if (!active_camera.load()->is_fixed) {
-            active_camera.load()->fov = glm::clamp(active_camera.load()->fov - (float)yoffset * active_camera.load()->sensitivity, 1.0f, 179.0f);
-        }
-    }
-}
-
 void camera::update_dt(float dt) noexcept {
     camera::dt.store(dt);
 }
 
-camera *camera::get_active_camera() noexcept {
-    return active_camera;
+void camera::mouse_callback(double xpos, double ypos) noexcept {
+    const glm::dvec2 last_pos = m_last_cursor_pos;
+
+    m_last_cursor_pos.x = xpos;
+    m_last_cursor_pos.y = ypos;
+
+    if (!is_fixed) {
+        double xoffset = (xpos - last_pos.x) * sensitivity * dt.load();
+        double yoffset = (ypos - last_pos.y) * sensitivity * dt.load(); 
+
+        _recalculate_rotation(yoffset, xoffset);
+    }
+}
+
+void camera::wheel_scroll_callback(double yoffset) noexcept {
+    if (!is_fixed) {
+        fov = glm::clamp(fov - static_cast<float>(yoffset) * sensitivity, 1.0f, 179.0f);
+    }
 }
 
 void camera::_recalculate_rotation(float delta_pitch, float delta_yaw) noexcept {
