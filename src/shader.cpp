@@ -5,7 +5,12 @@
 
 std::unordered_map<std::string, uint32_t> shader::precompiled_shaders;
 
-void shader::create(const std::string& vs_filepath, const std::string& fs_filepath) const noexcept {
+shader::shader(const std::string &vs_filepath, const std::string &fs_filepath) {
+    create(vs_filepath, fs_filepath);
+}
+
+void shader::create(const std::string &vs_filepath, const std::string &fs_filepath) const noexcept
+{
     uint32_t vs_id = _create_shader(GL_VERTEX_SHADER, vs_filepath);
     uint32_t fs_id = _create_shader(GL_FRAGMENT_SHADER, fs_filepath);
 

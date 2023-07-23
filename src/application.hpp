@@ -32,17 +32,15 @@ private:
     static void _on_mouse_wheel_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) noexcept;
 
 private:
-    struct proj_framebuffer {
+    struct projection_settings {
         float aspect;
         float near;
         float far;
         uint32_t width;
         uint32_t height;
 
-        glm::mat4 projection;
+        glm::mat4 projection_mat;
     };
-    
-    static proj_framebuffer framebuffer;
 
 private:
     struct glfw_deinitializer {
@@ -54,6 +52,8 @@ private:
 private:
     std::string m_title;
     GLFWwindow* m_window = nullptr;
+
+    projection_settings m_proj_settings;
 
     camera m_camera;
     glm::vec3 m_clear_color = glm::vec3(0.0f);

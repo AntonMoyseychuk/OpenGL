@@ -22,6 +22,8 @@ public:
 
 public:
     texture() = default;
+    texture(const std::string& filepath, const config& config);
+
     void create(const std::string& filepath, const config& config) const noexcept;
 
     void activate_unit(uint32_t unit) const noexcept;

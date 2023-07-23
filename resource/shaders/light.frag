@@ -130,9 +130,9 @@ void main() {
         out_color += calculate_spot_light(u_spot_lights[i], normal, diffuse_map.rgb, specular_map.rgb);
     }
 
-    const vec2 emision_map_coord = vec2(in_texcoord.x, (1.0 - in_texcoord.y) - u_time);
-    const vec3 emission_map = texture(u_material.emission0, (emision_map_coord)).rgb * floor(vec3(1.0) - specular_map.rgb);
-    out_color += emission_map;
+    // const vec2 emision_map_coord = vec2(in_texcoord.x, (1.0 - in_texcoord.y) - u_time);
+    // const vec3 emission_map = texture(u_material.emission0, (emision_map_coord)).rgb * floor(vec3(1.0) - specular_map.rgb);
+    // out_color += emission_map;
 
     frag_color = vec4(out_color, 1.0);
 }

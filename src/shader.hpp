@@ -13,6 +13,7 @@
 class shader {
 public:
     shader() = default;
+    shader(const std::string& vs_filepath, const std::string& fs_filepath);
 
     void create(const std::string& vs_filepath, const std::string& fs_filepath) const noexcept;
     uint32_t get_id() const noexcept;

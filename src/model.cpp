@@ -6,7 +6,11 @@
 
 std::unordered_map<std::string, std::vector<mesh>> model::preloaded_models;
 
-void model::create(const std::string& filepath) const noexcept {
+model::model(const std::string &filepath) {
+    create(filepath);
+}
+
+void model::create(const std::string &filepath) const noexcept {
     _load_model(filepath);
 }
 

@@ -8,21 +8,35 @@
 std::atomic<camera*> camera::active_camera = nullptr;
 std::atomic<float> camera::dt = 0.0f;
 
-camera::camera(const glm::vec3& position, const glm::vec3& look_at, const glm::vec3& up, float fov, float speed, float sensitivity, bool is_fixed)
-    : position(position),
-        m_forward(glm::normalize(look_at - position)),
-        m_right(glm::normalize(glm::cross(up, -m_forward))),
-        m_up(glm::cross(-m_forward, m_right)),
-        speed(speed),
-        sensitivity(sensitivity),
-        fov(fov),
-        is_fixed(is_fixed),
-        m_pitch(glm::degrees(glm::angle(glm::normalize(glm::vec3(m_forward.x, 0.0f, m_forward.z)), glm::vec3(0.0f, 0.0f, 1.0f)))),
-        m_yaw(glm::degrees(glm::angle(m_forward, glm::vec3(0.0f, 1.0f, 0.0f))))
+
+camera::camera(const glm::vec3 &position, const glm::vec3 &look_at, const glm::vec3 &up, float fov, float speed, float sensitivity, bool is_fixed)
 {
+    create(position, look_at, up, fov, speed, sensitivity, is_fixed);
 }
 
-    
+camera::~camera() {
+    if (active_camera == this) {
+        active_camera = nullptr;
+    }
+}
+
+void camera::create(const glm::vec3 &position, const glm::vec3 &look_at, const glm::vec3 &up, 
+    float fov, float speed, float sensitivity, bool is_fixed
+) const noexcept {
+    camera* self = const_cast<camera*>(this);
+
+    self->position = position;
+    self->m_forward = glm::normalize(look_at - position);
+    self->m_right = glm::normalize(glm::cross(up, -m_forward));
+    self->m_up = glm::cross(-m_forward, m_right);
+    self->speed = speed;
+    self->sensitivity = sensitivity;
+    self->fov = fov;
+    self->is_fixed = is_fixed;
+    self->m_pitch = glm::degrees(glm::angle(glm::normalize(glm::vec3(m_forward.x, 0.0f, m_forward.z)), glm::vec3(0.0f, 0.0f, 1.0f)));
+    self->m_yaw = glm::degrees(glm::angle(m_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+}
+
 void camera::rotate(float angle_radians, const glm::vec2& axis) noexcept {
     _recalculate_rotation(axis.y * glm::degrees(angle_radians) * sensitivity, axis.x * glm::degrees(angle_radians) * sensitivity);
 }

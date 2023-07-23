@@ -17,6 +17,8 @@ public:
 
 public:
     mesh() = default;
+    mesh(const std::vector<mesh::vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<texture>& textures);
+    
     void create(const std::vector<mesh::vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<texture>& textures) const noexcept;
 
     void draw(const shader& shader) const noexcept;

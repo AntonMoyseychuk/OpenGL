@@ -3,7 +3,11 @@
 
 #include <glad/glad.h>
 
-void mesh::create(const std::vector<vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<texture>& textures) const noexcept {
+mesh::mesh(const std::vector<mesh::vertex> &vertices, const std::vector<uint32_t> &indices, const std::vector<texture> &textures) {
+    create(vertices, indices, textures);
+}
+
+void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_t> &indices, const std::vector<texture> &textures) const noexcept {
     mesh* self = const_cast<mesh*>(this);
 
     self->m_vertex_count = vertices.size();
