@@ -134,5 +134,5 @@ void main() {
     // const vec3 emission_map = texture(u_material.emission0, (emision_map_coord)).rgb * floor(vec3(1.0) - specular_map.rgb);
     // out_color += emission_map;
 
-    frag_color = vec4(out_color, 1.0);
+    frag_color = vec4(out_color, diffuse_map.a);
 }

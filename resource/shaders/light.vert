@@ -14,10 +14,13 @@ uniform mat4 u_projection;
 
 uniform mat4 u_transp_inv_model;
 
+uniform bool u_flip_texture;
+
 void main() {
     gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);
 
     in_frag_pos = vec3(u_model * vec4(a_position, 1.0));
     in_normal = mat3(u_transp_inv_model) * a_normal;
-    in_texcoord = a_texcoord;
+
+    in_texcoord = u_flip_texture ? vec2(a_texcoord.x, 1.0 - a_texcoord.y) : a_texcoord;
 }

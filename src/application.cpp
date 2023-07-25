@@ -5,6 +5,7 @@
 #include <imgui/backends/imgui_impl_opengl3.h>
 
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/norm.hpp>
 
 #include "debug.hpp"
 
@@ -17,6 +18,7 @@
 #include "light/directional_light.hpp"
 
 #include <algorithm>
+#include <map>
 
 std::unique_ptr<bool, application::glfw_deinitializer> application::is_glfw_initialized(new bool(glfwInit() == GLFW_TRUE));
 
@@ -68,87 +70,44 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     OGL_CALL(glEnable(GL_DEPTH_TEST));
     OGL_CALL(glEnable(GL_STENCIL_TEST));
 
+    OGL_CALL(glEnable(GL_BLEND));
+    OGL_CALL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)); 
+
     _imgui_init("#version 430");
 }
 
 void application::run() noexcept {
-    //texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture::type::DIFFUSE);
-    //
-    // texture diffuse_map(RESOURCE_DIR "textures/container.png", config);
     // config.type = texture::type::EMISSION;
     // texture emission_map(RESOURCE_DIR "textures/matrix.jpg", config);
     // config.type = texture::type::SPECULAR;
     // texture specular_map(RESOURCE_DIR "textures/container_specular.png", config);
     //
-    // std::vector<glm::vec3> cube_positions = {
-    //     glm::vec3( 0.0f,  0.0f,  0.0f), 
-    //     glm::vec3( 2.0f,  5.0f, -15.0f), 
-    //     glm::vec3(-1.5f, -2.2f, -2.5f),  
-    //     glm::vec3(-3.8f, -2.0f, -12.3f),  
-    //     glm::vec3( 2.4f, -0.4f, -3.5f),  
-    //     glm::vec3(-1.7f,  3.0f, -7.5f),  
-    //     glm::vec3( 1.3f, -2.0f, -2.5f),  
-    //     glm::vec3( 1.5f,  2.0f, -2.5f), 
-    //     glm::vec3( 1.5f,  0.2f, -1.5f), 
-    //     glm::vec3(-1.3f,  1.0f, -1.5f)
-    // };
-    //
-    // float cube_vert[] = {
-    //     -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-    //      0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-    //      0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-    //      0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-    //     -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-    //     -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-    //
-    //     -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  0.0f, 0.0f,
-    //      0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  1.0f, 0.0f,
-    //      0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  1.0f, 1.0f,
-    //      0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  1.0f, 1.0f,
-    //     -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  0.0f, 1.0f,
-    //     -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,  0.0f, 0.0f,
-    // 
-    //     -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-    //     -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-    //     -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-    //     -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-    //     -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-    //     -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-    // 
-    //      0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-    //      0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-    //      0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-    //      0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-    //      0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-    //      0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-    // 
-    //     -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-    //      0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-    //      0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-    //      0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-    //     -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-    //     -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-    // 
-    //     -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-    //      0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-    //      0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-    //      0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-    //     -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
-    //     -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
-    // };
-    // 
-    // mesh mesh(std::vector<mesh::vertex>((mesh::vertex*)cube_vert, (mesh::vertex*)cube_vert + sizeof(cube_vert) / sizeof(mesh::vertex)), {}, {
-    //     diffuse_map, specular_map, emission_map
-    // });
+    
+    texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture::type::NONE);
+    texture diffuse_map(RESOURCE_DIR "textures/blending_transparent_window.png", config);
+    
+    std::vector<glm::vec3> cube_positions = {
+        glm::vec3( 0.0f,  0.0f,  0.0f), 
+        glm::vec3( 2.0f,  5.0f, -15.0f), 
+        glm::vec3(-1.5f, -2.2f, -2.5f),  
+        glm::vec3(-3.8f, -2.0f, -12.3f),  
+        glm::vec3( 2.4f, -0.4f, -3.5f),  
+        glm::vec3(-1.7f,  3.0f, -7.5f),  
+        glm::vec3( 1.3f, -2.0f, -2.5f),  
+        glm::vec3( 1.5f,  2.0f, -2.5f), 
+        glm::vec3( 1.5f,  0.2f, -1.5f), 
+        glm::vec3(-1.3f,  1.0f, -1.5f)
+    };
 
     struct transform {
         glm::vec3 scale = glm::vec3(1.0f);
         glm::vec3 position = glm::vec3(0.0f);
         glm::vec3 rotation = glm::vec3(0.0f);
-    } transform;
+    } backpack_transform, sponza_transform = { glm::vec3(0.02f), glm::vec3(0.0f, -3.0f, 0.0f), glm::vec3(0.0f) };
 
     model cube(RESOURCE_DIR "models/cube/cube.obj");
-    model model(RESOURCE_DIR "models/backpack/backpack.obj");
+    model backpack(RESOURCE_DIR "models/backpack/backpack.obj");
+    model sponza(RESOURCE_DIR "models/Sponza/sponza.obj");
 
     std::vector<point_light> point_lights = {
         point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-3.0f,  3.0f, -3.0f), 0.09f, 0.032f),
@@ -162,7 +121,7 @@ void application::run() noexcept {
         spot_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-5.0f,  0.0f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
         spot_light(glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 5.0f,  0.0f, -2.0f), glm::vec3(-1.0f,  0.0f, 0.0f), 15.0f),
     };
-    directional_light directional_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.8f), glm::vec3(1.0f), glm::vec3(-1.0f, -1.0f, -1.0f));
+    directional_light directional_light(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.8f), glm::vec3(1.0f), glm::vec3(-1.0f, -1.0f, -1.0f));
 
     shader light_source_shader(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/light_source.frag");
 
@@ -173,12 +132,49 @@ void application::run() noexcept {
     shader border_shader(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/single_color.frag");
     border_shader.uniform("u_border_color", glm::vec3(1.0f));
 
+    shader texture_shader(RESOURCE_DIR "shaders/post_process.vert", RESOURCE_DIR "shaders/post_process.frag");
+
+    uint32_t fbo;
+    OGL_CALL(glGenFramebuffers(1, &fbo));
+    OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
+
+    uint32_t color_buffer;
+    OGL_CALL(glGenTextures(1, &color_buffer));
+    OGL_CALL(glBindTexture(GL_TEXTURE_2D, color_buffer));
+    OGL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_proj_settings.width, m_proj_settings.height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr));
+    OGL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+    OGL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+    OGL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+
+    OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_buffer, 0));
+
+    uint32_t depth_stencil_buffer;
+    OGL_CALL(glGenRenderbuffers(1, &depth_stencil_buffer));
+    OGL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, depth_stencil_buffer));
+    OGL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_proj_settings.width, m_proj_settings.height));
+    OGL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, 0));
+
+    OGL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depth_stencil_buffer));
+    
+    ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "framebuffer error", "framebuffer is incomplit");
+    OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+    mesh plane({ 
+        mesh::vertex { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f), glm::vec2(0.0f, 0.0f) },
+        mesh::vertex { glm::vec3(-1.0f,  1.0f, 0.0f), glm::vec3(0.0f), glm::vec2(0.0f, 1.0f) },
+        mesh::vertex { glm::vec3( 1.0f,  1.0f, 0.0f), glm::vec3(0.0f), glm::vec2(1.0f, 1.0f) },
+        mesh::vertex { glm::vec3( 1.0f, -1.0f, 0.0f), glm::vec3(0.0f), glm::vec2(1.0f, 0.0f) },
+    }, {
+        0, 2, 1,
+        0, 3, 2
+    }, {});
+
     ImGuiIO& io = ImGui::GetIO();
     float material_shininess = 64.0f;
+    std::multimap<float, glm::vec3> distances_to_transparent_cubes;
 
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
-        OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
 
         m_camera.update_dt(io.DeltaTime);
 
@@ -200,7 +196,11 @@ void application::run() noexcept {
             }
         }
 
-        light_source_shader.bind();
+        OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
+        OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
+
+        OGL_CALL(glEnable(GL_CULL_FACE));
+
         light_source_shader.uniform("u_view", m_camera.get_view());
         light_source_shader.uniform("u_projection", m_proj_settings.projection_mat);
         for (size_t i = 0; i < point_lights.size(); ++i) {
@@ -214,13 +214,11 @@ void application::run() noexcept {
             cube.draw(light_source_shader);
         }
         
-        scene_shader.bind();
         scene_shader.uniform("u_view", m_camera.get_view());
         scene_shader.uniform("u_projection", m_proj_settings.projection_mat);
         scene_shader.uniform("u_view_position", m_camera.position);
         const double t = glfwGetTime();
         scene_shader.uniform("u_time", t - size_t(t));
-
         scene_shader.uniform("u_material.shininess", material_shininess);
 
         for (size_t i = 0; i < point_lights.size(); ++i) {
@@ -252,36 +250,47 @@ void application::run() noexcept {
         scene_shader.uniform("u_dir_light.diffuse", directional_light.color  * directional_light.diffuse);
         scene_shader.uniform("u_dir_light.specular", directional_light.color * directional_light.specular);
         
-        OGL_CALL(glStencilFunc(GL_ALWAYS, 1, 0xFF));
-        OGL_CALL(glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE));
-        OGL_CALL(glStencilMask(0xFF));
-        glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), transform.position) 
-            * glm::mat4_cast(glm::quat(transform.rotation * (glm::pi<float>() / 180.0f)))
-            * glm::scale(glm::mat4(1.0f), transform.scale);
+        glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), sponza_transform.position) 
+            * glm::mat4_cast(glm::quat(sponza_transform.rotation * (glm::pi<float>() / 180.0f)))
+            * glm::scale(glm::mat4(1.0f), sponza_transform.scale);
         scene_shader.uniform("u_model", model_matrix);
         scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
-        model.draw(scene_shader);
+        scene_shader.uniform("u_flip_texture", true);
+        sponza.draw(scene_shader);
 
-        OGL_CALL(glStencilFunc(GL_NOTEQUAL, 1, 0xFF));
-        OGL_CALL(glStencilMask(0x00));
-        border_shader.bind();
-        border_shader.uniform("u_view", m_camera.get_view());
-        border_shader.uniform("u_projection", m_proj_settings.projection_mat);
-        model_matrix = glm::translate(glm::mat4(1.0f), transform.position) 
-            * glm::mat4_cast(glm::quat(transform.rotation * (glm::pi<float>() / 180.0f)))
-            * glm::scale(glm::mat4(1.0f), transform.scale + glm::vec3(0.01f, 0.01f, -0.01f));
-        border_shader.uniform("u_model", model_matrix);
-        border_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
-        model.draw(border_shader);
-        OGL_CALL(glStencilMask(0xFF));
-        OGL_CALL(glStencilFunc(GL_ALWAYS, 0, 0xFF));
+        model_matrix = glm::translate(glm::mat4(1.0f), backpack_transform.position) 
+            * glm::mat4_cast(glm::quat(backpack_transform.rotation * (glm::pi<float>() / 180.0f)))
+            * glm::scale(glm::mat4(1.0f), backpack_transform.scale);
+        scene_shader.uniform("u_model", model_matrix);
+        scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
+        scene_shader.uniform("u_flip_texture", false);
+        backpack.draw(scene_shader);
 
-        // for (size_t i = 0; i < cube_positions.size(); ++i) {
-        //     const glm::mat4 model_mat = glm::translate(glm::mat4(1.0f), cube_positions[i]);
-        //     scene_shader.uniform("u_model", model_mat);
-        //     scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_mat)));
-        //     mesh.draw(scene_shader);
-        // }
+        OGL_CALL(glDisable(GL_CULL_FACE));
+
+        distances_to_transparent_cubes.clear();
+        for (size_t i = 0; i < cube_positions.size(); ++i) {
+            distances_to_transparent_cubes.insert(std::make_pair(glm::length2(m_camera.position - cube_positions[i]), cube_positions[i]));
+        }
+
+        for (auto& it = distances_to_transparent_cubes.rbegin(); it != distances_to_transparent_cubes.rend(); ++it) {
+            model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), it->second), glm::vec3(0.7f));
+            scene_shader.uniform("u_model", model_matrix);
+            scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
+            diffuse_map.activate_unit(0);
+            scene_shader.uniform("u_material.diffuse0", 0);
+            cube.draw(scene_shader);
+        }
+
+
+
+        OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+        OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+        OGL_CALL(glActiveTexture(GL_TEXTURE0));
+        OGL_CALL(glBindTexture(GL_TEXTURE_2D, color_buffer));
+        texture_shader.uniform("u_texture", 0);
+        plane.draw(texture_shader);
+
 
     #pragma region ImGui
         _imgui_frame_begin();
@@ -344,9 +353,9 @@ void application::run() noexcept {
         ImGui::End();
 
         ImGui::Begin("Backpack");
-            ImGui::DragFloat3("position##backpack", glm::value_ptr(transform.position), 0.1f);
-            ImGui::DragFloat3("rotation##backpack", glm::value_ptr(transform.rotation));
-            ImGui::SliderFloat3("scale##backpack", glm::value_ptr(transform.scale), 0.0f, 10.0f);
+            ImGui::DragFloat3("position##backpack", glm::value_ptr(backpack_transform.position), 0.1f);
+            ImGui::DragFloat3("rotation##backpack", glm::value_ptr(backpack_transform.rotation));
+            ImGui::SliderFloat3("scale##backpack", glm::value_ptr(backpack_transform.scale), 0.0f, 10.0f);
 
             if (ImGui::DragFloat("shininess", &material_shininess, 1.0f)) {
                 material_shininess = std::clamp(material_shininess, 1.0f, std::numeric_limits<float>::max());

@@ -14,8 +14,7 @@ texture::texture(const std::string &filepath, const config &config) {
     create(filepath, config);
 }
 
-void texture::create(const std::string &filepath, const config &config) const noexcept
-{
+void texture::create(const std::string &filepath, const config &config) const noexcept {
     texture* self = const_cast<texture*>(this);
     
     if (const auto& t = preloaded_textures.find(filepath); t != preloaded_textures.cend()) {
