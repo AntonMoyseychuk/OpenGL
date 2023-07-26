@@ -61,6 +61,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     glfwSetCursorPosCallback(m_window, &application::_mouse_callback);
     glfwSetScrollCallback(m_window, &application::_mouse_wheel_scroll_callback);
 
+    m_proj_settings.x = m_proj_settings.y = 0;
     m_proj_settings.near = 0.1f;
     m_proj_settings.far = 100.0f;
     _window_resize_callback(m_window, width, height);
@@ -201,6 +202,8 @@ void application::run() noexcept {
 
         OGL_CALL(glEnable(GL_CULL_FACE));
 
+        m_camera.rotate(180.0f, glm::vec2(0.0f, 1.0f));
+
         light_source_shader.uniform("u_view", m_camera.get_view());
         light_source_shader.uniform("u_projection", m_proj_settings.projection_mat);
         for (size_t i = 0; i < point_lights.size(); ++i) {
@@ -283,14 +286,69 @@ void application::run() noexcept {
         }
 
 
-
         OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
         OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
+        OGL_CALL(glEnable(GL_CULL_FACE));
+
+        m_camera.rotate(180.0f, glm::vec2(0.0f, 1.0f));
+
+        light_source_shader.uniform("u_view", m_camera.get_view());
+        light_source_shader.uniform("u_projection", m_proj_settings.projection_mat);
+        for (size_t i = 0; i < point_lights.size(); ++i) {
+            light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), point_lights[i].position), glm::vec3(0.2f)));
+            light_source_shader.uniform("u_light_settings.color", point_lights[i].color);
+            cube.draw(light_source_shader);
+        }
+        for (size_t i = 0; i < spot_lights.size(); ++i) {
+            light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), spot_lights[i].position), glm::vec3(0.2f)));
+            light_source_shader.uniform("u_light_settings.color", spot_lights[i].color);
+            cube.draw(light_source_shader);
+        }
+        
+        scene_shader.uniform("u_view", m_camera.get_view());
+        
+        model_matrix = glm::translate(glm::mat4(1.0f), sponza_transform.position) 
+            * glm::mat4_cast(glm::quat(sponza_transform.rotation * (glm::pi<float>() / 180.0f)))
+            * glm::scale(glm::mat4(1.0f), sponza_transform.scale);
+        scene_shader.uniform("u_model", model_matrix);
+        scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
+        scene_shader.uniform("u_flip_texture", true);
+        sponza.draw(scene_shader);
+
+        model_matrix = glm::translate(glm::mat4(1.0f), backpack_transform.position) 
+            * glm::mat4_cast(glm::quat(backpack_transform.rotation * (glm::pi<float>() / 180.0f)))
+            * glm::scale(glm::mat4(1.0f), backpack_transform.scale);
+        scene_shader.uniform("u_model", model_matrix);
+        scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
+        scene_shader.uniform("u_flip_texture", false);
+        backpack.draw(scene_shader);
+
+        OGL_CALL(glDisable(GL_CULL_FACE));
+
+        distances_to_transparent_cubes.clear();
+        for (size_t i = 0; i < cube_positions.size(); ++i) {
+            distances_to_transparent_cubes.insert(std::make_pair(glm::length2(m_camera.position - cube_positions[i]), cube_positions[i]));
+        }
+
+        for (auto& it = distances_to_transparent_cubes.rbegin(); it != distances_to_transparent_cubes.rend(); ++it) {
+            model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), it->second), glm::vec3(0.7f));
+            scene_shader.uniform("u_model", model_matrix);
+            scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
+            diffuse_map.activate_unit(0);
+            scene_shader.uniform("u_material.diffuse0", 0);
+            cube.draw(scene_shader);
+        }
+
         OGL_CALL(glActiveTexture(GL_TEXTURE0));
         OGL_CALL(glBindTexture(GL_TEXTURE_2D, color_buffer));
+        OGL_CALL(glViewport(m_proj_settings.width / 2 - 250, m_proj_settings.height - 150, 500, 150));
         texture_shader.uniform("u_texture", 0);
+        OGL_CALL(glDisable(GL_DEPTH_TEST));
         plane.draw(texture_shader);
+        OGL_CALL(glEnable(GL_DEPTH_TEST));
 
+        OGL_CALL(glViewport(0, 0, m_proj_settings.width, m_proj_settings.height));
 
     #pragma region ImGui
         _imgui_frame_begin();
@@ -310,8 +368,9 @@ void application::run() noexcept {
         ImGui::End();
 
         ImGui::Begin("Camera");
-            if (ImGui::DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f) ||
-                ImGui::DragFloat("speed", &m_camera.speed, 0.1f) || ImGui::DragFloat("sensitivity", &m_camera.sensitivity, 0.1f)
+            ImGui::DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f);
+            if (ImGui::DragFloat("speed", &m_camera.speed, 0.1f) || 
+                ImGui::DragFloat("sensitivity", &m_camera.sensitivity, 0.1f)
             ) {
                 m_camera.speed = std::clamp(m_camera.speed, 1.0f, std::numeric_limits<float>::max());
                 m_camera.sensitivity = std::clamp(m_camera.sensitivity, 0.1f, std::numeric_limits<float>::max());
@@ -415,10 +474,10 @@ void application::glfw_deinitializer::operator()(bool *is_glfw_initialized) noex
 }
 
 void application::_window_resize_callback(GLFWwindow *window, int width, int height) noexcept {
-    OGL_CALL(glViewport(0, 0, width, height));
-
     application* app = static_cast<application*>(glfwGetWindowUserPointer(window));
     ASSERT(app != nullptr, "", "application instance is not set");
+
+    OGL_CALL(glViewport(app->m_proj_settings.x, app->m_proj_settings.y, width, height));
 
     app->m_proj_settings.width = width;
     app->m_proj_settings.height = height;

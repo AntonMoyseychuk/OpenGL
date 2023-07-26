@@ -8,8 +8,7 @@
 std::atomic<float> camera::dt = 0.0f;
 
 
-camera::camera(const glm::vec3 &position, const glm::vec3 &look_at, const glm::vec3 &up, float fov, float speed, float sensitivity, bool is_fixed)
-{
+camera::camera(const glm::vec3 &position, const glm::vec3 &look_at, const glm::vec3 &up, float fov, float speed, float sensitivity, bool is_fixed) {
     create(position, look_at, up, fov, speed, sensitivity, is_fixed);
 }
 
@@ -30,8 +29,8 @@ void camera::create(const glm::vec3 &position, const glm::vec3 &look_at, const g
     self->m_yaw = glm::degrees(glm::angle(m_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
 }
 
-void camera::rotate(float angle_radians, const glm::vec2& axis) noexcept {
-    _recalculate_rotation(axis.y * glm::degrees(angle_radians) * sensitivity, axis.x * glm::degrees(angle_radians) * sensitivity);
+void camera::rotate(float angle_degrees, const glm::vec2& axis) noexcept {
+    _recalculate_rotation(axis.x * angle_degrees, axis.y * angle_degrees);
 }
 
 void camera::move(const glm::vec3 &offset) noexcept {
@@ -79,16 +78,14 @@ void camera::wheel_scroll_callback(double yoffset) noexcept {
 }
 
 void camera::_recalculate_rotation(float delta_pitch, float delta_yaw) noexcept {
-    m_pitch += delta_pitch;
+    m_pitch = glm::clamp(m_pitch + delta_pitch, 91.0f, 269.0f);
     m_yaw += delta_yaw;
-
-    m_pitch = glm::clamp(m_pitch, 91.0f, 269.0f);
 
     const auto forward_x = std::cosf(glm::radians(m_yaw)) * std::cosf(glm::radians(m_pitch));
     const auto forward_y = std::sinf(glm::radians(m_pitch));
     const auto forward_z = std::sinf(glm::radians(m_yaw)) * std::cosf(glm::radians(m_pitch));
     m_forward = glm::normalize(glm::vec3(forward_x, forward_y, forward_z));
 
-    m_right = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), -m_forward);
-    m_up = glm::cross(-m_forward, m_right);
+    m_right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), -m_forward));
+    m_up = glm::normalize(glm::cross(-m_forward, m_right));
 }
