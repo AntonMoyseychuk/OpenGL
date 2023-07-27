@@ -2,26 +2,27 @@
 
 #include "debug.hpp"
 
-vertex_buffer::vertex_buffer(const void* data, size_t size, decltype(GL_STATIC_DRAW) usage) {
-    this->create(data, size, usage);
+vertex_buffer::vertex_buffer(const void* data, size_t vertex_count, size_t vertex_size, decltype(GL_STATIC_DRAW) usage) {
+    this->create(data, vertex_count, vertex_size, usage);
 }
 
 vertex_buffer::~vertex_buffer() {
-    _destroy();
+    destroy();
 }
 
-void vertex_buffer::create(const void* data, size_t size, decltype(GL_STATIC_DRAW) usage) noexcept {
+void vertex_buffer::create(const void* data, size_t vertex_count, size_t vertex_size, decltype(GL_STATIC_DRAW) usage) noexcept {
     if (m_id != 0) {
         LOG_WARN("vertex buffer", "vertex buffer recreation (id = " + std::to_string(m_id) + ")");
-        _destroy();
+        destroy();
     }
 
-    m_size = size;
+    m_vertex_count = vertex_count;
+    m_vertex_size = vertex_size;
     m_usage = usage;
 
-    glGenBuffers(1, &m_id);
+    OGL_CALL(glGenBuffers(1, &m_id));
     this->bind();
-    glBufferData(GL_ARRAY_BUFFER, m_size, data, usage);
+    OGL_CALL(glBufferData(GL_ARRAY_BUFFER, m_vertex_count * m_vertex_size, data, usage));
 
     this->unbind();
 }
@@ -42,6 +43,10 @@ void vertex_buffer::add_attribute(uint32_t index, uint32_t size, decltype(GL_FLO
     this->unbind();
 }
 
+size_t vertex_buffer::get_vertex_count() const noexcept {
+    return m_vertex_count;
+}
+
 vertex_buffer::vertex_buffer(vertex_buffer &&vbo)
     : m_id(vbo.m_id)
 {
@@ -55,8 +60,8 @@ vertex_buffer &vertex_buffer::operator=(vertex_buffer &&vbo) noexcept {
     return *this;
 }
 
-void vertex_buffer::_destroy() const noexcept {
+void vertex_buffer::destroy() noexcept {
     OGL_CALL(glDeleteBuffers(1, &m_id));
     
-    const_cast<vertex_buffer*>(this)->m_id = 0;
+    m_id = 0;
 }

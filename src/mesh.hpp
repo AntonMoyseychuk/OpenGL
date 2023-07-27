@@ -3,6 +3,8 @@
 #include "texture.hpp"
 
 #include "vertex_buffer.hpp"
+#include "index_buffer.hpp"
+#include "vertex_array.hpp"
 
 #include <glm/glm.hpp>
 
@@ -27,11 +29,8 @@ public:
 
 private:
     std::vector<texture> m_textures;
-    size_t m_vertex_count = 0;
-    size_t m_index_count = 0;
 
     vertex_buffer m_vbo;
-
-    uint32_t m_vao = 0;
-    uint32_t m_ebo = 0;
+    index_buffer m_ibo;
+    vertex_array m_vao;
 };

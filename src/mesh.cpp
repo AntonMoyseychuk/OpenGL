@@ -8,34 +8,23 @@ mesh::mesh(const std::vector<mesh::vertex> &vertices, const std::vector<uint32_t
 }
 
 void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_t> &indices, const std::vector<texture> &textures) noexcept {
-    m_vertex_count = vertices.size();
-    m_index_count = indices.size();
     m_textures = textures;
     
-    OGL_CALL(glGenVertexArrays(1, &m_vao));
-    OGL_CALL(glGenBuffers(1, &m_ebo));
-  
-    OGL_CALL(glBindVertexArray(m_vao));
-    m_vbo.create(&vertices[0], vertices.size() * sizeof(vertex), GL_STATIC_DRAW);
+    m_vao.create();
+    m_vao.bind();
+
+    m_vbo.create(&vertices[0], vertices.size(), sizeof(vertex), GL_STATIC_DRAW);
     m_vbo.add_attribute(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)0);
     m_vbo.add_attribute(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, normal));
     m_vbo.add_attribute(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, texcoord));
-
-    // OGL_CALL(glBindBuffer(GL_ARRAY_BUFFER, m_vbo));
-    // OGL_CALL(glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vertex), &vertices[0], GL_STATIC_DRAW));  
-    // OGL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)0));
-    // OGL_CALL(glEnableVertexAttribArray(0));	
-    // OGL_CALL(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, normal)));
-    // OGL_CALL(glEnableVertexAttribArray(1));	
-    // OGL_CALL(glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, texcoord)));
-    // OGL_CALL(glEnableVertexAttribArray(2));	
+    m_vbo.bind();
 
     if (!indices.empty()) {
-        OGL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo));
-        OGL_CALL(glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(indices[0]), &indices[0], GL_STATIC_DRAW));
+        m_ibo.create(&indices[0], indices.size(), sizeof(indices[0]), GL_STATIC_DRAW);
+        m_ibo.bind();
     }
 
-    OGL_CALL(glBindVertexArray(0));
+    m_vao.unbind();
 }
 
 void mesh::draw(const shader& shader) const noexcept {
@@ -68,11 +57,11 @@ void mesh::draw(const shader& shader) const noexcept {
         }
     }
 
-    glBindVertexArray(m_vao);
-    if (m_index_count == 0) {
-        glDrawArrays(GL_TRIANGLES, 0, m_vertex_count);
+    m_vao.bind();
+    if (m_ibo.get_index_count() == 0) {
+        glDrawArrays(GL_TRIANGLES, 0, m_vbo.get_vertex_count());
     } else {
-        glDrawElements(GL_TRIANGLES, m_index_count, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, m_ibo.get_index_count(), GL_UNSIGNED_INT, 0);
     }
-    glBindVertexArray(0);
+    m_vao.unbind();
 }
