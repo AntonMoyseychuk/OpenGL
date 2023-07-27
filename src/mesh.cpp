@@ -7,16 +7,14 @@ mesh::mesh(const std::vector<mesh::vertex> &vertices, const std::vector<uint32_t
     create(vertices, indices, textures);
 }
 
-void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_t> &indices, const std::vector<texture> &textures) const noexcept {
-    mesh* self = const_cast<mesh*>(this);
-
-    self->m_vertex_count = vertices.size();
-    self->m_index_count = indices.size();
-    self->m_textures = textures;
+void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_t> &indices, const std::vector<texture> &textures) noexcept {
+    m_vertex_count = vertices.size();
+    m_index_count = indices.size();
+    m_textures = textures;
     
-    OGL_CALL(glGenVertexArrays(1, &self->m_vao));
-    OGL_CALL(glGenBuffers(1, &self->m_vbo));
-    OGL_CALL(glGenBuffers(1, &self->m_ebo));
+    OGL_CALL(glGenVertexArrays(1, &m_vao));
+    OGL_CALL(glGenBuffers(1, &m_vbo));
+    OGL_CALL(glGenBuffers(1, &m_ebo));
   
     OGL_CALL(glBindVertexArray(m_vao));
     OGL_CALL(glBindBuffer(GL_ARRAY_BUFFER, m_vbo));
@@ -42,7 +40,7 @@ void mesh::draw(const shader& shader) const noexcept {
     
     shader.bind();
     for (int32_t i = 0; i < m_textures.size(); ++i) {
-        m_textures[i].activate_unit(i);
+        m_textures[i].bind(i);
 
         switch (m_textures[i].get_type()) {
         case texture::type::NONE:

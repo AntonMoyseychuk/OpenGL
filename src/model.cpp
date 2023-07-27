@@ -10,7 +10,7 @@ model::model(const std::string &filepath) {
     create(filepath);
 }
 
-void model::create(const std::string &filepath) const noexcept {
+void model::create(const std::string &filepath) noexcept {
     _load_model(filepath);
 }
 
@@ -25,13 +25,11 @@ void model::draw(const shader &shader) const noexcept {
     }
 }
 
-void model::_load_model(const std::string& filepath) const noexcept {
-    model* self = const_cast<model*>(this);
-
-    self->m_directory = std::filesystem::path(filepath).parent_path().u8string();
+void model::_load_model(const std::string& filepath) noexcept {
+    m_directory = std::filesystem::path(filepath).parent_path().u8string();
     
     if (preloaded_models.find(filepath) != preloaded_models.cend()) {
-        self->m_meshes = &preloaded_models.at(filepath);
+        m_meshes = &preloaded_models.at(filepath);
         return;
     }
 
@@ -40,16 +38,14 @@ void model::_load_model(const std::string& filepath) const noexcept {
 
     ASSERT(scene != nullptr && !(scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) && scene->mRootNode, "assimp error", importer.GetErrorString());
 
-    self->m_meshes = &preloaded_models[filepath];
+    m_meshes = &preloaded_models[filepath];
     _process_node(scene->mRootNode, scene);
 }
 
-void model::_process_node(aiNode *ai_node, const aiScene *ai_scene) const noexcept {
-    model* self = const_cast<model*>(this);
-    
+void model::_process_node(aiNode *ai_node, const aiScene *ai_scene) noexcept {
     for (size_t i = 0; i < ai_node->mNumMeshes; ++i) {
         aiMesh* mesh = ai_scene->mMeshes[ai_node->mMeshes[i]];
-        self->m_meshes->push_back(_process_mesh(mesh, ai_scene));
+        m_meshes->push_back(_process_mesh(mesh, ai_scene));
     }
 
     for (size_t i = 0; i < ai_node->mNumChildren; ++i) {
@@ -110,7 +106,7 @@ std::vector<texture> model::_load_material_textures(aiMaterial *ai_mat, aiTextur
     std::vector<texture> textures;
     textures.reserve(ai_mat->GetTextureCount(ai_type));
 
-    const texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture_type);
+    const texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture_type);
 
     for(size_t i = 0; i < ai_mat->GetTextureCount(ai_type); ++i) {
         aiString texture_name;

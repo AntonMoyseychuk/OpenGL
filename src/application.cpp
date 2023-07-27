@@ -11,6 +11,7 @@
 
 #include "shader.hpp"
 #include "texture.hpp"
+#include "cubemap.hpp"
 #include "model.hpp"
 
 #include "light/spot_light.hpp"
@@ -69,6 +70,8 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
 
     OGL_CALL(glEnable(GL_DEPTH_TEST));
+    OGL_CALL(glDepthFunc(GL_LEQUAL));
+
     OGL_CALL(glEnable(GL_STENCIL_TEST));
 
     OGL_CALL(glEnable(GL_BLEND));
@@ -84,19 +87,24 @@ void application::run() noexcept {
     // texture specular_map(RESOURCE_DIR "textures/container_specular.png", config);
     //
     
-    texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture::type::NONE);
+    cubemap skybox({
+        RESOURCE_DIR "textures/skybox/right.jpg",
+        RESOURCE_DIR "textures/skybox/left.jpg",
+        RESOURCE_DIR "textures/skybox/top.jpg",
+        RESOURCE_DIR "textures/skybox/bottom.jpg",
+        RESOURCE_DIR "textures/skybox/front.jpg",
+        RESOURCE_DIR "textures/skybox/back.jpg"
+    }, false);
+
+    texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture::type::NONE);
     texture diffuse_map(RESOURCE_DIR "textures/blending_transparent_window.png", config);
     
     std::vector<glm::vec3> cube_positions = {
-        glm::vec3( 0.0f,  0.0f,  0.0f), 
-        glm::vec3( 2.0f,  5.0f, -15.0f), 
-        glm::vec3(-1.5f, -2.2f, -2.5f),  
-        glm::vec3(-3.8f, -2.0f, -12.3f),  
+        glm::vec3(-1.5f, -2.2f,  2.5f),   
         glm::vec3( 2.4f, -0.4f, -3.5f),  
         glm::vec3(-1.7f,  3.0f, -7.5f),  
-        glm::vec3( 1.3f, -2.0f, -2.5f),  
-        glm::vec3( 1.5f,  2.0f, -2.5f), 
-        glm::vec3( 1.5f,  0.2f, -1.5f), 
+        glm::vec3( 1.5f,  2.0f,  2.5f), 
+        glm::vec3( 1.5f,  0.2f,  1.5f), 
         glm::vec3(-1.3f,  1.0f, -1.5f)
     };
 
@@ -122,18 +130,26 @@ void application::run() noexcept {
         spot_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-5.0f,  0.0f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
         spot_light(glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 5.0f,  0.0f, -2.0f), glm::vec3(-1.0f,  0.0f, 0.0f), 15.0f),
     };
-    directional_light directional_light(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.8f), glm::vec3(1.0f), glm::vec3(-1.0f, -1.0f, -1.0f));
+    directional_light directional_light(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.8f), glm::vec3(1.0f), glm::vec3(-1.0f, -1.0f, 1.0f));
 
-    shader light_source_shader(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/light_source.frag");
 
-    shader scene_shader(RESOURCE_DIR "shaders/light.vert", RESOURCE_DIR "shaders/light.frag");
+    shader scene_shader(RESOURCE_DIR "shaders/scene.vert", RESOURCE_DIR "shaders/scene.frag");
     scene_shader.uniform("u_point_lights_count", (uint32_t)point_lights.size());
     scene_shader.uniform("u_spot_lights_count", (uint32_t)spot_lights.size());
+    shader toon_shading_shader(RESOURCE_DIR "shaders/scene.vert", RESOURCE_DIR "shaders/toon_shading.frag");
+    toon_shading_shader.uniform("u_toon_level", 4u);
+    toon_shading_shader.uniform("u_point_lights_count", (uint32_t)point_lights.size());
+    toon_shading_shader.uniform("u_spot_lights_count", (uint32_t)spot_lights.size());
 
     shader border_shader(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/single_color.frag");
     border_shader.uniform("u_border_color", glm::vec3(1.0f));
 
-    shader texture_shader(RESOURCE_DIR "shaders/post_process.vert", RESOURCE_DIR "shaders/post_process.frag");
+    shader light_source_shader(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/light_source.frag");
+    shader framebuffer_shader(RESOURCE_DIR "shaders/post_process.vert", RESOURCE_DIR "shaders/post_process.frag");
+    shader skybox_shader(RESOURCE_DIR "shaders/skybox.vert", RESOURCE_DIR "shaders/skybox.frag");
+    shader reflect_shader(RESOURCE_DIR "shaders/scene.vert", RESOURCE_DIR "shaders/reflect.frag");
+    shader refract_shader(RESOURCE_DIR "shaders/scene.vert", RESOURCE_DIR "shaders/refract.frag");
+    
 
     uint32_t fbo;
     OGL_CALL(glGenFramebuffers(1, &fbo));
@@ -196,13 +212,11 @@ void application::run() noexcept {
                 m_camera.move(-m_camera.get_right() * io.DeltaTime);
             }
         }
-
+        
         OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
         OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
 
         OGL_CALL(glEnable(GL_CULL_FACE));
-
-        m_camera.rotate(180.0f, glm::vec2(0.0f, 1.0f));
 
         light_source_shader.uniform("u_view", m_camera.get_view());
         light_source_shader.uniform("u_projection", m_proj_settings.projection_mat);
@@ -253,21 +267,25 @@ void application::run() noexcept {
         scene_shader.uniform("u_dir_light.diffuse", directional_light.color  * directional_light.diffuse);
         scene_shader.uniform("u_dir_light.specular", directional_light.color * directional_light.specular);
         
-        glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), sponza_transform.position) 
-            * glm::mat4_cast(glm::quat(sponza_transform.rotation * (glm::pi<float>() / 180.0f)))
-            * glm::scale(glm::mat4(1.0f), sponza_transform.scale);
-        scene_shader.uniform("u_model", model_matrix);
-        scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
-        scene_shader.uniform("u_flip_texture", true);
-        sponza.draw(scene_shader);
+        {
+            glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), sponza_transform.position) 
+                * glm::mat4_cast(glm::quat(sponza_transform.rotation * (glm::pi<float>() / 180.0f)))
+                * glm::scale(glm::mat4(1.0f), sponza_transform.scale);
+            scene_shader.uniform("u_model", model_matrix);
+            scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
+            scene_shader.uniform("u_flip_texture", true);
+            sponza.draw(scene_shader);
+        }
 
-        model_matrix = glm::translate(glm::mat4(1.0f), backpack_transform.position) 
-            * glm::mat4_cast(glm::quat(backpack_transform.rotation * (glm::pi<float>() / 180.0f)))
-            * glm::scale(glm::mat4(1.0f), backpack_transform.scale);
-        scene_shader.uniform("u_model", model_matrix);
-        scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
-        scene_shader.uniform("u_flip_texture", false);
-        backpack.draw(scene_shader);
+        {
+            glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), backpack_transform.position) 
+                * glm::mat4_cast(glm::quat(backpack_transform.rotation * (glm::pi<float>() / 180.0f)))
+                * glm::scale(glm::mat4(1.0f), backpack_transform.scale);
+            scene_shader.uniform("u_model", model_matrix);
+            scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
+            scene_shader.uniform("u_flip_texture", false);
+            backpack.draw(scene_shader);
+        }
 
         OGL_CALL(glDisable(GL_CULL_FACE));
 
@@ -277,78 +295,27 @@ void application::run() noexcept {
         }
 
         for (auto& it = distances_to_transparent_cubes.rbegin(); it != distances_to_transparent_cubes.rend(); ++it) {
-            model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), it->second), glm::vec3(0.7f));
+            auto model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), it->second), glm::vec3(0.7f));
             scene_shader.uniform("u_model", model_matrix);
             scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
-            diffuse_map.activate_unit(0);
+            diffuse_map.bind(0);
             scene_shader.uniform("u_material.diffuse0", 0);
             cube.draw(scene_shader);
         }
 
+        skybox.bind();
+        skybox_shader.uniform("u_skybox", 0);
+        skybox_shader.uniform("u_view", glm::mat4(glm::mat3(m_camera.get_view())));
+        skybox_shader.uniform("u_projection", m_proj_settings.projection_mat);
+        cube.draw(skybox_shader);
 
         OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
         OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
-        OGL_CALL(glEnable(GL_CULL_FACE));
-
-        m_camera.rotate(180.0f, glm::vec2(0.0f, 1.0f));
-
-        light_source_shader.uniform("u_view", m_camera.get_view());
-        light_source_shader.uniform("u_projection", m_proj_settings.projection_mat);
-        for (size_t i = 0; i < point_lights.size(); ++i) {
-            light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), point_lights[i].position), glm::vec3(0.2f)));
-            light_source_shader.uniform("u_light_settings.color", point_lights[i].color);
-            cube.draw(light_source_shader);
-        }
-        for (size_t i = 0; i < spot_lights.size(); ++i) {
-            light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), spot_lights[i].position), glm::vec3(0.2f)));
-            light_source_shader.uniform("u_light_settings.color", spot_lights[i].color);
-            cube.draw(light_source_shader);
-        }
-        
-        scene_shader.uniform("u_view", m_camera.get_view());
-        
-        model_matrix = glm::translate(glm::mat4(1.0f), sponza_transform.position) 
-            * glm::mat4_cast(glm::quat(sponza_transform.rotation * (glm::pi<float>() / 180.0f)))
-            * glm::scale(glm::mat4(1.0f), sponza_transform.scale);
-        scene_shader.uniform("u_model", model_matrix);
-        scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
-        scene_shader.uniform("u_flip_texture", true);
-        sponza.draw(scene_shader);
-
-        model_matrix = glm::translate(glm::mat4(1.0f), backpack_transform.position) 
-            * glm::mat4_cast(glm::quat(backpack_transform.rotation * (glm::pi<float>() / 180.0f)))
-            * glm::scale(glm::mat4(1.0f), backpack_transform.scale);
-        scene_shader.uniform("u_model", model_matrix);
-        scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
-        scene_shader.uniform("u_flip_texture", false);
-        backpack.draw(scene_shader);
-
-        OGL_CALL(glDisable(GL_CULL_FACE));
-
-        distances_to_transparent_cubes.clear();
-        for (size_t i = 0; i < cube_positions.size(); ++i) {
-            distances_to_transparent_cubes.insert(std::make_pair(glm::length2(m_camera.position - cube_positions[i]), cube_positions[i]));
-        }
-
-        for (auto& it = distances_to_transparent_cubes.rbegin(); it != distances_to_transparent_cubes.rend(); ++it) {
-            model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), it->second), glm::vec3(0.7f));
-            scene_shader.uniform("u_model", model_matrix);
-            scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
-            diffuse_map.activate_unit(0);
-            scene_shader.uniform("u_material.diffuse0", 0);
-            cube.draw(scene_shader);
-        }
-
         OGL_CALL(glActiveTexture(GL_TEXTURE0));
         OGL_CALL(glBindTexture(GL_TEXTURE_2D, color_buffer));
-        OGL_CALL(glViewport(m_proj_settings.width / 2 - 250, m_proj_settings.height - 150, 500, 150));
-        texture_shader.uniform("u_texture", 0);
-        OGL_CALL(glDisable(GL_DEPTH_TEST));
-        plane.draw(texture_shader);
-        OGL_CALL(glEnable(GL_DEPTH_TEST));
-
-        OGL_CALL(glViewport(0, 0, m_proj_settings.width, m_proj_settings.height));
+        framebuffer_shader.uniform("u_texture", 0);
+        plane.draw(framebuffer_shader);
 
     #pragma region ImGui
         _imgui_frame_begin();

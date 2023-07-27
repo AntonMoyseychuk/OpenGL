@@ -9,11 +9,12 @@ public:
 
     struct config {
         config() = default;
-        config(uint32_t target, uint32_t wrap_s, uint32_t wrap_t, uint32_t min_filter, uint32_t mag_filter, bool generate_mipmap, type type = type::NONE);
+        config(uint32_t target, uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, uint32_t min_filter, uint32_t mag_filter, bool generate_mipmap, type type = type::NONE);
 
         uint32_t target;
         uint32_t wrap_s;
         uint32_t wrap_t;
+        uint32_t wrap_r;
         uint32_t min_filter;
         uint32_t mag_filter;
         type type;
@@ -24,11 +25,9 @@ public:
     texture() = default;
     texture(const std::string& filepath, const config& config);
 
-    void create(const std::string& filepath, const config& config) const noexcept;
+    void create(const std::string& filepath, const config& config) noexcept;
 
-    void activate_unit(uint32_t unit) const noexcept;
-
-    void bind() const noexcept;
+    void bind(uint32_t unit = 0) const noexcept;
     void unbind() const noexcept;
 
     uint32_t get_id() const noexcept;

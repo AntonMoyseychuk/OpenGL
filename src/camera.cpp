@@ -14,19 +14,17 @@ camera::camera(const glm::vec3 &position, const glm::vec3 &look_at, const glm::v
 
 void camera::create(const glm::vec3 &position, const glm::vec3 &look_at, const glm::vec3 &up, 
     float fov, float speed, float sensitivity, bool is_fixed
-) const noexcept {
-    camera* self = const_cast<camera*>(this);
-
-    self->position = position;
-    self->m_forward = glm::normalize(look_at - position);
-    self->m_right = glm::normalize(glm::cross(up, -m_forward));
-    self->m_up = glm::cross(-m_forward, m_right);
-    self->speed = speed;
-    self->sensitivity = sensitivity;
-    self->fov = fov;
-    self->is_fixed = is_fixed;
-    self->m_pitch = glm::degrees(glm::angle(glm::normalize(glm::vec3(m_forward.x, 0.0f, m_forward.z)), glm::vec3(0.0f, 0.0f, 1.0f)));
-    self->m_yaw = glm::degrees(glm::angle(m_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+) noexcept {
+    this->position = position;
+    this->m_forward = glm::normalize(look_at - position);
+    this->m_right = glm::normalize(glm::cross(up, -m_forward));
+    this->m_up = glm::cross(-m_forward, m_right);
+    this->speed = speed;
+    this->sensitivity = sensitivity;
+    this->fov = fov;
+    this->is_fixed = is_fixed;
+    this->m_pitch = glm::degrees(glm::angle(glm::normalize(glm::vec3(m_forward.x, 0.0f, m_forward.z)), glm::vec3(0.0f, 0.0f, 1.0f)));
+    this->m_yaw = glm::degrees(glm::angle(m_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
 }
 
 void camera::rotate(float angle_degrees, const glm::vec2& axis) noexcept {

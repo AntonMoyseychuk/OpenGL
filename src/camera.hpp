@@ -10,7 +10,7 @@ class camera {
         camera() = default;
         camera(const glm::vec3& position, const glm::vec3& look_at, const glm::vec3& up, float fov, float speed, float sensitivity, bool is_fixed = true);
 
-        void create(const glm::vec3& position, const glm::vec3& look_at, const glm::vec3& up, float fov, float speed, float sensitivity, bool is_fixed = true) const noexcept;
+        void create(const glm::vec3& position, const glm::vec3& look_at, const glm::vec3& up, float fov, float speed, float sensitivity, bool is_fixed = true) noexcept;
 
         void rotate(float angle_degrees, const glm::vec2& axis) noexcept;
         void move(const glm::vec3& offset) noexcept;
