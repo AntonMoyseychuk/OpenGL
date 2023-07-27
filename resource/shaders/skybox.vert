@@ -1,4 +1,4 @@
-#version 430
+#version 430 core
 
 out vec3 in_texcoord;
 

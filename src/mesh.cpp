@@ -13,18 +13,22 @@ void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_
     m_textures = textures;
     
     OGL_CALL(glGenVertexArrays(1, &m_vao));
-    OGL_CALL(glGenBuffers(1, &m_vbo));
     OGL_CALL(glGenBuffers(1, &m_ebo));
   
     OGL_CALL(glBindVertexArray(m_vao));
-    OGL_CALL(glBindBuffer(GL_ARRAY_BUFFER, m_vbo));
-    OGL_CALL(glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vertex), &vertices[0], GL_STATIC_DRAW));  
-    OGL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)0));
-    OGL_CALL(glEnableVertexAttribArray(0));	
-    OGL_CALL(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, normal)));
-    OGL_CALL(glEnableVertexAttribArray(1));	
-    OGL_CALL(glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, texcoord)));
-    OGL_CALL(glEnableVertexAttribArray(2));	
+    m_vbo.create(&vertices[0], vertices.size() * sizeof(vertex), GL_STATIC_DRAW);
+    m_vbo.add_attribute(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)0);
+    m_vbo.add_attribute(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, normal));
+    m_vbo.add_attribute(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, texcoord));
+
+    // OGL_CALL(glBindBuffer(GL_ARRAY_BUFFER, m_vbo));
+    // OGL_CALL(glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vertex), &vertices[0], GL_STATIC_DRAW));  
+    // OGL_CALL(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)0));
+    // OGL_CALL(glEnableVertexAttribArray(0));	
+    // OGL_CALL(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, normal)));
+    // OGL_CALL(glEnableVertexAttribArray(1));	
+    // OGL_CALL(glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, texcoord)));
+    // OGL_CALL(glEnableVertexAttribArray(2));	
 
     if (!indices.empty()) {
         OGL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo));

@@ -6,11 +6,11 @@
 #include <glad/glad.h>
 #include <stb/stb_image.h>
 
-cubemap::cubemap(const std::vector<std::string> &faces, bool flip_on_load) {
-    this->create(faces, flip_on_load);
+cubemap::cubemap(const std::vector<std::string> &faces) {
+    this->create(faces);
 }
 
-void cubemap::create(const std::vector<std::string> &faces, bool flip_on_load) noexcept {
+void cubemap::create(const std::vector<std::string> &faces) noexcept {
     OGL_CALL(glGenTextures(1, &m_id));
     this->bind();
 
@@ -19,7 +19,7 @@ void cubemap::create(const std::vector<std::string> &faces, bool flip_on_load) n
     for (size_t i = 0; i < faces.size(); ++i) {
         int32_t width, height, channel_count;
 
-        stbi_set_flip_vertically_on_load(flip_on_load);
+        stbi_set_flip_vertically_on_load(false);
         uint8_t* texture_data = stbi_load(faces[i].c_str(), &width, &height, &channel_count, 0);
     
         ASSERT(texture_data != nullptr, "cubemap creation error", "couldn't load texture \"" + faces[i] + "\"");

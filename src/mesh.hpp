@@ -2,6 +2,8 @@
 #include "shader.hpp"
 #include "texture.hpp"
 
+#include "vertex_buffer.hpp"
+
 #include <glm/glm.hpp>
 
 #include <vector>
@@ -28,7 +30,8 @@ private:
     size_t m_vertex_count = 0;
     size_t m_index_count = 0;
 
+    vertex_buffer m_vbo;
+
     uint32_t m_vao = 0;
-    uint32_t m_vbo = 0;
     uint32_t m_ebo = 0;
 };

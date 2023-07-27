@@ -1,4 +1,4 @@
-#version 430 core
+#version 430 core 
 
 out vec3 in_frag_pos;
 out vec3 in_normal;

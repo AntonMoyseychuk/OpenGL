@@ -5,9 +5,9 @@
 class cubemap {
 public:
     cubemap() = default;
-    cubemap(const std::vector<std::string>& faces, bool flip_on_load = true);
+    cubemap(const std::vector<std::string>& faces);
 
-    void create(const std::vector<std::string>& faces, bool flip_on_load = true) noexcept;
+    void create(const std::vector<std::string>& faces) noexcept;
 
     void bind() const noexcept;
     void unbind() const noexcept;

@@ -94,7 +94,7 @@ void application::run() noexcept {
         RESOURCE_DIR "textures/skybox/bottom.jpg",
         RESOURCE_DIR "textures/skybox/front.jpg",
         RESOURCE_DIR "textures/skybox/back.jpg"
-    }, false);
+    });
 
     texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture::type::NONE);
     texture diffuse_map(RESOURCE_DIR "textures/blending_transparent_window.png", config);

@@ -9,7 +9,8 @@ public:
 
     struct config {
         config() = default;
-        config(uint32_t target, uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, uint32_t min_filter, uint32_t mag_filter, bool generate_mipmap, type type = type::NONE);
+        config(uint32_t target, uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, uint32_t min_filter, uint32_t mag_filter, 
+            bool generate_mipmap, type type = type::NONE);
 
         uint32_t target;
         uint32_t wrap_s;
