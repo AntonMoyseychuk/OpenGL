@@ -5,12 +5,15 @@
 
 std::unordered_map<std::string, uint32_t> shader::precompiled_shaders;
 
-shader::shader(const std::string &vs_filepath, const std::string &fs_filepath)
-{
+shader::shader(const std::string& vs_filepath, const std::string& fs_filepath) {
     create(vs_filepath, fs_filepath);
 }
 
-void shader::create(const std::string &vs_filepath, const std::string &fs_filepath) noexcept
+shader::~shader() {
+    destroy();
+}
+
+void shader::create(const std::string& vs_filepath, const std::string& fs_filepath) noexcept
 {
     uint32_t vs_id = _create_shader(GL_VERTEX_SHADER, vs_filepath);
     uint32_t fs_id = _create_shader(GL_FRAGMENT_SHADER, fs_filepath);
@@ -33,6 +36,10 @@ void shader::create(const std::string &vs_filepath, const std::string &fs_filepa
 #endif
 
     unbind();
+}
+
+void shader::destroy() noexcept {
+    OGL_CALL(glDeleteProgram(m_program_id));
 }
 
 std::string shader::_read_shader_data_from_file(const std::string& filepath) noexcept {
@@ -130,10 +137,27 @@ void shader::uniform(const std::string& name, const glm::mat4& uniform) const no
     _set_uniform(glUniformMatrix4fv, name, 1, false, glm::value_ptr(uniform));
 }
 
-bool shader::operator==(const shader &shader) const noexcept {
+shader::shader(shader&& shader)
+    : m_program_id(shader.m_program_id), m_uniform_locations(shader.m_uniform_locations)
+{
+    shader.m_program_id = 0;
+    std::swap(shader.m_uniform_locations, decltype(shader.m_uniform_locations)());
+}
+
+shader& shader::operator=(shader&& shader) noexcept {
+    m_program_id = shader.m_program_id;
+    m_uniform_locations = shader.m_uniform_locations;
+
+    shader.m_program_id = 0;
+    std::swap(shader.m_uniform_locations, decltype(shader.m_uniform_locations)());
+
+    return *this;
+}
+
+bool shader::operator==(const shader& shader) const noexcept {
     return m_program_id == shader.m_program_id;
 }
 
-bool shader::operator!=(const shader &shader) const noexcept {
+bool shader::operator!=(const shader& shader) const noexcept {
     return !this->operator==(shader);
 }

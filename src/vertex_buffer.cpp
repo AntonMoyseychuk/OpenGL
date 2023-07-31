@@ -18,7 +18,6 @@ void vertex_buffer::create(const void* data, size_t vertex_count, size_t vertex_
 
     m_vertex_count = vertex_count;
     m_vertex_size = vertex_size;
-    m_usage = usage;
 
     OGL_CALL(glGenBuffers(1, &m_id));
     this->bind();

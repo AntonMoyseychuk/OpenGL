@@ -15,7 +15,10 @@ public:
     shader() = default;
     shader(const std::string& vs_filepath, const std::string& fs_filepath);
 
+    ~shader();
+
     void create(const std::string& vs_filepath, const std::string& fs_filepath) noexcept;
+    void destroy() noexcept;
     uint32_t get_id() const noexcept;
 
     void bind() const noexcept;
@@ -29,6 +32,12 @@ public:
     void uniform(const std::string& name, const glm::vec3& uniform) const noexcept;
     void uniform(const std::string& name, const glm::vec4& uniform) const noexcept;
     void uniform(const std::string& name, const glm::mat4& uniform) const noexcept;
+
+    shader(shader&& shader);
+    shader& operator=(shader&& shader) noexcept;
+
+    shader(const shader& shader) = delete;
+    shader& operator=(const shader& shader) = delete;
 
     bool operator==(const shader& shader) const noexcept;
     bool operator!=(const shader& shader) const noexcept;

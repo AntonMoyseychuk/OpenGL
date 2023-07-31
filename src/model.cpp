@@ -113,7 +113,7 @@ std::vector<texture> model::_load_material_textures(aiMaterial *ai_mat, aiTextur
         ai_mat->GetTexture(ai_type, i, &texture_name);
         
         texture texture;
-        texture.create(m_directory + "\\" + texture_name.C_Str(), config);
+        texture.load(m_directory + "\\" + texture_name.C_Str(), config);
         
         textures.emplace_back(texture);
     }

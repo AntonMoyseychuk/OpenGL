@@ -29,5 +29,4 @@ private:
     size_t m_vertex_count = 0;
     size_t m_vertex_size = 0;
     uint32_t m_id = 0;
-    decltype(GL_STATIC_DRAW) m_usage = 0;
 };

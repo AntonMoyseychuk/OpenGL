@@ -1,27 +1,29 @@
 #include "texture.hpp"
 
-#include <glad/glad.h>
-
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
 #include "debug.hpp"
 #include "log.hpp"
 
-std::unordered_map<std::string, texture> texture::preloaded_textures;
+std::unordered_map<std::string, texture::texture_data> texture::preloaded_textures;
 
 texture::texture(const std::string &filepath, const config &config) {
-    create(filepath, config);
+    load(filepath, config);
 }
 
-void texture::create(const std::string &filepath, const config &config) noexcept {
+texture::texture(const config &config, uint32_t width, uint32_t height, decltype(GL_RGB) format) {
+    create(config, width, height, format);
+}
+
+void texture::load(const std::string &filepath, const config &config) noexcept {
     if (const auto& t = preloaded_textures.find(filepath); t != preloaded_textures.cend()) {
-        m_config = t->second.m_config;
-        m_data = t->second.m_data;
+        m_data = t->second;
         return;
     }
 
-    m_config = config;
+    m_data.target = config.target;
+    m_data.type = config.type;
     
     stbi_set_flip_vertically_on_load(true);
     uint8_t* texture_data = stbi_load(filepath.c_str(), (int*)&m_data.width, (int*)&m_data.height, (int*)&m_data.channel_count, 0);
@@ -32,32 +34,47 @@ void texture::create(const std::string &filepath, const config &config) noexcept
     bind();
 
     const uint32_t format = m_data.channel_count == 3 ? GL_RGB : GL_RGBA;
-    OGL_CALL(glTexImage2D(m_config.target, 0, format, m_data.width, m_data.height, 0, format, GL_UNSIGNED_BYTE, texture_data));
+    OGL_CALL(glTexImage2D(m_data.target, 0, format, m_data.width, m_data.height, 0, format, GL_UNSIGNED_BYTE, texture_data));
     if (config.generate_mipmap) {
-        OGL_CALL(glGenerateMipmap(m_config.target));
+        OGL_CALL(glGenerateMipmap(m_data.target));
     }
 
-    if (config.wrap_s != GL_FALSE) {
-        OGL_CALL(glTexParameteri(m_config.target, GL_TEXTURE_WRAP_S, m_config.wrap_s));
-    }
-    if (config.wrap_t != GL_FALSE) {
-        OGL_CALL(glTexParameteri(m_config.target, GL_TEXTURE_WRAP_T, m_config.wrap_t));
-    }
-    if (config.wrap_r != GL_FALSE) {
-        OGL_CALL(glTexParameteri(m_config.target, GL_TEXTURE_WRAP_R, m_config.wrap_r));
-    }
-    if (config.min_filter != GL_FALSE) {
-        OGL_CALL(glTexParameteri(m_config.target, GL_TEXTURE_MIN_FILTER, m_config.min_filter));
-    }
-    if (config.mag_filter != GL_FALSE) {
-        OGL_CALL(glTexParameteri(m_config.target, GL_TEXTURE_MAG_FILTER, m_config.mag_filter));
-    }
+    _setup_tex_parametes(config);
 
     stbi_image_free(texture_data);
 
-    preloaded_textures[filepath] = *this;
+    preloaded_textures[filepath] = this->m_data;
 
     unbind();
+}
+
+void texture::create(const config &config, uint32_t width, uint32_t height, decltype(GL_RGB) format) noexcept {
+    if (m_data.id != 0) {
+        LOG_WARN("texture warning", "texture recreation");
+        destroy();
+    }
+
+    m_data.width = width;
+    m_data.height = height;
+    m_data.target = config.target;
+    m_data.type = config.type;
+
+    OGL_CALL(glGenTextures(1, &m_data.id));
+    bind();
+
+    OGL_CALL(glTexImage2D(m_data.target, 0, format, m_data.width, m_data.height, 0, format, GL_UNSIGNED_BYTE, nullptr));
+    if (config.generate_mipmap) {
+        OGL_CALL(glGenerateMipmap(m_data.target));
+    }
+
+    _setup_tex_parametes(config);
+
+    unbind();
+}
+
+void texture::destroy() noexcept {
+    OGL_CALL(glDeleteTextures(1, &m_data.id));
+    memset(&m_data, 0, sizeof(m_data));
 }
 
 void texture::bind(uint32_t unit) const noexcept {
@@ -70,11 +87,11 @@ void texture::bind(uint32_t unit) const noexcept {
     const_cast<texture*>(this)->m_data.texture_unit = GL_TEXTURE0 + unit;
     OGL_CALL(glActiveTexture(m_data.texture_unit));
 
-    OGL_CALL(glBindTexture(m_config.target, m_data.id));
+    OGL_CALL(glBindTexture(m_data.target, m_data.id));
 }
 
 void texture::unbind() const noexcept {
-    OGL_CALL(glBindTexture(m_config.target, 0));
+    OGL_CALL(glBindTexture(m_data.target, 0));
 }
 
 uint32_t texture::get_id() const noexcept {
@@ -82,10 +99,29 @@ uint32_t texture::get_id() const noexcept {
 }
 
 texture::type texture::get_type() const noexcept {
-    return m_config.type;
+    return m_data.type;
 }
 
-texture::config::config(uint32_t target, uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, uint32_t min_filter, uint32_t mag_filter, bool generate_mipmap, texture::type type)
-    : target(target), wrap_s(wrap_s), wrap_t(wrap_t), wrap_r(wrap_r), min_filter(min_filter), mag_filter(mag_filter), type(type), generate_mipmap(generate_mipmap)
+void texture::_setup_tex_parametes(const config& config) const noexcept {
+    if (config.wrap_s != GL_FALSE) {
+        OGL_CALL(glTexParameteri(m_data.target, GL_TEXTURE_WRAP_S, config.wrap_s));
+    }
+    if (config.wrap_t != GL_FALSE) {
+        OGL_CALL(glTexParameteri(m_data.target, GL_TEXTURE_WRAP_T, config.wrap_t));
+    }
+    if (config.wrap_r != GL_FALSE) {
+        OGL_CALL(glTexParameteri(m_data.target, GL_TEXTURE_WRAP_R, config.wrap_r));
+    }
+    if (config.min_filter != GL_FALSE) {
+        OGL_CALL(glTexParameteri(m_data.target, GL_TEXTURE_MIN_FILTER, config.min_filter));
+    }
+    if (config.mag_filter != GL_FALSE) {
+        OGL_CALL(glTexParameteri(m_data.target, GL_TEXTURE_MAG_FILTER, config.mag_filter));
+    }
+}
+
+texture::config::config(decltype(GL_TEXTURE_2D) target, decltype(GL_REPEAT) wrap_s, decltype(GL_REPEAT) wrap_t, decltype(GL_REPEAT) wrap_r, 
+    decltype(GL_CLAMP_TO_EDGE) min_filter, decltype(GL_CLAMP_TO_EDGE) mag_filter, bool generate_mipmap, texture::type type) 
+        : target(target), wrap_s(wrap_s), wrap_t(wrap_t), wrap_r(wrap_r), min_filter(min_filter), mag_filter(mag_filter), type(type), generate_mipmap(generate_mipmap)
 {
 }

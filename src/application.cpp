@@ -155,15 +155,10 @@ void application::run() noexcept {
     OGL_CALL(glGenFramebuffers(1, &fbo));
     OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
 
-    uint32_t color_buffer;
-    OGL_CALL(glGenTextures(1, &color_buffer));
-    OGL_CALL(glBindTexture(GL_TEXTURE_2D, color_buffer));
-    OGL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_proj_settings.width, m_proj_settings.height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr));
-    OGL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-    OGL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-    OGL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+    texture color_buffer(texture::config(GL_TEXTURE_2D, GL_FALSE, GL_FALSE, GL_FALSE, GL_LINEAR, GL_LINEAR, false),
+        m_proj_settings.width, m_proj_settings.height, GL_RGB);
 
-    OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_buffer, 0));
+    OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_buffer.get_id(), 0));
 
     uint32_t depth_stencil_buffer;
     OGL_CALL(glGenRenderbuffers(1, &depth_stencil_buffer));
@@ -312,8 +307,7 @@ void application::run() noexcept {
         OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
         OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
-        OGL_CALL(glActiveTexture(GL_TEXTURE0));
-        OGL_CALL(glBindTexture(GL_TEXTURE_2D, color_buffer));
+        color_buffer.bind(0);
         framebuffer_shader.uniform("u_texture", 0);
         plane.draw(framebuffer_shader);
 
