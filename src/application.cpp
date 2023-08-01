@@ -77,16 +77,10 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     OGL_CALL(glEnable(GL_BLEND));
     OGL_CALL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)); 
 
-    _imgui_init("#version 430");
+    _imgui_init("#version 430 core");
 }
 
 void application::run() noexcept {
-    // config.type = texture::type::EMISSION;
-    // texture emission_map(RESOURCE_DIR "textures/matrix.jpg", config);
-    // config.type = texture::type::SPECULAR;
-    // texture specular_map(RESOURCE_DIR "textures/container_specular.png", config);
-    //
-    
     cubemap skybox({
         RESOURCE_DIR "textures/skybox/right.jpg",
         RESOURCE_DIR "textures/skybox/left.jpg",
@@ -97,7 +91,11 @@ void application::run() noexcept {
     });
 
     texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture::type::NONE);
-    texture diffuse_map(RESOURCE_DIR "textures/blending_transparent_window.png", config);
+    texture window_texture(RESOURCE_DIR "textures/blending_transparent_window.png", config);
+    // config.type = texture::type::EMISSION;
+    // texture emission_map(RESOURCE_DIR "textures/matrix.jpg", config);
+    // config.type = texture::type::SPECULAR;
+    // texture specular_map(RESOURCE_DIR "textures/container_specular.png", config);
     
     std::vector<glm::vec3> cube_positions = {
         glm::vec3(-1.5f, -2.2f,  2.5f),   
@@ -171,6 +169,24 @@ void application::run() noexcept {
     ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "framebuffer error", "framebuffer is incomplit");
     OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
+    uint32_t matrices_uniform_buffer;
+    OGL_CALL(glGenBuffers(1, &matrices_uniform_buffer));
+    OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, matrices_uniform_buffer));
+    OGL_CALL(glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), nullptr, GL_STATIC_DRAW));
+    OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, 0));
+
+    OGL_CALL(glBindBufferRange(GL_UNIFORM_BUFFER, 0, matrices_uniform_buffer, 0, 2 * sizeof(glm::mat4)));
+
+    uint32_t light_source_matrices_block_index;
+    OGL_CALL(light_source_matrices_block_index = glGetUniformBlockIndex(light_source_shader.get_id(), "Matrices"));
+    OGL_CALL(glUniformBlockBinding(light_source_shader.get_id(), light_source_matrices_block_index, 0));
+    uint32_t scene_matrices_block_index;
+    OGL_CALL(scene_matrices_block_index = glGetUniformBlockIndex(scene_shader.get_id(), "Matrices"));
+    OGL_CALL(glUniformBlockBinding(scene_shader.get_id(), scene_matrices_block_index, 0));
+    uint32_t skybox_matrices_block_index;
+    OGL_CALL(skybox_matrices_block_index = glGetUniformBlockIndex(skybox_shader.get_id(), "Matrices"));
+    OGL_CALL(glUniformBlockBinding(skybox_shader.get_id(), skybox_matrices_block_index, 0));
+
     mesh plane({ 
         mesh::vertex { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f), glm::vec2(0.0f, 0.0f) },
         mesh::vertex { glm::vec3(-1.0f,  1.0f, 0.0f), glm::vec3(0.0f), glm::vec2(0.0f, 1.0f) },
@@ -213,8 +229,13 @@ void application::run() noexcept {
 
         OGL_CALL(glEnable(GL_CULL_FACE));
 
-        light_source_shader.uniform("u_view", m_camera.get_view());
-        light_source_shader.uniform("u_projection", m_proj_settings.projection_mat);
+        OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, matrices_uniform_buffer));
+        OGL_CALL(glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(m_camera.get_view())));
+        OGL_CALL(glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(m_proj_settings.projection_mat)));
+        OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, 0));
+
+        // light_source_shader.uniform("u_view", m_camera.get_view());
+        // light_source_shader.uniform("u_projection", m_proj_settings.projection_mat);
         for (size_t i = 0; i < point_lights.size(); ++i) {
             light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), point_lights[i].position), glm::vec3(0.2f)));
             light_source_shader.uniform("u_light_settings.color", point_lights[i].color);
@@ -226,8 +247,8 @@ void application::run() noexcept {
             cube.draw(light_source_shader);
         }
         
-        scene_shader.uniform("u_view", m_camera.get_view());
-        scene_shader.uniform("u_projection", m_proj_settings.projection_mat);
+        // scene_shader.uniform("u_view", m_camera.get_view());
+        // scene_shader.uniform("u_projection", m_proj_settings.projection_mat);
         scene_shader.uniform("u_view_position", m_camera.position);
         const double t = glfwGetTime();
         scene_shader.uniform("u_time", t - size_t(t));
@@ -293,15 +314,18 @@ void application::run() noexcept {
             auto model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), it->second), glm::vec3(0.7f));
             scene_shader.uniform("u_model", model_matrix);
             scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
-            diffuse_map.bind(0);
+            window_texture.bind(0);
             scene_shader.uniform("u_material.diffuse0", 0);
             cube.draw(scene_shader);
         }
 
+
+        OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, matrices_uniform_buffer));
+        OGL_CALL(glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(glm::mat4(glm::mat3(m_camera.get_view())))));
+        OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, 0));
+
         skybox.bind();
         skybox_shader.uniform("u_skybox", 0);
-        skybox_shader.uniform("u_view", glm::mat4(glm::mat3(m_camera.get_view())));
-        skybox_shader.uniform("u_projection", m_proj_settings.projection_mat);
         cube.draw(skybox_shader);
 
         OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));

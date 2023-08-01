@@ -17,6 +17,11 @@ texture::texture(const config &config, uint32_t width, uint32_t height, decltype
 }
 
 void texture::load(const std::string &filepath, const config &config) noexcept {
+    if (m_data.id != 0) {
+        LOG_WARN("texture warning", "texture overwriting");
+        destroy();
+    }
+
     if (const auto& t = preloaded_textures.find(filepath); t != preloaded_textures.cend()) {
         m_data = t->second;
         return;
@@ -50,7 +55,7 @@ void texture::load(const std::string &filepath, const config &config) noexcept {
 
 void texture::create(const config &config, uint32_t width, uint32_t height, decltype(GL_RGB) format) noexcept {
     if (m_data.id != 0) {
-        LOG_WARN("texture warning", "texture recreation");
+        LOG_WARN("texture warning", "texture overwriting");
         destroy();
     }
 
