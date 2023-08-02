@@ -58,10 +58,10 @@ uniform Material u_material;
 
 uniform vec3 u_view_position;
 
-uniform double u_time;
-uniform uint u_toon_level;
+uniform bool u_is_sphere;
 
-const float toon_scale_factor = 1.0 / u_toon_level;
+uniform uint u_toon_level;
+float toon_scale_factor = 1.0 / u_toon_level;
 
 vec3 calculate_directional_light(DirectionalLight light, vec3 normal, vec3 diffuse_map, vec3 specular_map) {
     const vec3 ambient = light.ambient * diffuse_map;   
@@ -127,8 +127,8 @@ vec3 calculate_spot_light(SpotLight light, vec3 normal, vec3 diffuse_map, vec3 s
 }
 
 void main() {
-    const vec4 diffuse_map = texture(u_material.diffuse0, in_texcoord);
-    const vec4 specular_map = texture(u_material.specular0, in_texcoord);
+    const vec4 diffuse_map = u_is_sphere ? vec4(1.0f, 0.0f, 0.0f, 1.0f) : texture(u_material.diffuse0, in_texcoord);
+    const vec4 specular_map = u_is_sphere ? vec4(1.0f) : texture(u_material.specular0, in_texcoord);
 
     const vec3 normal = normalize(in_normal);
 
@@ -141,10 +141,6 @@ void main() {
     for (uint i = 0; i < u_spot_lights_count; ++i) {
         out_color += calculate_spot_light(u_spot_lights[i], normal, diffuse_map.rgb, specular_map.rgb);
     }
-
-    // const vec2 emision_map_coord = vec2(in_texcoord.x, (1.0 - in_texcoord.y) - u_time);
-    // const vec3 emission_map = texture(u_material.emission0, (emision_map_coord)).rgb * floor(vec3(1.0) - specular_map.rgb);
-    // out_color += emission_map;
 
     frag_color = vec4(out_color, diffuse_map.a);
 }

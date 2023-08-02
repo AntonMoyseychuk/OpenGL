@@ -83,7 +83,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 }
 
 void application::run() noexcept {
-    uv_sphere sphere(7, 7);
+    uv_sphere sphere(10, 10);
 
     cubemap skybox({
         RESOURCE_DIR "textures/skybox/right.jpg",
@@ -228,7 +228,7 @@ void application::run() noexcept {
             }
         }
         
-        OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
+        // OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
         OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
 
         OGL_CALL(glEnable(GL_CULL_FACE));
@@ -332,12 +332,12 @@ void application::run() noexcept {
         skybox_shader.uniform("u_skybox", 0);
         cube.draw(skybox_shader);
 
-        OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-        OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+        // OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+        // OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
-        color_buffer.bind(0);
-        framebuffer_shader.uniform("u_texture", 0);
-        plane.draw(framebuffer_shader);
+        // color_buffer.bind(0);
+        // framebuffer_shader.uniform("u_texture", 0);
+        // plane.draw(framebuffer_shader);
 
     #pragma region ImGui
         _imgui_frame_begin();
@@ -411,11 +411,13 @@ void application::run() noexcept {
         ImGui::End();
 
         ImGui::Begin("Sphere");
-            if (ImGui::SliderInt("stacks", (int*)&sphere.stacks, 3, 100)) {
+            if (ImGui::SliderInt("stacks", (int*)&sphere.stacks, 3, 150)) {
+                sphere.stacks = glm::clamp(sphere.stacks, 3u, 150u);
                 sphere.generate(sphere.stacks, sphere.slices);
             }
 
-            if (ImGui::SliderInt("slices", (int*)&sphere.slices, 3, 100)) {
+            if (ImGui::SliderInt("slices", (int*)&sphere.slices, 3, 150)) {
+                sphere.slices = glm::clamp(sphere.slices, 3u, 150u);
                 sphere.generate(sphere.stacks, sphere.slices);
             }
         ImGui::End();
