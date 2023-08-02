@@ -18,6 +18,8 @@
 #include "light/point_light.hpp"
 #include "light/directional_light.hpp"
 
+#include "uv_sphere.hpp"
+
 #include <algorithm>
 #include <map>
 
@@ -81,6 +83,8 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 }
 
 void application::run() noexcept {
+    uv_sphere sphere(7, 7);
+
     cubemap skybox({
         RESOURCE_DIR "textures/skybox/right.jpg",
         RESOURCE_DIR "textures/skybox/left.jpg",
@@ -172,7 +176,7 @@ void application::run() noexcept {
     uint32_t matrices_uniform_buffer;
     OGL_CALL(glGenBuffers(1, &matrices_uniform_buffer));
     OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, matrices_uniform_buffer));
-    OGL_CALL(glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), nullptr, GL_STATIC_DRAW));
+    OGL_CALL(glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), nullptr, GL_DYNAMIC_DRAW));
     OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, 0));
 
     OGL_CALL(glBindBufferRange(GL_UNIFORM_BUFFER, 0, matrices_uniform_buffer, 0, 2 * sizeof(glm::mat4)));
@@ -234,8 +238,6 @@ void application::run() noexcept {
         OGL_CALL(glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(m_proj_settings.projection_mat)));
         OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, 0));
 
-        // light_source_shader.uniform("u_view", m_camera.get_view());
-        // light_source_shader.uniform("u_projection", m_proj_settings.projection_mat);
         for (size_t i = 0; i < point_lights.size(); ++i) {
             light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), point_lights[i].position), glm::vec3(0.2f)));
             light_source_shader.uniform("u_light_settings.color", point_lights[i].color);
@@ -247,8 +249,6 @@ void application::run() noexcept {
             cube.draw(light_source_shader);
         }
         
-        // scene_shader.uniform("u_view", m_camera.get_view());
-        // scene_shader.uniform("u_projection", m_proj_settings.projection_mat);
         scene_shader.uniform("u_view_position", m_camera.position);
         const double t = glfwGetTime();
         scene_shader.uniform("u_time", t - size_t(t));
@@ -319,6 +319,10 @@ void application::run() noexcept {
             cube.draw(scene_shader);
         }
 
+        scene_shader.uniform("u_is_sphere", true);
+        scene_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 10.0f, 0.0f)));
+        sphere.draw(scene_shader);
+        scene_shader.uniform("u_is_sphere", false);
 
         OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, matrices_uniform_buffer));
         OGL_CALL(glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(glm::mat4(glm::mat3(m_camera.get_view())))));
@@ -403,6 +407,16 @@ void application::run() noexcept {
 
             if (ImGui::DragFloat("shininess", &material_shininess, 1.0f)) {
                 material_shininess = std::clamp(material_shininess, 1.0f, std::numeric_limits<float>::max());
+            }
+        ImGui::End();
+
+        ImGui::Begin("Sphere");
+            if (ImGui::SliderInt("stacks", (int*)&sphere.stacks, 3, 100)) {
+                sphere.generate(sphere.stacks, sphere.slices);
+            }
+
+            if (ImGui::SliderInt("slices", (int*)&sphere.slices, 3, 100)) {
+                sphere.generate(sphere.stacks, sphere.slices);
             }
         ImGui::End();
 
