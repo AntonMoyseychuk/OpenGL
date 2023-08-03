@@ -1,5 +1,7 @@
 #include "texture.hpp"
 
+#include <glad/glad.h>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
@@ -12,8 +14,8 @@ texture::texture(const std::string &filepath, const config &config) {
     load(filepath, config);
 }
 
-texture::texture(const config &config, uint32_t width, uint32_t height, decltype(GL_RGB) format) {
-    create(config, width, height, format);
+texture::texture(uint32_t width, uint32_t height, uint32_t format, const config &config) {
+    create(width, height, format, config);
 }
 
 void texture::load(const std::string &filepath, const config &config) noexcept {
@@ -53,7 +55,7 @@ void texture::load(const std::string &filepath, const config &config) noexcept {
     unbind();
 }
 
-void texture::create(const config &config, uint32_t width, uint32_t height, decltype(GL_RGB) format) noexcept {
+void texture::create(uint32_t width, uint32_t height, uint32_t format, const config &config) noexcept {
     if (m_data.id != 0) {
         LOG_WARN("texture warning", "texture overwriting");
         destroy();
@@ -125,8 +127,9 @@ void texture::_setup_tex_parametes(const config& config) const noexcept {
     }
 }
 
-texture::config::config(decltype(GL_TEXTURE_2D) target, decltype(GL_REPEAT) wrap_s, decltype(GL_REPEAT) wrap_t, decltype(GL_REPEAT) wrap_r, 
-    decltype(GL_CLAMP_TO_EDGE) min_filter, decltype(GL_CLAMP_TO_EDGE) mag_filter, bool generate_mipmap, texture::type type) 
-        : target(target), wrap_s(wrap_s), wrap_t(wrap_t), wrap_r(wrap_r), min_filter(min_filter), mag_filter(mag_filter), type(type), generate_mipmap(generate_mipmap)
+texture::config::config(uint32_t target, uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, uint32_t min_filter, uint32_t mag_filter, 
+    bool generate_mipmap, texture::type type) 
+        : target(target), wrap_s(wrap_s), wrap_t(wrap_t), wrap_r(wrap_r), min_filter(min_filter), mag_filter(mag_filter), 
+            type(type), generate_mipmap(generate_mipmap)
 {
 }

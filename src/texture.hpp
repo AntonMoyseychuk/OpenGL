@@ -1,6 +1,4 @@
 #pragma once
-#include <glad/glad.h>
-
 #include <string>
 #include <cstdint>
 #include <unordered_map>
@@ -11,15 +9,15 @@ public:
 
     struct config {
         config() = default;
-        config(decltype(GL_TEXTURE_2D) target, decltype(GL_REPEAT) wrap_s, decltype(GL_REPEAT) wrap_t, decltype(GL_REPEAT) wrap_r, 
-            decltype(GL_CLAMP_TO_EDGE) min_filter, decltype(GL_CLAMP_TO_EDGE) mag_filter, bool generate_mipmap, type type = type::NONE);
+        config(uint32_t target, uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, 
+            uint32_t min_filter, uint32_t mag_filter, bool generate_mipmap, type type = type::NONE);
 
-        decltype(GL_TEXTURE_2D) target;
-        decltype(GL_REPEAT) wrap_s;
-        decltype(GL_REPEAT) wrap_t;
-        decltype(GL_REPEAT) wrap_r;
-        decltype(GL_CLAMP_TO_EDGE) min_filter;
-        decltype(GL_CLAMP_TO_EDGE) mag_filter;
+        uint32_t target;
+        uint32_t wrap_s;
+        uint32_t wrap_t;
+        uint32_t wrap_r;
+        uint32_t min_filter;
+        uint32_t mag_filter;
         type type;
         bool generate_mipmap;
     };
@@ -27,10 +25,10 @@ public:
 public:
     texture() = default;
     texture(const std::string& filepath, const config& config);
-    texture(const config& config, uint32_t width, uint32_t height, decltype(GL_RGB) format);
+    texture(uint32_t width, uint32_t height, uint32_t format, const config& config);
 
     void load(const std::string& filepath, const config& config) noexcept;
-    void create(const config& config, uint32_t width, uint32_t height, decltype(GL_RGB) format) noexcept;
+    void create(uint32_t width, uint32_t height, uint32_t format, const config& config) noexcept;
     void destroy() noexcept;
 
     void bind(uint32_t unit = 0) const noexcept;
@@ -50,7 +48,7 @@ private:
         uint32_t height = 0;
         uint32_t channel_count = 0;
 
-        decltype(GL_TEXTURE_2D) target = GL_FALSE;
+        uint32_t target = 0;
         type type = type::NONE;
     };
     

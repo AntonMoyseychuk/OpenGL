@@ -160,8 +160,8 @@ void application::run() noexcept {
     OGL_CALL(glGenFramebuffers(1, &fbo));
     OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
 
-    texture color_buffer(texture::config(GL_TEXTURE_2D, GL_FALSE, GL_FALSE, GL_FALSE, GL_LINEAR, GL_LINEAR, false),
-        m_proj_settings.width, m_proj_settings.height, GL_RGB);
+    texture color_buffer(m_proj_settings.width, m_proj_settings.height, GL_RGB, 
+        texture::config(GL_TEXTURE_2D, GL_FALSE, GL_FALSE, GL_FALSE, GL_LINEAR, GL_LINEAR, false));
 
     OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_buffer.get_id(), 0));
 
