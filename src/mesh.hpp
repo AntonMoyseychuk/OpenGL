@@ -2,8 +2,7 @@
 #include "shader.hpp"
 #include "texture.hpp"
 
-#include "vertex_buffer.hpp"
-#include "index_buffer.hpp"
+#include "buffer.hpp"
 #include "vertex_array.hpp"
 
 #include <glm/glm.hpp>
@@ -31,7 +30,7 @@ public:
 private:
     std::vector<texture> m_textures;
 
-    vertex_buffer m_vbo;
-    index_buffer m_ibo;
+    buffer m_vbo;
+    buffer m_ibo;
     vertex_array m_vao;
 };

@@ -7,12 +7,12 @@
 #include <stb/stb_image.h>
 
 cubemap::cubemap(const std::vector<std::string> &faces) {
-    this->create(faces);
+    create(faces);
 }
 
 void cubemap::create(const std::vector<std::string> &faces) noexcept {
     OGL_CALL(glGenTextures(1, &m_id));
-    this->bind();
+    bind();
 
     ASSERT(faces.size() == 6, "cubemap creation error", "faces count is not equal 6");
 
@@ -35,7 +35,7 @@ void cubemap::create(const std::vector<std::string> &faces) noexcept {
     OGL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
     OGL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 
-    this->unbind();
+    unbind();
 }
 
 void cubemap::bind(uint32_t unit) const noexcept {

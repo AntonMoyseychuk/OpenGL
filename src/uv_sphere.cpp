@@ -2,7 +2,7 @@
 #include <glm/gtc/constants.hpp>
 
 uv_sphere::uv_sphere(uint32_t stacks, uint32_t slices) {
-    this->generate(stacks, slices);
+    generate(stacks, slices);
 }
 
 void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
@@ -38,7 +38,7 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
             vertices.emplace_back(v);
         }
     }
-    vertices.emplace_back(mesh::vertex { glm::vec3(0.0f, -1.0f, 0.0f), {}, { 0.5f, -1.0f } });
+    vertices.emplace_back(mesh::vertex { glm::vec3(0.0f, -1.0f, 0.0f), {}, { 0.5f, 0.0f } });
 
     std::vector<uint32_t> indices;
     indices.reserve((2 * slices * 3) + ((stacks - 2) * slices * 6));

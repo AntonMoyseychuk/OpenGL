@@ -1,14 +1,16 @@
 #include "vertex_array.hpp"
 
+#include <glad/glad.h>
+
 #include "debug.hpp"
 
 vertex_array::~vertex_array() {
-    this->destroy();
+    destroy();
 }
 
 void vertex_array::create() noexcept {
     if (m_id != 0) {
-        LOG_WARN("vertex array", "vertex array recreation (id = " + std::to_string(m_id) + ")");
+        LOG_WARN("vertex array", "vertex array recreation (prev id = " + std::to_string(m_id) + ")");
         destroy();
     }
 
@@ -27,6 +29,12 @@ void vertex_array::bind() const noexcept {
 
 void vertex_array::unbind() const noexcept {
     OGL_CALL(glBindVertexArray(0));
+}
+
+void vertex_array::add_attribute(uint32_t index, uint32_t size, uint32_t type, bool normalized, uint32_t stride, const void *pointer) const noexcept {
+    bind();
+    OGL_CALL(glVertexAttribPointer(index, size, type, normalized, stride, pointer));
+    OGL_CALL(glEnableVertexAttribArray(index));
 }
 
 vertex_array::vertex_array(vertex_array &&vao)

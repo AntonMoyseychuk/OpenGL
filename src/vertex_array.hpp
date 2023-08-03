@@ -1,5 +1,4 @@
 #pragma once
-#include <glad/glad.h>
 #include <cstdint>
 
 class vertex_array {
@@ -12,6 +11,8 @@ public:
 
     void bind() const noexcept;
     void unbind() const noexcept;
+
+    void add_attribute(uint32_t index, uint32_t size, uint32_t type, bool normalized, uint32_t stride, const void* pointer) const noexcept;
 
     vertex_array(vertex_array&& vao);
     vertex_array& operator=(vertex_array&& vao) noexcept;

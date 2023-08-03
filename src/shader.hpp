@@ -9,15 +9,16 @@
 
 #include <unordered_map>
 #include <string>
+#include <optional>
 
 class shader {
 public:
     shader() = default;
-    shader(const std::string& vs_filepath, const std::string& fs_filepath);
+    shader(const std::string& vs_filepath, const std::string& fs_filepath, const std::optional<std::string>& gs_filepath = std::nullopt);
 
     ~shader();
 
-    void create(const std::string& vs_filepath, const std::string& fs_filepath) noexcept;
+    void create(const std::string& vs_filepath, const std::string& fs_filepath, const std::optional<std::string>& gs_filepath = std::nullopt) noexcept;
     void destroy() noexcept;
     uint32_t get_id() const noexcept;
 

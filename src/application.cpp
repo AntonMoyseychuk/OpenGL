@@ -41,6 +41,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
@@ -175,13 +176,9 @@ void application::run() noexcept {
     ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "framebuffer error", "framebuffer is incomplit");
     OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
-    uint32_t matrices_uniform_buffer;
-    OGL_CALL(glGenBuffers(1, &matrices_uniform_buffer));
-    OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, matrices_uniform_buffer));
-    OGL_CALL(glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), nullptr, GL_DYNAMIC_DRAW));
-    OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, 0));
+    buffer matrices_uniform_buffer(GL_UNIFORM_BUFFER, 2, sizeof(glm::mat4), GL_DYNAMIC_DRAW, nullptr);
+    OGL_CALL(glBindBufferRange(GL_UNIFORM_BUFFER, 0, matrices_uniform_buffer.get_id(), 0, 2 * sizeof(glm::mat4)));
 
-    OGL_CALL(glBindBufferRange(GL_UNIFORM_BUFFER, 0, matrices_uniform_buffer, 0, 2 * sizeof(glm::mat4)));
 
     uint32_t light_source_matrices_block_index;
     OGL_CALL(light_source_matrices_block_index = glGetUniformBlockIndex(light_source_shader.get_id(), "Matrices"));
@@ -230,15 +227,13 @@ void application::run() noexcept {
             }
         }
         
-        // OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
+        OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
         OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
 
         OGL_CALL(glEnable(GL_CULL_FACE));
 
-        OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, matrices_uniform_buffer));
-        OGL_CALL(glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(m_camera.get_view())));
-        OGL_CALL(glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(m_proj_settings.projection_mat)));
-        OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, 0));
+        matrices_uniform_buffer.subdata(0, sizeof(glm::mat4), glm::value_ptr(m_camera.get_view()));
+        matrices_uniform_buffer.subdata(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(m_proj_settings.projection_mat));
 
         for (size_t i = 0; i < point_lights.size(); ++i) {
             light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), point_lights[i].position), glm::vec3(0.2f)));
@@ -328,20 +323,21 @@ void application::run() noexcept {
         sphere.draw(scene_shader);
         // scene_shader.uniform("u_is_sphere", false);
 
-        OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, matrices_uniform_buffer));
-        OGL_CALL(glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(glm::mat4(glm::mat3(m_camera.get_view())))));
-        OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, 0));
+        matrices_uniform_buffer.subdata(0, sizeof(glm::mat4), glm::value_ptr(glm::mat4(glm::mat3(m_camera.get_view()))));
 
         skybox.bind();
         skybox_shader.uniform("u_skybox", 0);
         cube.draw(skybox_shader);
 
-        // OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-        // OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
-        // color_buffer.bind(0);
-        // framebuffer_shader.uniform("u_texture", 0);
-        // plane.draw(framebuffer_shader);
+        OGL_CALL(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
+        OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+        OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
+        color_buffer.bind(0);
+        framebuffer_shader.uniform("u_texture", 0);
+        plane.draw(framebuffer_shader);
+        OGL_CALL(glPolygonMode(GL_FRONT_AND_BACK, m_wireframed ? GL_LINE : GL_FILL));
 
     #pragma region ImGui
         _imgui_frame_begin();
@@ -434,8 +430,8 @@ void application::run() noexcept {
 }
 
 application::~application() {
-    _destroy();
     _imgui_shutdown();
+    _destroy();
 }
 
 void application::_destroy() noexcept {

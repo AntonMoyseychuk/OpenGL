@@ -48,7 +48,7 @@ void texture::load(const std::string &filepath, const config &config) noexcept {
 
     stbi_image_free(texture_data);
 
-    preloaded_textures[filepath] = this->m_data;
+    preloaded_textures[filepath] = m_data;
 
     unbind();
 }

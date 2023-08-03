@@ -5,22 +5,25 @@
 
 std::unordered_map<std::string, uint32_t> shader::precompiled_shaders;
 
-shader::shader(const std::string& vs_filepath, const std::string& fs_filepath) {
-    create(vs_filepath, fs_filepath);
+shader::shader(const std::string& vs_filepath, const std::string& fs_filepath, const std::optional<std::string>& gs_filepath) {
+    create(vs_filepath, fs_filepath, gs_filepath);
 }
 
 shader::~shader() {
     destroy();
 }
 
-void shader::create(const std::string& vs_filepath, const std::string& fs_filepath) noexcept
+void shader::create(const std::string& vs_filepath, const std::string& fs_filepath, const std::optional<std::string>& gs_filepath) noexcept
 {
     uint32_t vs_id = _create_shader(GL_VERTEX_SHADER, vs_filepath);
     uint32_t fs_id = _create_shader(GL_FRAGMENT_SHADER, fs_filepath);
 
     m_program_id = _create_shader_program(vs_id, fs_id);
 
+
 #ifdef _DEBUG
+    OGL_CALL(glValidateProgram(m_program_id));
+    
     int32_t link_status;
     OGL_CALL(glGetProgramiv(m_program_id, GL_LINK_STATUS, &link_status));
     if (link_status == GL_FALSE) {
@@ -159,5 +162,5 @@ bool shader::operator==(const shader& shader) const noexcept {
 }
 
 bool shader::operator!=(const shader& shader) const noexcept {
-    return !this->operator==(shader);
+    return !operator==(shader);
 }
