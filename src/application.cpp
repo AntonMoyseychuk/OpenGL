@@ -96,10 +96,12 @@ void application::run() noexcept {
 
     texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture::type::NONE);
     texture window_texture(RESOURCE_DIR "textures/blending_transparent_window.png", config);
-    // config.type = texture::type::EMISSION;
-    // texture emission_map(RESOURCE_DIR "textures/matrix.jpg", config);
+    
+    config.type = texture::type::DIFFUSE;
+    texture earth_texture_diff(RESOURCE_DIR "textures/earth.jpg", config);
     // config.type = texture::type::SPECULAR;
-    // texture specular_map(RESOURCE_DIR "textures/container_specular.png", config);
+    // texture earth_texture_spec(RESOURCE_DIR "textures/earth_specular.png", config);
+    // sphere.set_textures({earth_texture, earth_texture, earth_texture});
     
     std::vector<glm::vec3> cube_positions = {
         glm::vec3(-1.5f, -2.2f,  2.5f),   
@@ -319,10 +321,12 @@ void application::run() noexcept {
             cube.draw(scene_shader);
         }
 
-        scene_shader.uniform("u_is_sphere", true);
+        // scene_shader.uniform("u_is_sphere", false);
+        earth_texture_diff.bind(10);
+        scene_shader.uniform("u_material.diffuse0", 10);
         scene_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 10.0f, 0.0f)));
         sphere.draw(scene_shader);
-        scene_shader.uniform("u_is_sphere", false);
+        // scene_shader.uniform("u_is_sphere", false);
 
         OGL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, matrices_uniform_buffer));
         OGL_CALL(glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(glm::mat4(glm::mat3(m_camera.get_view())))));

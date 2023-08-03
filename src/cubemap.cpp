@@ -38,7 +38,14 @@ void cubemap::create(const std::vector<std::string> &faces) noexcept {
     this->unbind();
 }
 
-void cubemap::bind() const noexcept {
+void cubemap::bind(uint32_t unit) const noexcept {
+#ifdef _DEBUG
+    int32_t max_units_count;
+    OGL_CALL(glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_units_count));
+    ASSERT(unit < max_units_count, "texture error", "unit value is greater than GL_MAX_TEXTURE_UNITS");
+#endif
+
+    OGL_CALL(glActiveTexture(GL_TEXTURE0 + unit));
     OGL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, m_id));
 }
 

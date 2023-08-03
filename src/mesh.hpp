@@ -24,6 +24,7 @@ public:
     mesh(const std::vector<mesh::vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<texture>& textures);
     
     void create(const std::vector<mesh::vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<texture>& textures) noexcept;
+    void set_textures(const std::vector<texture>& textures) noexcept;
 
     void draw(const shader& shader) const noexcept;
 

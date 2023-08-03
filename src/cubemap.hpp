@@ -9,7 +9,7 @@ public:
 
     void create(const std::vector<std::string>& faces) noexcept;
 
-    void bind() const noexcept;
+    void bind(uint32_t unit = 0) const noexcept;
     void unbind() const noexcept;
 
 private:

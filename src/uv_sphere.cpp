@@ -9,17 +9,22 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
     this->stacks = stacks;
     this->slices = slices;
 
-    const float theta_step = glm::pi<float>() / this->stacks;
-    const float phi_step = glm::two_pi<float>() / this->slices;
+    const float theta_step = glm::pi<float>() / stacks;
+    const float phi_step = glm::two_pi<float>() / slices;
+
+    const float ds = 1.0f / slices;
+    const float dt = 1.0f / stacks;
 
     std::vector<mesh::vertex> vertices;
-    vertices.reserve((this->stacks - 1) * this->slices + 2);
+    vertices.reserve((stacks - 1) * slices + 2);
 
-    vertices.emplace_back(mesh::vertex { glm::vec3(0.0f, 1.0f, 0.0f), {}, {} });
-    for (uint32_t stack = 0; stack < this->stacks - 1; ++stack) {
+    vertices.emplace_back(mesh::vertex { glm::vec3(0.0f, 1.0f, 0.0f), {}, { 0.5f, 1.0f } });
+    for (uint32_t stack = 0; stack < stacks - 1; ++stack) {
         const float theta = (stack + 1) * theta_step;
 
-        for (uint32_t slice = 0; slice < this->slices; ++slice) {
+        const float tex_t = (1.0f - dt) - stack * dt;
+
+        for (uint32_t slice = 0; slice < slices; ++slice) {
             const float phi = slice * phi_step;
 
             mesh::vertex v;
@@ -27,10 +32,13 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
             v.position.y = glm::cos(theta);
             v.position.z = glm::sin(theta) * glm::cos(phi);
 
+            v.texcoord.x = slice * ds;
+            v.texcoord.y = tex_t;
+
             vertices.emplace_back(v);
         }
     }
-    vertices.emplace_back(mesh::vertex { glm::vec3(0.0f, -1.0f, 0.0f), {}, {} });
+    vertices.emplace_back(mesh::vertex { glm::vec3(0.0f, -1.0f, 0.0f), {}, { 0.5f, -1.0f } });
 
     std::vector<uint32_t> indices;
     indices.reserve((2 * slices * 3) + ((stacks - 2) * slices * 6));
@@ -86,6 +94,10 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
     }
 
     m_mesh.create(vertices, indices, {});
+}
+
+void uv_sphere::set_textures(const std::vector<texture> &textures) noexcept {
+    m_mesh.set_textures(textures);
 }
 
 void uv_sphere::draw(const shader &shader) const noexcept {

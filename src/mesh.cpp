@@ -27,6 +27,10 @@ void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_
     m_vao.unbind();
 }
 
+void mesh::set_textures(const std::vector<texture> &textures) noexcept {
+    m_textures = textures;
+}
+
 void mesh::draw(const shader& shader) const noexcept {
     size_t simple_texture = 0;
     size_t diffuse_number = 0, specular_number = 0, emission_number = 0, normal_number = 0;
