@@ -31,10 +31,15 @@ void vertex_array::unbind() const noexcept {
     OGL_CALL(glBindVertexArray(0));
 }
 
-void vertex_array::add_attribute(uint32_t index, uint32_t size, uint32_t type, bool normalized, uint32_t stride, const void *pointer) const noexcept {
+void vertex_array::enable_attribute(uint32_t index, uint32_t size, uint32_t type, bool normalized, uint32_t stride, const void *pointer) const noexcept {
     bind();
     OGL_CALL(glVertexAttribPointer(index, size, type, normalized, stride, pointer));
     OGL_CALL(glEnableVertexAttribArray(index));
+}
+
+void vertex_array::disable_attribute(uint32_t index) const noexcept {
+    bind();
+    OGL_CALL(glDisableVertexAttribArray(index));
 }
 
 vertex_array::vertex_array(vertex_array &&vao)

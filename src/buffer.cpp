@@ -13,7 +13,7 @@ buffer::~buffer() {
 
 void buffer::create(uint32_t target, size_t element_count, size_t element_size, uint32_t usage, const void *data) noexcept {
     if (m_id != 0) {
-        LOG_WARN(_target_to_string(target) + " buffer", "buffer recreation (prev id = " + std::to_string(m_id) + ")");
+        LOG_WARN(_target_to_string(target) + " buffer", _target_to_string(target) + "buffer recreation (prev id = " + std::to_string(m_id) + ")");
         destroy();
     }
 

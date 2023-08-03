@@ -16,9 +16,9 @@ void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_
     m_vbo.create(GL_ARRAY_BUFFER, vertices.size(), sizeof(vertex), GL_STATIC_DRAW, &vertices[0]);
     m_vbo.bind();
 
-    m_vao.add_attribute(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)0);
-    m_vao.add_attribute(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, normal));
-    m_vao.add_attribute(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, texcoord));
+    m_vao.enable_attribute(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)0);
+    m_vao.enable_attribute(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, normal));
+    m_vao.enable_attribute(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, texcoord));
 
     if (!indices.empty()) {
         m_ibo.create(GL_ELEMENT_ARRAY_BUFFER, indices.size(), sizeof(indices[0]), GL_STATIC_DRAW, &indices[0]);
