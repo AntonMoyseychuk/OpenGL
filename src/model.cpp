@@ -58,7 +58,6 @@ mesh model::_process_mesh(aiMesh *ai_mesh, const aiScene *ai_scene) const noexce
     vertices.reserve(ai_mesh->mNumVertices);
 
     std::vector<uint32_t> indices;
-    std::vector<texture> textures;
 
     for(size_t i = 0; i < ai_mesh->mNumVertices; ++i) {
         mesh::vertex vertex;
@@ -81,19 +80,21 @@ mesh model::_process_mesh(aiMesh *ai_mesh, const aiScene *ai_scene) const noexce
         }
     }
     
+    std::unordered_map<std::string, texture::config> textures;
     if(ai_mesh->mMaterialIndex >= 0) {
         aiMaterial *material = ai_scene->mMaterials[ai_mesh->mMaterialIndex];
-        std::vector<texture> diffuse_maps = _load_material_textures(material, aiTextureType_DIFFUSE, texture::type::DIFFUSE);
-        textures.insert(textures.end(), diffuse_maps.begin(), diffuse_maps.end());
         
-        std::vector<texture> specular_maps = _load_material_textures(material, aiTextureType_SPECULAR, texture::type::SPECULAR);
-        textures.insert(textures.end(), specular_maps.begin(), specular_maps.end());
+        for (const auto& t : _load_material_texture_configs(material, aiTextureType_DIFFUSE, texture::type::DIFFUSE)) {
+            textures.insert(t);
+        }
+        
+        for (const auto& t : _load_material_texture_configs(material, aiTextureType_SPECULAR, texture::type::SPECULAR)) {
+            textures.insert(t);
+        }
 
-        std::vector<texture> emission_maps = _load_material_textures(material, aiTextureType_EMISSIVE, texture::type::EMISSION);
-        textures.insert(textures.end(), emission_maps.begin(), emission_maps.end());
-
-        std::vector<texture> normal_maps = _load_material_textures(material, aiTextureType_NORMALS, texture::type::NORMAL);
-        textures.insert(textures.end(), normal_maps.begin(), normal_maps.end());
+        for (const auto& t : _load_material_texture_configs(material, aiTextureType_NORMALS, texture::type::NORMAL)) {
+            textures.insert(t);
+        }
     }
 
     mesh mesh;
@@ -102,21 +103,19 @@ mesh model::_process_mesh(aiMesh *ai_mesh, const aiScene *ai_scene) const noexce
     return mesh;
 }
 
-std::vector<texture> model::_load_material_textures(aiMaterial *ai_mat, aiTextureType ai_type, texture::type texture_type) const noexcept {
-    std::vector<texture> textures;
-    textures.reserve(ai_mat->GetTextureCount(ai_type));
+std::unordered_map<std::string, texture::config> model::_load_material_texture_configs(
+    aiMaterial *ai_mat, aiTextureType ai_type, texture::type texture_type) const noexcept 
+{
+    std::unordered_map<std::string, texture::config> texture_configs;
+    texture_configs.reserve(ai_mat->GetTextureCount(ai_type));
 
     const texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture_type);
 
     for(size_t i = 0; i < ai_mat->GetTextureCount(ai_type); ++i) {
         aiString texture_name;
         ai_mat->GetTexture(ai_type, i, &texture_name);
-        
-        texture texture;
-        texture.load(m_directory + "\\" + texture_name.C_Str(), config);
-        
-        textures.emplace_back(texture);
+        texture_configs.insert(std::make_pair(m_directory + "\\" + texture_name.C_Str(), config));
     }
 
-    return textures;
+    return texture_configs;
 }

@@ -3,13 +3,15 @@
 
 #include <glad/glad.h>
 
-mesh::mesh(const std::vector<mesh::vertex> &vertices, const std::vector<uint32_t> &indices, const std::vector<texture> &textures) {
+mesh::mesh(const std::vector<mesh::vertex> &vertices, const std::vector<uint32_t> &indices, 
+    const std::unordered_map<std::string, texture::config>& textures) 
+{
     create(vertices, indices, textures);
 }
 
-void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_t> &indices, const std::vector<texture> &textures) noexcept {
-    m_textures = textures;
-    
+void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_t> &indices, 
+    const std::unordered_map<std::string, texture::config>& textures) noexcept 
+{
     m_vao.create();
     m_vao.bind();
 
@@ -26,6 +28,14 @@ void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_
     }
 
     m_vao.unbind();
+
+    if (!m_textures.empty()) {
+        m_textures.resize(0);
+    }
+    m_textures.reserve(textures.size());
+    for (const auto& [filepath, config] : textures) {
+        m_textures.emplace_back(filepath, config);
+    }
 }
 
 void mesh::set_textures(const std::vector<texture> &textures) noexcept {

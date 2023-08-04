@@ -34,7 +34,6 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     : m_title(title), m_camera(glm::vec3(0.0f, 1.0f, 10.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 12.0f, 10.0f)
 {
     const char* glfw_error_msg = nullptr;
-
     ASSERT(is_glfw_initialized != nullptr && *is_glfw_initialized, "GLFW error", 
         (glfwGetError(&glfw_error_msg), glfw_error_msg != nullptr ? glfw_error_msg : "unrecognized error"));
 
@@ -105,12 +104,12 @@ void application::run() noexcept {
     // sphere.set_textures({earth_texture, earth_texture, earth_texture});
     
     std::vector<glm::vec3> cube_positions = {
-        glm::vec3(-1.5f, -2.2f,  2.5f),   
-        glm::vec3( 2.4f, -0.4f, -3.5f),  
-        glm::vec3(-1.7f,  3.0f, -7.5f),  
-        glm::vec3( 1.5f,  2.0f,  2.5f), 
-        glm::vec3( 1.5f,  0.2f,  1.5f), 
-        glm::vec3(-1.3f,  1.0f, -1.5f)
+        glm::vec3(-2.5f, -3.2f,  2.5f),   
+        glm::vec3( 4.4f, -2.4f, -3.5f),  
+        glm::vec3(-3.7f,  1.0f, -5.5f),  
+        glm::vec3( 2.5f,  2.0f,  2.5f), 
+        glm::vec3( 2.5f,  0.2f,  1.5f), 
+        glm::vec3(-6.3f,  1.0f, -1.5f)
     };
 
     struct transform {
@@ -179,17 +178,6 @@ void application::run() noexcept {
     buffer matrices_uniform_buffer(GL_UNIFORM_BUFFER, 2, sizeof(glm::mat4), GL_DYNAMIC_DRAW, nullptr);
     OGL_CALL(glBindBufferRange(GL_UNIFORM_BUFFER, 0, matrices_uniform_buffer.get_id(), 0, 2 * sizeof(glm::mat4)));
 
-
-    uint32_t light_source_matrices_block_index;
-    OGL_CALL(light_source_matrices_block_index = glGetUniformBlockIndex(light_source_shader.get_id(), "Matrices"));
-    OGL_CALL(glUniformBlockBinding(light_source_shader.get_id(), light_source_matrices_block_index, 0));
-    uint32_t scene_matrices_block_index;
-    OGL_CALL(scene_matrices_block_index = glGetUniformBlockIndex(scene_shader.get_id(), "Matrices"));
-    OGL_CALL(glUniformBlockBinding(scene_shader.get_id(), scene_matrices_block_index, 0));
-    uint32_t skybox_matrices_block_index;
-    OGL_CALL(skybox_matrices_block_index = glGetUniformBlockIndex(skybox_shader.get_id(), "Matrices"));
-    OGL_CALL(glUniformBlockBinding(skybox_shader.get_id(), skybox_matrices_block_index, 0));
-
     mesh plane({ 
         mesh::vertex { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f), glm::vec2(0.0f, 0.0f) },
         mesh::vertex { glm::vec3(-1.0f,  1.0f, 0.0f), glm::vec3(0.0f), glm::vec2(0.0f, 1.0f) },
@@ -229,8 +217,6 @@ void application::run() noexcept {
         
         OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
         OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
-
-        OGL_CALL(glEnable(GL_CULL_FACE));
 
         matrices_uniform_buffer.subdata(0, sizeof(glm::mat4), glm::value_ptr(m_camera.get_view()));
         matrices_uniform_buffer.subdata(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(m_proj_settings.projection_mat));
@@ -300,8 +286,6 @@ void application::run() noexcept {
             backpack.draw(scene_shader);
         }
 
-        OGL_CALL(glDisable(GL_CULL_FACE));
-
         distances_to_transparent_cubes.clear();
         for (size_t i = 0; i < cube_positions.size(); ++i) {
             distances_to_transparent_cubes.insert(std::make_pair(glm::length2(m_camera.position - cube_positions[i]), cube_positions[i]));
@@ -319,16 +303,17 @@ void application::run() noexcept {
         // scene_shader.uniform("u_is_sphere", false);
         earth_texture_diff.bind(10);
         scene_shader.uniform("u_material.diffuse0", 10);
-        scene_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 10.0f, 0.0f)));
+        scene_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 7.0f, 0.0f)));
         sphere.draw(scene_shader);
         // scene_shader.uniform("u_is_sphere", false);
 
-        matrices_uniform_buffer.subdata(0, sizeof(glm::mat4), glm::value_ptr(glm::mat4(glm::mat3(m_camera.get_view()))));
-
+        OGL_CALL(glDisable(GL_CULL_FACE));
         skybox.bind();
         skybox_shader.uniform("u_skybox", 0);
         cube.draw(skybox_shader);
-
+        if (m_cull_face) {
+            OGL_CALL(glEnable(GL_CULL_FACE));
+        }
 
         OGL_CALL(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
         OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
@@ -347,6 +332,14 @@ void application::run() noexcept {
                 
             if (ImGui::Checkbox("wireframe mode", &m_wireframed)) {
                 OGL_CALL(glPolygonMode(GL_FRONT_AND_BACK, (m_wireframed ? GL_LINE : GL_FILL)));
+            }
+
+            if (ImGui::Checkbox("cull face", &m_cull_face)) {
+                if (m_cull_face) {
+                    OGL_CALL(glEnable(GL_CULL_FACE));
+                } else {
+                    OGL_CALL(glDisable(GL_CULL_FACE));
+                }
             }
                 
             if (ImGui::NewLine(), ImGui::ColorEdit3("background color", glm::value_ptr(m_clear_color))) {

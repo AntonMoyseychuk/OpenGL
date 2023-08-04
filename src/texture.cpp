@@ -20,7 +20,7 @@ texture::texture(uint32_t width, uint32_t height, uint32_t format, const config 
 
 void texture::load(const std::string &filepath, const config &config) noexcept {
     if (m_data.id != 0) {
-        LOG_WARN("texture warning", "texture overwriting");
+        LOG_WARN("texture warning", "texture reloading (prev id = " + std::to_string(m_data.id) + ")");
         destroy();
     }
 
@@ -57,7 +57,7 @@ void texture::load(const std::string &filepath, const config &config) noexcept {
 
 void texture::create(uint32_t width, uint32_t height, uint32_t format, const config &config) noexcept {
     if (m_data.id != 0) {
-        LOG_WARN("texture warning", "texture overwriting");
+        LOG_WARN("texture warning", "texture recreation (prev id = " + std::to_string(m_data.id) + ")");
         destroy();
     }
 

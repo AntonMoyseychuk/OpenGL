@@ -6,11 +6,20 @@
 #include <glad/glad.h>
 #include <stb/stb_image.h>
 
+cubemap::~cubemap() {
+    destroy();
+}
+
 cubemap::cubemap(const std::vector<std::string> &faces) {
     create(faces);
 }
 
 void cubemap::create(const std::vector<std::string> &faces) noexcept {
+    if (m_id != 0) {
+        LOG_WARN("cubemap warning", "cubemap recreation (prev id = " + std::to_string(m_id) + ")");
+        destroy();
+    }
+
     OGL_CALL(glGenTextures(1, &m_id));
     bind();
 
@@ -38,6 +47,11 @@ void cubemap::create(const std::vector<std::string> &faces) noexcept {
     unbind();
 }
 
+void cubemap::destroy() noexcept {
+    OGL_CALL(glDeleteTextures(1, &m_id));
+    m_id = 0;
+}
+
 void cubemap::bind(uint32_t unit) const noexcept {
 #ifdef _DEBUG
     int32_t max_units_count;
@@ -51,4 +65,17 @@ void cubemap::bind(uint32_t unit) const noexcept {
 
 void cubemap::unbind() const noexcept {
     OGL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, 0));
+}
+
+cubemap::cubemap(cubemap &&other)
+    : m_id(other.m_id)
+{
+    other.m_id = 0;
+}
+
+cubemap &cubemap::operator=(cubemap &&other) noexcept {
+    m_id = other.m_id;
+    other.m_id = 0;
+    
+    return *this;
 }

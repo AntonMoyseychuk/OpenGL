@@ -12,8 +12,8 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
     const float theta_step = glm::pi<float>() / stacks;
     const float phi_step = glm::two_pi<float>() / slices;
 
-    const float ds = 1.0f / slices;
-    const float dt = 1.0f / stacks;
+    const float texcoord_s_step = 1.0f / slices;
+    const float texcoord_t_step = 1.0f / stacks;
 
     std::vector<mesh::vertex> vertices;
     vertices.reserve((stacks - 1) * slices + 2);
@@ -21,21 +21,10 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
     vertices.emplace_back(mesh::vertex { glm::vec3(0.0f, 1.0f, 0.0f), {}, { 0.5f, 1.0f } });
     for (uint32_t stack = 0; stack < stacks - 1; ++stack) {
         const float theta = (stack + 1) * theta_step;
-
-        const float tex_t = (1.0f - dt) - stack * dt;
+        const float tex_t = (1.0f - texcoord_t_step) - stack * texcoord_t_step;
 
         for (uint32_t slice = 0; slice < slices; ++slice) {
-            const float phi = slice * phi_step;
-
-            mesh::vertex v;
-            v.position.x = glm::sin(theta) * glm::sin(phi);
-            v.position.y = glm::cos(theta);
-            v.position.z = glm::sin(theta) * glm::cos(phi);
-
-            v.texcoord.x = slice * ds;
-            v.texcoord.y = tex_t;
-
-            vertices.emplace_back(v);
+            vertices.emplace_back(_create_vertex(theta, slice * phi_step, slice * texcoord_s_step, tex_t));
         }
     }
     vertices.emplace_back(mesh::vertex { glm::vec3(0.0f, -1.0f, 0.0f), {}, { 0.5f, 0.0f } });
@@ -48,8 +37,8 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
         const uint32_t b = (i + 1) % slices + 1;
         
         indices.emplace_back(0);
-        indices.emplace_back(b);
         indices.emplace_back(a);
+        indices.emplace_back(b);
     }
 
     for(uint32_t i = 0; i < stacks - 2; ++i) {	
@@ -63,12 +52,12 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
 			uint32_t b1 = b_start + (j + 1) % slices + 1;
 
             indices.emplace_back(a0);
-            indices.emplace_back(a1);
             indices.emplace_back(b1);
+            indices.emplace_back(a1);
 
             indices.emplace_back(a0);
-            indices.emplace_back(b1);
             indices.emplace_back(b0);
+            indices.emplace_back(b1);
 		}
 	}
 
@@ -78,8 +67,8 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
         const uint32_t b = (i + 1) % slices + bottom_index - slices;
         
         indices.emplace_back(bottom_index);
-        indices.emplace_back(a);
         indices.emplace_back(b);
+        indices.emplace_back(a);
     }
 
     ASSERT(indices.size() >= 3, "uv sphere generation error", "index count < 3");
@@ -106,4 +95,16 @@ void uv_sphere::draw(const shader &shader) const noexcept {
 
 const mesh &uv_sphere::get_mesh() const noexcept {
     return m_mesh;
+}
+
+mesh::vertex uv_sphere::_create_vertex(float theta, float phi, float tex_s, float tex_t) const noexcept {
+    mesh::vertex v;
+    v.position.x = glm::sin(theta) * glm::sin(phi);
+    v.position.y = glm::cos(theta);
+    v.position.z = glm::sin(theta) * glm::cos(phi);
+
+    v.texcoord.x = tex_s;
+    v.texcoord.y = tex_t;
+
+    return v;
 }

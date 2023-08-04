@@ -62,4 +62,5 @@ private:
     glm::vec3 m_clear_color = glm::vec3(0.0f);
 
     bool m_wireframed = false;
+    bool m_cull_face = false;
 };

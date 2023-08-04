@@ -13,6 +13,9 @@ public:
 
     const mesh& get_mesh() const noexcept;
 
+private:
+    mesh::vertex _create_vertex(float theta, float phi, float tex_s, float tex_t) const noexcept;
+
 public:
     uint32_t stacks;
     uint32_t slices;
