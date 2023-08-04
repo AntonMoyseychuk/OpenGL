@@ -24,8 +24,8 @@ public:
         const std::unordered_map<std::string, texture::config>& textures);
     
     void create(const std::vector<mesh::vertex>& vertices, const std::vector<uint32_t>& indices, 
-        const std::unordered_map<std::string, texture::config>& textures) noexcept;
-    void set_textures(const std::vector<texture>& textures) noexcept;
+        const std::unordered_map<std::string, texture::config>& texture_configs) noexcept;
+    void set_textures(const std::unordered_map<std::string, texture::config>& texture_configs) noexcept;
 
     void draw(const shader& shader) const noexcept;
 

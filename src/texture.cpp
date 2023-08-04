@@ -18,6 +18,10 @@ texture::texture(uint32_t width, uint32_t height, uint32_t format, const config 
     create(width, height, format, config);
 }
 
+texture::~texture() {
+    destroy();
+}
+
 void texture::load(const std::string &filepath, const config &config) noexcept {
     if (m_data.id != 0) {
         LOG_WARN("texture warning", "texture reloading (prev id = " + std::to_string(m_data.id) + ")");
@@ -107,6 +111,19 @@ uint32_t texture::get_id() const noexcept {
 
 texture::type texture::get_type() const noexcept {
     return m_data.type;
+}
+
+texture::texture(texture &&texture)
+    : m_data(texture.m_data)
+{
+    memset(&texture, 0, sizeof(texture));
+}
+
+texture &texture::operator=(texture &&texture) noexcept {
+    m_data = texture.m_data;
+    memset(&texture, 0, sizeof(texture));
+
+    return *this;
 }
 
 void texture::_setup_tex_parametes(const config& config) const noexcept {

@@ -26,6 +26,7 @@ public:
     texture() = default;
     texture(const std::string& filepath, const config& config);
     texture(uint32_t width, uint32_t height, uint32_t format, const config& config);
+    ~texture();
 
     void load(const std::string& filepath, const config& config) noexcept;
     void create(uint32_t width, uint32_t height, uint32_t format, const config& config) noexcept;
@@ -36,6 +37,12 @@ public:
 
     uint32_t get_id() const noexcept;
     type get_type() const noexcept;
+
+    texture(texture&& texture);
+    texture& operator=(texture&& texture) noexcept;
+
+    texture(const texture& texture) = delete;
+    texture& operator=(const texture& texture) = delete;
 
 private:
     void _setup_tex_parametes(const config& config) const noexcept;

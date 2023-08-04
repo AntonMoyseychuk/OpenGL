@@ -4,13 +4,13 @@
 #include <glad/glad.h>
 
 mesh::mesh(const std::vector<mesh::vertex> &vertices, const std::vector<uint32_t> &indices, 
-    const std::unordered_map<std::string, texture::config>& textures) 
+    const std::unordered_map<std::string, texture::config>& texture_configs) 
 {
-    create(vertices, indices, textures);
+    create(vertices, indices, texture_configs);
 }
 
 void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_t> &indices, 
-    const std::unordered_map<std::string, texture::config>& textures) noexcept 
+    const std::unordered_map<std::string, texture::config>& texture_configs) noexcept 
 {
     m_vao.create();
     m_vao.bind();
@@ -29,17 +29,17 @@ void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_
 
     m_vao.unbind();
 
+    set_textures(texture_configs);
+}
+
+void mesh::set_textures(const std::unordered_map<std::string, texture::config> &texture_configs) noexcept {
     if (!m_textures.empty()) {
         m_textures.resize(0);
     }
-    m_textures.reserve(textures.size());
-    for (const auto& [filepath, config] : textures) {
+    m_textures.reserve(texture_configs.size());
+    for (const auto& [filepath, config] : texture_configs) {
         m_textures.emplace_back(filepath, config);
     }
-}
-
-void mesh::set_textures(const std::vector<texture> &textures) noexcept {
-    m_textures = textures;
 }
 
 void mesh::draw(const shader& shader) const noexcept {
