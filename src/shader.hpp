@@ -32,6 +32,7 @@ public:
     void uniform(const std::string& name, uint32_t         uniform) const noexcept;
     void uniform(const std::string& name, const glm::vec3& uniform) const noexcept;
     void uniform(const std::string& name, const glm::vec4& uniform) const noexcept;
+    void uniform(const std::string& name, const glm::mat3& uniform) const noexcept;
     void uniform(const std::string& name, const glm::mat4& uniform) const noexcept;
 
     shader(shader&& shader);
@@ -88,7 +89,9 @@ inline void shader::_set_uniform(glUniformFunc gl_uniform, const std::string& na
 
 template <typename ID, typename... IDs>
 inline void shader::_attach_shader(uint32_t program_id, ID first, IDs && ...args) noexcept {
-    OGL_CALL(glAttachShader(program_id, first));
+    if (first != 0) {
+        OGL_CALL(glAttachShader(program_id, first));
+    }
     _attach_shader(program_id, std::forward<IDs>(args)...);
 }
 

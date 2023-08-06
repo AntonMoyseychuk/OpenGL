@@ -13,13 +13,12 @@ shader::~shader() {
     destroy();
 }
 
-void shader::create(const std::string& vs_filepath, const std::string& fs_filepath, const std::optional<std::string>& gs_filepath) noexcept
-{
-    uint32_t vs_id = _create_shader(GL_VERTEX_SHADER, vs_filepath);
-    uint32_t fs_id = _create_shader(GL_FRAGMENT_SHADER, fs_filepath);
+void shader::create(const std::string& vs_filepath, const std::string& fs_filepath, const std::optional<std::string>& gs_filepath) noexcept {
+    const uint32_t vs_id = _create_shader(GL_VERTEX_SHADER, vs_filepath);
+    const uint32_t fs_id = _create_shader(GL_FRAGMENT_SHADER, fs_filepath);
+    const uint32_t gs_id = gs_filepath.has_value() ? _create_shader(GL_GEOMETRY_SHADER, gs_filepath.value()) : 0;
 
-    m_program_id = _create_shader_program(vs_id, fs_id);
-
+    m_program_id = _create_shader_program(vs_id, fs_id, gs_id);
 
 #ifdef _DEBUG
     OGL_CALL(glValidateProgram(m_program_id));
@@ -134,6 +133,10 @@ void shader::uniform(const std::string& name, const glm::vec3& uniform) const no
 
 void shader::uniform(const std::string& name, const glm::vec4& uniform) const noexcept {
     _set_uniform(glUniform4fv, name, 1, glm::value_ptr(uniform));
+}
+
+void shader::uniform(const std::string &name, const glm::mat3 &uniform) const noexcept {
+    _set_uniform(glUniformMatrix3fv, name, 1, false, glm::value_ptr(uniform));
 }
 
 void shader::uniform(const std::string& name, const glm::mat4& uniform) const noexcept {

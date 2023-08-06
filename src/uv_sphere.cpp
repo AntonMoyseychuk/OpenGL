@@ -75,8 +75,8 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
     ASSERT(indices.size() % 3 == 0, "uv sphere generation error", "index count % 3 != 0");
 
     for (size_t i = 2; i < indices.size(); i += 3) {
-        const glm::vec3 a = vertices[indices[i - 0]].position - vertices[indices[i - 2]].position;
-        const glm::vec3 b = vertices[indices[i - 1]].position - vertices[indices[i - 2]].position;
+        const glm::vec3 a = vertices[indices[i - 1]].position - vertices[indices[i - 2]].position;
+        const glm::vec3 b = vertices[indices[i - 0]].position - vertices[indices[i - 2]].position;
         const glm::vec3 normal = glm::normalize(glm::cross(a, b));
 
         vertices[indices[i - 0]].normal = vertices[indices[i - 1]].normal = vertices[indices[i - 2]].normal = normal;

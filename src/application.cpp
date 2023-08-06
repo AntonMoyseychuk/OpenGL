@@ -83,7 +83,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 }
 
 void application::run() noexcept {
-    uv_sphere sphere(10, 10);
+    uv_sphere sphere(40, 40);
 
     cubemap skybox({
         RESOURCE_DIR "textures/skybox/right.jpg",
@@ -94,7 +94,7 @@ void application::run() noexcept {
         RESOURCE_DIR "textures/skybox/back.jpg"
     });
 
-    texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture::type::NONE);
+    texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true);
     texture window_texture(RESOURCE_DIR "textures/blending_transparent_window.png", config);
     
     config.type = texture::type::DIFFUSE;
@@ -116,7 +116,7 @@ void application::run() noexcept {
         glm::vec3 scale = glm::vec3(1.0f);
         glm::vec3 position = glm::vec3(0.0f);
         glm::vec3 rotation = glm::vec3(0.0f);
-    } backpack_transform, sponza_transform = { glm::vec3(0.02f), glm::vec3(0.0f, -3.0f, 0.0f), glm::vec3(0.0f) };
+    } backpack_transform, sphere_transform = { glm::vec3(1.0f), glm::vec3(0.0f, 7.0f, 0.0f), glm::vec3(0.0f) }, sponza_transform = { glm::vec3(0.02f), glm::vec3(0.0f, -3.0f, 0.0f), glm::vec3(0.0f) };
 
     model cube(RESOURCE_DIR "models/cube/cube.obj");
     model backpack(RESOURCE_DIR "models/backpack/backpack.obj");
@@ -136,24 +136,28 @@ void application::run() noexcept {
     };
     directional_light directional_light(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.8f), glm::vec3(1.0f), glm::vec3(-1.0f, -1.0f, 1.0f));
 
-
     shader scene_shader(RESOURCE_DIR "shaders/scene.vert", RESOURCE_DIR "shaders/scene.frag");
     scene_shader.uniform("u_point_lights_count", (uint32_t)point_lights.size());
     scene_shader.uniform("u_spot_lights_count", (uint32_t)spot_lights.size());
+
+    shader exploding_shader(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/light_source.frag", RESOURCE_DIR "shaders/exploding_effect.geom");
+
     shader toon_shading_shader(RESOURCE_DIR "shaders/scene.vert", RESOURCE_DIR "shaders/toon_shading.frag");
     toon_shading_shader.uniform("u_toon_level", 4u);
     toon_shading_shader.uniform("u_point_lights_count", (uint32_t)point_lights.size());
     toon_shading_shader.uniform("u_spot_lights_count", (uint32_t)spot_lights.size());
 
     shader border_shader(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/single_color.frag");
-    border_shader.uniform("u_border_color", glm::vec3(1.0f));
+    border_shader.uniform("u_color", glm::vec3(1.0f));
 
     shader light_source_shader(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/light_source.frag");
     shader framebuffer_shader(RESOURCE_DIR "shaders/post_process.vert", RESOURCE_DIR "shaders/post_process.frag");
     shader skybox_shader(RESOURCE_DIR "shaders/skybox.vert", RESOURCE_DIR "shaders/skybox.frag");
     shader reflect_shader(RESOURCE_DIR "shaders/scene.vert", RESOURCE_DIR "shaders/reflect.frag");
     shader refract_shader(RESOURCE_DIR "shaders/scene.vert", RESOURCE_DIR "shaders/refract.frag");
-    
+
+    shader normals_visualization_shader(RESOURCE_DIR "shaders/normals_visualization.vert", RESOURCE_DIR "shaders/single_color.frag", RESOURCE_DIR "shaders/normals_visualization.geom");
+    normals_visualization_shader.uniform("u_color", glm::vec3(0.85f, 0.54f, 0.08f));
 
     uint32_t fbo;
     OGL_CALL(glGenFramebuffers(1, &fbo));
@@ -195,6 +199,8 @@ void application::run() noexcept {
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
 
+        const float t = glfwGetTime();
+
         m_camera.update_dt(io.DeltaTime);
 
         if (!m_camera.is_fixed) {
@@ -222,19 +228,29 @@ void application::run() noexcept {
         matrices_uniform_buffer.subdata(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(m_proj_settings.projection_mat));
 
         for (size_t i = 0; i < point_lights.size(); ++i) {
-            light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), point_lights[i].position), glm::vec3(0.2f)));
+            const glm::mat4 model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), point_lights[i].position), glm::vec3(0.2f));
+
+            light_source_shader.uniform("u_model", model_matrix);
             light_source_shader.uniform("u_light_settings.color", point_lights[i].color);
             cube.draw(light_source_shader);
+
+            float line_width;
+            OGL_CALL(glGetFloatv(GL_LINE_WIDTH, &line_width));
+            OGL_CALL(glLineWidth(5.0f));
+            normals_visualization_shader.uniform("u_model", model_matrix);
+            normals_visualization_shader.uniform("u_normal_matrix", glm::mat3(glm::transpose(glm::inverse(m_camera.get_view() * model_matrix))));
+            cube.draw(normals_visualization_shader);
+            OGL_CALL(glLineWidth(line_width));
         }
         for (size_t i = 0; i < spot_lights.size(); ++i) {
-            light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), spot_lights[i].position), glm::vec3(0.2f)));
+            const glm::mat4 model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), spot_lights[i].position), glm::vec3(0.2f));
+
+            light_source_shader.uniform("u_model", model_matrix);
             light_source_shader.uniform("u_light_settings.color", spot_lights[i].color);
             cube.draw(light_source_shader);
         }
         
         scene_shader.uniform("u_view_position", m_camera.position);
-        const double t = glfwGetTime();
-        scene_shader.uniform("u_time", t - size_t(t));
         scene_shader.uniform("u_material.shininess", material_shininess);
 
         for (size_t i = 0; i < point_lights.size(); ++i) {
@@ -267,24 +283,36 @@ void application::run() noexcept {
         scene_shader.uniform("u_dir_light.specular", directional_light.color * directional_light.specular);
         
         {
-            glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), sponza_transform.position) 
+            const glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), sponza_transform.position) 
                 * glm::mat4_cast(glm::quat(sponza_transform.rotation * (glm::pi<float>() / 180.0f)))
                 * glm::scale(glm::mat4(1.0f), sponza_transform.scale);
             scene_shader.uniform("u_model", model_matrix);
-            scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
+            scene_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(model_matrix)));
             scene_shader.uniform("u_flip_texture", true);
             sponza.draw(scene_shader);
+            scene_shader.uniform("u_flip_texture", false);
         }
 
         {
-            glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), backpack_transform.position) 
+            const glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), backpack_transform.position) 
                 * glm::mat4_cast(glm::quat(backpack_transform.rotation * (glm::pi<float>() / 180.0f)))
                 * glm::scale(glm::mat4(1.0f), backpack_transform.scale);
             scene_shader.uniform("u_model", model_matrix);
-            scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
-            scene_shader.uniform("u_flip_texture", false);
+            scene_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(model_matrix)));
             backpack.draw(scene_shader);
         }
+
+        scene_shader.uniform("u_is_sphere", false);
+        earth_texture_diff.bind(10);
+        scene_shader.uniform("u_material.diffuse0", 10);
+        const glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), sphere_transform.position) 
+            * glm::mat4_cast(glm::quat(sphere_transform.rotation * (glm::pi<float>() / 180.0f)))
+            * glm::scale(glm::mat4(1.0f), sphere_transform.scale);
+        scene_shader.uniform("u_model", model_matrix);
+        scene_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(model_matrix)));
+        sphere.draw(scene_shader);
+        scene_shader.uniform("u_is_sphere", false);
+
 
         distances_to_transparent_cubes.clear();
         for (size_t i = 0; i < cube_positions.size(); ++i) {
@@ -294,18 +322,11 @@ void application::run() noexcept {
         for (auto& it = distances_to_transparent_cubes.rbegin(); it != distances_to_transparent_cubes.rend(); ++it) {
             auto model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), it->second), glm::vec3(0.7f));
             scene_shader.uniform("u_model", model_matrix);
-            scene_shader.uniform("u_transp_inv_model", glm::transpose(glm::inverse(model_matrix)));
+            scene_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(model_matrix)));
             window_texture.bind(0);
             scene_shader.uniform("u_material.diffuse0", 0);
             cube.draw(scene_shader);
         }
-
-        // scene_shader.uniform("u_is_sphere", false);
-        earth_texture_diff.bind(10);
-        scene_shader.uniform("u_material.diffuse0", 10);
-        scene_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 7.0f, 0.0f)));
-        sphere.draw(scene_shader);
-        // scene_shader.uniform("u_is_sphere", false);
 
         OGL_CALL(glDisable(GL_CULL_FACE));
         skybox.bind();
@@ -404,6 +425,10 @@ void application::run() noexcept {
         ImGui::End();
 
         ImGui::Begin("Sphere");
+            ImGui::DragFloat3("position##sphere", glm::value_ptr(sphere_transform.position), 0.1f);
+            ImGui::DragFloat3("rotation##sphere", glm::value_ptr(sphere_transform.rotation));
+            ImGui::SliderFloat3("scale##sphere", glm::value_ptr(sphere_transform.scale), 0.0f, 10.0f);
+
             if (ImGui::SliderInt("stacks", (int*)&sphere.stacks, 3, 150)) {
                 sphere.stacks = glm::clamp(sphere.stacks, 3u, 150u);
                 sphere.generate(sphere.stacks, sphere.slices);
