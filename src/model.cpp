@@ -14,15 +14,8 @@ void model::create(const std::string &filepath) noexcept {
     _load_model(filepath);
 }
 
-void model::draw(const shader &shader) const noexcept {
-    if (m_meshes == nullptr) {
-        LOG_WARN("render", "m_meshes == nullptr");
-        return;
-    }
-
-    for (size_t i = 0; i < m_meshes->size(); ++i) {
-        m_meshes->at(i).draw(shader);
-    }
+const std::vector<mesh> *model::get_meshes() const noexcept {
+    return m_meshes;
 }
 
 void model::_load_model(const std::string& filepath) noexcept {

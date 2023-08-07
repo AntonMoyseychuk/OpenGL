@@ -70,14 +70,13 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     _window_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
 
+    m_renderer.enable(GL_DEPTH_TEST);
+    m_renderer.depth_func(GL_LEQUAL);
 
-    OGL_CALL(glEnable(GL_DEPTH_TEST));
-    OGL_CALL(glDepthFunc(GL_LEQUAL));
+    m_renderer.enable(GL_STENCIL_TEST);
 
-    OGL_CALL(glEnable(GL_STENCIL_TEST));
-
-    OGL_CALL(glEnable(GL_BLEND));
-    OGL_CALL(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)); 
+    m_renderer.enable(GL_BLEND);
+    m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     _imgui_init("#version 430 core");
 }
@@ -116,7 +115,7 @@ void application::run() noexcept {
         glm::vec3 scale = glm::vec3(1.0f);
         glm::vec3 position = glm::vec3(0.0f);
         glm::vec3 rotation = glm::vec3(0.0f);
-    } backpack_transform, sphere_transform = { glm::vec3(1.0f), glm::vec3(0.0f, 7.0f, 0.0f), glm::vec3(0.0f) }, sponza_transform = { glm::vec3(0.02f), glm::vec3(0.0f, -3.0f, 0.0f), glm::vec3(0.0f) };
+    } backpack_transform, sphere_transform = { glm::vec3(1.0f), glm::vec3(0.0f, 7.0f, 0.0f), glm::vec3(0.0f) }, sponza_transform = { glm::vec3(0.02f), glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(0.0f) };
 
     model cube(RESOURCE_DIR "models/cube/cube.obj");
     model backpack(RESOURCE_DIR "models/backpack/backpack.obj");
@@ -222,7 +221,7 @@ void application::run() noexcept {
         }
         
         OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
-        OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
+        m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         matrices_uniform_buffer.subdata(0, sizeof(glm::mat4), glm::value_ptr(m_camera.get_view()));
         matrices_uniform_buffer.subdata(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(m_proj_settings.projection_mat));
@@ -232,14 +231,14 @@ void application::run() noexcept {
 
             light_source_shader.uniform("u_model", model_matrix);
             light_source_shader.uniform("u_light_settings.color", point_lights[i].color);
-            cube.draw(light_source_shader);
+            m_renderer.render(GL_TRIANGLES, light_source_shader, cube);
 
             float line_width;
             OGL_CALL(glGetFloatv(GL_LINE_WIDTH, &line_width));
             OGL_CALL(glLineWidth(5.0f));
             normals_visualization_shader.uniform("u_model", model_matrix);
             normals_visualization_shader.uniform("u_normal_matrix", glm::mat3(glm::transpose(glm::inverse(m_camera.get_view() * model_matrix))));
-            cube.draw(normals_visualization_shader);
+            m_renderer.render(GL_TRIANGLES, normals_visualization_shader, cube);
             OGL_CALL(glLineWidth(line_width));
         }
         for (size_t i = 0; i < spot_lights.size(); ++i) {
@@ -247,7 +246,7 @@ void application::run() noexcept {
 
             light_source_shader.uniform("u_model", model_matrix);
             light_source_shader.uniform("u_light_settings.color", spot_lights[i].color);
-            cube.draw(light_source_shader);
+            m_renderer.render(GL_TRIANGLES, light_source_shader, cube);
         }
         
         scene_shader.uniform("u_view_position", m_camera.position);
@@ -289,7 +288,7 @@ void application::run() noexcept {
             scene_shader.uniform("u_model", model_matrix);
             scene_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(model_matrix)));
             scene_shader.uniform("u_flip_texture", true);
-            sponza.draw(scene_shader);
+            m_renderer.render(GL_TRIANGLES, scene_shader, sponza);
             scene_shader.uniform("u_flip_texture", false);
         }
 
@@ -299,7 +298,7 @@ void application::run() noexcept {
                 * glm::scale(glm::mat4(1.0f), backpack_transform.scale);
             scene_shader.uniform("u_model", model_matrix);
             scene_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(model_matrix)));
-            backpack.draw(scene_shader);
+            m_renderer.render(GL_TRIANGLES, scene_shader, backpack);
         }
 
         scene_shader.uniform("u_is_sphere", false);
@@ -310,7 +309,7 @@ void application::run() noexcept {
             * glm::scale(glm::mat4(1.0f), sphere_transform.scale);
         scene_shader.uniform("u_model", model_matrix);
         scene_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(model_matrix)));
-        sphere.draw(scene_shader);
+        m_renderer.render(GL_TRIANGLES, scene_shader, sphere.get_mesh());
         scene_shader.uniform("u_is_sphere", false);
 
 
@@ -325,25 +324,25 @@ void application::run() noexcept {
             scene_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(model_matrix)));
             window_texture.bind(0);
             scene_shader.uniform("u_material.diffuse0", 0);
-            cube.draw(scene_shader);
+            m_renderer.render(GL_TRIANGLES, scene_shader, cube);
         }
 
-        OGL_CALL(glDisable(GL_CULL_FACE));
+        m_renderer.disable(GL_CULL_FACE);
         skybox.bind();
         skybox_shader.uniform("u_skybox", 0);
-        cube.draw(skybox_shader);
+        m_renderer.render(GL_TRIANGLES, skybox_shader, cube);
         if (m_cull_face) {
-            OGL_CALL(glEnable(GL_CULL_FACE));
+            m_renderer.enable(GL_CULL_FACE);
         }
 
-        OGL_CALL(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
+        m_renderer.polygon_mode(GL_FRONT_AND_BACK, GL_FILL);
         OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-        OGL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+        m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         color_buffer.bind(0);
         framebuffer_shader.uniform("u_texture", 0);
-        plane.draw(framebuffer_shader);
-        OGL_CALL(glPolygonMode(GL_FRONT_AND_BACK, m_wireframed ? GL_LINE : GL_FILL));
+        m_renderer.render(GL_TRIANGLES, framebuffer_shader, plane);
+        m_renderer.polygon_mode(GL_FRONT_AND_BACK, m_wireframed ? GL_LINE : GL_FILL);
 
     #pragma region ImGui
         _imgui_frame_begin();
@@ -352,19 +351,15 @@ void application::run() noexcept {
             ImGui::Text("OpenGL version: %s", glGetString(GL_VERSION)); ImGui::NewLine();
                 
             if (ImGui::Checkbox("wireframe mode", &m_wireframed)) {
-                OGL_CALL(glPolygonMode(GL_FRONT_AND_BACK, (m_wireframed ? GL_LINE : GL_FILL)));
+                m_renderer.polygon_mode(GL_FRONT_AND_BACK, (m_wireframed ? GL_LINE : GL_FILL));
             }
 
             if (ImGui::Checkbox("cull face", &m_cull_face)) {
-                if (m_cull_face) {
-                    OGL_CALL(glEnable(GL_CULL_FACE));
-                } else {
-                    OGL_CALL(glDisable(GL_CULL_FACE));
-                }
+                m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
             }
                 
             if (ImGui::NewLine(), ImGui::ColorEdit3("background color", glm::value_ptr(m_clear_color))) {
-                OGL_CALL(glClearColor(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f));
+                m_renderer.set_clear_color(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f);
             }
 
             ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
@@ -496,7 +491,7 @@ void application::_window_resize_callback(GLFWwindow *window, int width, int hei
     application* app = static_cast<application*>(glfwGetWindowUserPointer(window));
     ASSERT(app != nullptr, "", "application instance is not set");
 
-    OGL_CALL(glViewport(app->m_proj_settings.x, app->m_proj_settings.y, width, height));
+    app->m_renderer.viewport(app->m_proj_settings.x, app->m_proj_settings.y, width, height);
 
     app->m_proj_settings.width = width;
     app->m_proj_settings.height = height;

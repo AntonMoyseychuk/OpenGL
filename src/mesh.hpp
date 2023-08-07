@@ -25,9 +25,12 @@ public:
     
     void create(const std::vector<mesh::vertex>& vertices, const std::vector<uint32_t>& indices, 
         const std::unordered_map<std::string, texture::config>& texture_configs) noexcept;
+    
+    void bind(const shader& shader) const noexcept;
     void set_textures(const std::unordered_map<std::string, texture::config>& texture_configs) noexcept;
 
-    void draw(const shader& shader) const noexcept;
+    uint32_t get_vertex_count() const noexcept;
+    uint32_t get_index_count() const noexcept;
 
 private:
     std::vector<texture> m_textures;

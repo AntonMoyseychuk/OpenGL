@@ -32,17 +32,7 @@ void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_
     set_textures(texture_configs);
 }
 
-void mesh::set_textures(const std::unordered_map<std::string, texture::config> &texture_configs) noexcept {
-    if (!m_textures.empty()) {
-        m_textures.resize(0);
-    }
-    m_textures.reserve(texture_configs.size());
-    for (const auto& [filepath, config] : texture_configs) {
-        m_textures.emplace_back(filepath, config);
-    }
-}
-
-void mesh::draw(const shader& shader) const noexcept {
+void mesh::bind(const shader &shader) const noexcept {
     size_t simple_texture = 0;
     size_t diffuse_number = 0, specular_number = 0, emission_number = 0, normal_number = 0;
     
@@ -73,10 +63,22 @@ void mesh::draw(const shader& shader) const noexcept {
     }
 
     m_vao.bind();
-    if (m_ibo.get_element_count() == 0) {
-        glDrawArrays(GL_TRIANGLES, 0, m_vbo.get_element_count());
-    } else {
-        glDrawElements(GL_TRIANGLES, m_ibo.get_element_count(), GL_UNSIGNED_INT, 0);
+}
+
+void mesh::set_textures(const std::unordered_map<std::string, texture::config> &texture_configs) noexcept {
+    if (!m_textures.empty()) {
+        m_textures.resize(0);
     }
-    m_vao.unbind();
+    m_textures.reserve(texture_configs.size());
+    for (const auto& [filepath, config] : texture_configs) {
+        m_textures.emplace_back(filepath, config);
+    }
+}
+
+uint32_t mesh::get_vertex_count() const noexcept {
+    return m_vbo.get_element_count();
+}
+
+uint32_t mesh::get_index_count() const noexcept {
+    return m_ibo.get_element_count();
 }

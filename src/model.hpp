@@ -17,8 +17,7 @@ public:
     model(const std::string& filepath);
     
     void create(const std::string& filepath) noexcept;
-
-    void draw(const shader &shader) const noexcept;	
+    const std::vector<mesh>* get_meshes() const noexcept;
 
 private:
     void _load_model(const std::string& filepath) noexcept;

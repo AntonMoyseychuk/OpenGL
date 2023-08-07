@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 
 #include "camera.hpp"
+#include "renderer.hpp"
 
 #include <string>
 #include <memory>
@@ -59,6 +60,8 @@ private:
     projection_settings m_proj_settings;
 
     camera m_camera;
+    renderer m_renderer;
+
     glm::vec3 m_clear_color = glm::vec3(0.0f);
 
     bool m_wireframed = false;

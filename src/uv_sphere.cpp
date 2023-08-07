@@ -89,10 +89,6 @@ void uv_sphere::set_textures(const std::unordered_map<std::string, texture::conf
     m_mesh.set_textures(texture_configs);
 }
 
-void uv_sphere::draw(const shader &shader) const noexcept {
-    m_mesh.draw(shader);
-}
-
 const mesh &uv_sphere::get_mesh() const noexcept {
     return m_mesh;
 }
