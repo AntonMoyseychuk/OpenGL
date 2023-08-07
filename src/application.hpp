@@ -10,13 +10,10 @@
 
 class application {
 public:
-    static application& get(const std::string_view& title, uint32_t width, uint32_t height) noexcept;
-
-    void run() noexcept;
-
-private:
     application(const std::string_view& title, uint32_t width, uint32_t height);
     ~application();
+
+    void run() noexcept;
 
 private:
     void _destroy() noexcept;

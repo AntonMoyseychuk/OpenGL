@@ -29,8 +29,9 @@ public:
     void bind(const shader& shader) const noexcept;
     void set_textures(const std::unordered_map<std::string, texture::config>& texture_configs) noexcept;
 
-    uint32_t get_vertex_count() const noexcept;
-    uint32_t get_index_count() const noexcept;
+    const buffer& get_vertex_buffer() const noexcept;
+    const buffer& get_index_buffer() const noexcept;
+    const vertex_array& get_vertex_array() const noexcept;
 
 private:
     std::vector<texture> m_textures;

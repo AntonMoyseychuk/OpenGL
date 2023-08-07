@@ -25,11 +25,6 @@
 
 std::unique_ptr<bool, application::glfw_deinitializer> application::is_glfw_initialized(new bool(glfwInit() == GLFW_TRUE));
 
-application &application::get(const std::string_view &title, uint32_t width, uint32_t height) noexcept {
-    static application app(title, width, height);
-    return app;
-}
-
 application::application(const std::string_view &title, uint32_t width, uint32_t height)
     : m_title(title), m_camera(glm::vec3(0.0f, 1.0f, 10.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 12.0f, 10.0f)
 {
@@ -103,7 +98,7 @@ void application::run() noexcept {
     // sphere.set_textures({earth_texture, earth_texture, earth_texture});
     
     std::vector<glm::vec3> cube_positions = {
-        glm::vec3(-2.5f, -3.2f,  2.5f),   
+        glm::vec3(-2.5f, -3.2f,  1.5f),   
         glm::vec3( 4.4f, -2.4f, -3.5f),  
         glm::vec3(-3.7f,  1.0f, -5.5f),  
         glm::vec3( 2.5f,  2.0f,  2.5f), 

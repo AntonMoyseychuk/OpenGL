@@ -31,15 +31,21 @@ void vertex_array::unbind() const noexcept {
     OGL_CALL(glBindVertexArray(0));
 }
 
-void vertex_array::enable_attribute(uint32_t index, uint32_t size, uint32_t type, bool normalized, uint32_t stride, const void *pointer) const noexcept {
+void vertex_array::set_attribute(const buffer& buffer, uint32_t index, uint32_t size, uint32_t type, bool normalized, uint32_t stride, const void *pointer) const noexcept {
     bind();
+    buffer.bind();
     OGL_CALL(glVertexAttribPointer(index, size, type, normalized, stride, pointer));
     OGL_CALL(glEnableVertexAttribArray(index));
 }
 
-void vertex_array::disable_attribute(uint32_t index) const noexcept {
+void vertex_array::remove_attribute(uint32_t index) const noexcept {
     bind();
     OGL_CALL(glDisableVertexAttribArray(index));
+}
+
+void vertex_array::set_attribute_divisor(uint32_t index, uint32_t divisor) const noexcept {
+    bind();
+    OGL_CALL(glVertexAttribDivisor(index, divisor));
 }
 
 vertex_array::vertex_array(vertex_array &&vao)
