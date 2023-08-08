@@ -76,7 +76,7 @@ mesh model::_process_mesh(aiMesh *ai_mesh, const aiScene *ai_scene) const noexce
     std::unordered_map<std::string, texture::config> textures;
     if(ai_mesh->mMaterialIndex >= 0) {
         aiMaterial *material = ai_scene->mMaterials[ai_mesh->mMaterialIndex];
-        
+
         for (const auto& t : _load_material_texture_configs(material, aiTextureType_DIFFUSE, texture::type::DIFFUSE)) {
             textures.insert(t);
         }
@@ -85,7 +85,11 @@ mesh model::_process_mesh(aiMesh *ai_mesh, const aiScene *ai_scene) const noexce
             textures.insert(t);
         }
 
-        for (const auto& t : _load_material_texture_configs(material, aiTextureType_NORMALS, texture::type::NORMAL)) {
+        for (const auto& t : _load_material_texture_configs(material, aiTextureType_HEIGHT, texture::type::NORMAL)) {
+            textures.insert(t);
+        }
+
+        for (const auto& t : _load_material_texture_configs(material, aiTextureType_AMBIENT, texture::type::HEIGHT)) {
             textures.insert(t);
         }
     }

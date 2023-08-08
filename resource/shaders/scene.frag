@@ -68,8 +68,8 @@ vec3 calculate_directional_light(DirectionalLight light, vec3 normal, vec3 diffu
     const vec3 diffuse = light.diffuse * diff * diffuse_map;
 
     const vec3 view_direction = normalize(fs_in.frag_pos - u_view_position);
-    const vec3 reflect_dir = normalize(reflect(light_dir, normal));
-    const float spec = pow(max(dot(reflect_dir, -view_direction), 0.0), u_material.shininess);
+    const vec3 half_direction = normalize(light_dir + view_direction);
+    const float spec = pow(max(dot(normal, -half_direction), 0.0), u_material.shininess);
     const vec3 specular = light.specular * spec * specular_map;
 
     return (ambient + diffuse + specular);
@@ -86,8 +86,8 @@ vec3 calculate_point_light(PointLight light, vec3 normal, vec3 diffuse_map, vec3
     const vec3 diffuse = light.diffuse * diff * diffuse_map * attenuation;
 
     const vec3 view_direction = normalize(fs_in.frag_pos - u_view_position);
-    const vec3 reflect_dir = reflect(light_dir, normal);
-    const float spec = pow(max(dot(reflect_dir, -view_direction), 0.0), u_material.shininess);
+    const vec3 half_direction = normalize(light_dir + view_direction);
+    const float spec = pow(max(dot(normal, -half_direction), 0.0), u_material.shininess);
     const vec3 specular = light.specular * spec * specular_map * attenuation;
 
     return (ambient + diffuse + specular);
@@ -104,8 +104,8 @@ vec3 calculate_spot_light(SpotLight light, vec3 normal, vec3 diffuse_map, vec3 s
         const vec3 diffuse = light.diffuse * diff * diffuse_map;
 
         const vec3 view_direction = normalize(fs_in.frag_pos - u_view_position);
-        const vec3 reflect_dir = normalize(reflect(light_dir, normal));
-        const float spec = pow(max(dot(reflect_dir, -view_direction), 0.0), u_material.shininess);
+        const vec3 half_direction = normalize(light_dir + view_direction);
+        const float spec = pow(max(dot(normal, -half_direction), 0.0), u_material.shininess);
         const vec3 specular = light.specular * spec * specular_map;
 
         return (ambient + diffuse + specular);

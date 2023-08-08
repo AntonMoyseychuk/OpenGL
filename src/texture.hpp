@@ -5,7 +5,7 @@
 
 class texture {
 public:
-    enum class type { NONE, DIFFUSE, SPECULAR, EMISSION, NORMAL };
+    enum class type { NONE, DIFFUSE, SPECULAR, EMISSION, NORMAL, HEIGHT };
 
     struct config {
         config() = default;

@@ -26,7 +26,7 @@
 std::unique_ptr<bool, application::glfw_deinitializer> application::is_glfw_initialized(new bool(glfwInit() == GLFW_TRUE));
 
 application::application(const std::string_view &title, uint32_t width, uint32_t height)
-    : m_title(title), m_camera(glm::vec3(0.0f, 1.0f, 10.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 12.0f, 10.0f)
+    : m_title(title), m_camera(glm::vec3(0.0f, 1.0f, 10.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 18.0f, 10.0f)
 {
     const char* glfw_error_msg = nullptr;
     ASSERT(is_glfw_initialized != nullptr && *is_glfw_initialized, "GLFW error", 
@@ -61,7 +61,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
     m_proj_settings.x = m_proj_settings.y = 0;
     m_proj_settings.near = 0.1f;
-    m_proj_settings.far = 100.0f;
+    m_proj_settings.far = 200.0f;
     _window_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
 
@@ -97,34 +97,66 @@ void application::run() noexcept {
     // texture earth_texture_spec(RESOURCE_DIR "textures/earth_specular.png", config);
     // sphere.set_textures({earth_texture, earth_texture, earth_texture});
     
-    std::vector<glm::vec3> cube_positions = {
-        glm::vec3(-2.5f, -3.2f,  1.5f),   
-        glm::vec3( 4.4f, -2.4f, -3.5f),  
-        glm::vec3(-3.7f,  1.0f, -5.5f),  
-        glm::vec3( 2.5f,  2.0f,  2.5f), 
-        glm::vec3( 2.5f,  0.2f,  1.5f), 
-        glm::vec3(-6.3f,  1.0f, -1.5f)
-    };
-
     struct transform {
         glm::vec3 scale = glm::vec3(1.0f);
         glm::vec3 position = glm::vec3(0.0f);
         glm::vec3 rotation = glm::vec3(0.0f);
     } backpack_transform, sphere_transform = { glm::vec3(1.0f), glm::vec3(0.0f, 7.0f, 0.0f), glm::vec3(0.0f) }, sponza_transform = { glm::vec3(0.02f), glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(0.0f) };
 
+    std::vector<transform> cube_transforms = {
+        { {}, glm::vec3(-2.5f, -2.5f,  2.5f), {} },
+        { {}, glm::vec3(-2.5f,  2.5f,  2.5f), {} },
+        { {}, glm::vec3( 2.5f,  2.5f,  2.5f), {} },
+        { {}, glm::vec3( 2.5f, -2.5f,  2.5f), {} },
+        { {}, glm::vec3(-2.5f, -2.5f, -2.5f), {} },
+        { {}, glm::vec3(-2.5f,  2.5f, -2.5f), {} },
+        { {}, glm::vec3( 2.5f,  2.5f, -2.5f), {} },
+        { {}, glm::vec3( 2.5f, -2.5f, -2.5f), {} },
+    };
+
     model cube(RESOURCE_DIR "models/cube/cube.obj");
     model backpack(RESOURCE_DIR "models/backpack/backpack.obj");
     model sponza(RESOURCE_DIR "models/Sponza/sponza.obj");
+    model rock(RESOURCE_DIR "models/rock/rock.obj");
+    model planet(RESOURCE_DIR "models/planet/planet.obj");
+
+    std::vector<glm::mat4> instance_model_matrices(100'000);
+    srand(glfwGetTime());
+    const float radius = 80.0;
+    const float x_offset = 30.0f;
+    const float y_offset = 10.0f;
+    for(size_t i = 0; i < instance_model_matrices.size(); ++i) {
+        glm::mat4 model = glm::mat4(1.0f);
+        
+        float angle = (float)i / (float)instance_model_matrices.size() * 360.0f;
+        float displacement = (rand() % (int)(2 * x_offset * 100)) / 100.0f - x_offset;
+        float x = sin(angle) * radius + displacement;
+        displacement = (rand() % (int)(2 * y_offset * 100)) / 100.0f - y_offset;
+        float y = 100.0f + displacement;
+        displacement = (rand() % (int)(2 * x_offset * 100)) / 100.0f - x_offset;
+        float z = cos(angle) * radius + displacement;
+        model = glm::translate(model, glm::vec3(x, y, z));
+
+        float scale = (rand() % 20) / 100.0f + 0.05;
+        model = glm::scale(model, glm::vec3(scale));
+
+        float rotAngle = (rand() % 360);
+        model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
+
+        instance_model_matrices[i] = model;
+    }
+    buffer mbo(GL_SHADER_STORAGE_BUFFER, instance_model_matrices.size(), sizeof(glm::mat4), GL_STATIC_DRAW, instance_model_matrices.data());
+    OGL_CALL(glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, mbo.get_id()));
 
     std::vector<point_light> point_lights = {
-        point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-3.0f,  3.0f, -3.0f), 0.09f, 0.032f),
-        point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 3.0f), 0.09f, 0.032f),
-        point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-3.0f, -3.0f,  3.0f), 0.09f, 0.032f),
-        point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 3.0f, -3.0f, -3.0f), 0.09f, 0.032f),
+        point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-4.0f,  3.0f, -3.0f), 0.09f, 0.032f),
+        point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 4.0f,  3.0f,  3.0f), 0.09f, 0.032f),
+        point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-4.0f, -3.0f,  3.0f), 0.09f, 0.032f),
+        point_light(glm::vec3(1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 4.0f, -3.0f, -3.0f), 0.09f, 0.032f),
     };
     std::vector<spot_light> spot_lights = {
         spot_light(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 0.0f,  5.0f, -2.0f), glm::vec3( 0.0f, -1.0f, 0.0f), 15.0f),
-        spot_light(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 0.0f, -5.0f, -2.0f), glm::vec3( 0.0f,  1.0f, 0.0f), 15.0f),
+        spot_light(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 0.0f, -5.0f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
         spot_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-5.0f,  0.0f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
         spot_light(glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 5.0f,  0.0f, -2.0f), glm::vec3(-1.0f,  0.0f, 0.0f), 15.0f),
     };
@@ -133,6 +165,10 @@ void application::run() noexcept {
     shader scene_shader(RESOURCE_DIR "shaders/scene.vert", RESOURCE_DIR "shaders/scene.frag");
     scene_shader.uniform("u_point_lights_count", (uint32_t)point_lights.size());
     scene_shader.uniform("u_spot_lights_count", (uint32_t)spot_lights.size());
+
+    shader instance_shader(RESOURCE_DIR "shaders/instance_shader.vert", RESOURCE_DIR "shaders/scene.frag");
+    instance_shader.uniform("u_point_lights_count", (uint32_t)point_lights.size());
+    instance_shader.uniform("u_spot_lights_count", (uint32_t)spot_lights.size());
 
     shader exploding_shader(RESOURCE_DIR "shaders/light_source.vert", RESOURCE_DIR "shaders/light_source.frag", RESOURCE_DIR "shaders/exploding_effect.geom");
 
@@ -174,7 +210,7 @@ void application::run() noexcept {
     OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
     buffer matrices_uniform_buffer(GL_UNIFORM_BUFFER, 2, sizeof(glm::mat4), GL_DYNAMIC_DRAW, nullptr);
-    OGL_CALL(glBindBufferRange(GL_UNIFORM_BUFFER, 0, matrices_uniform_buffer.get_id(), 0, 2 * sizeof(glm::mat4)));
+    OGL_CALL(glBindBufferBase(GL_UNIFORM_BUFFER, 0, matrices_uniform_buffer.get_id()));
 
     mesh plane({ 
         mesh::vertex { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f), glm::vec2(0.0f, 0.0f) },
@@ -246,18 +282,25 @@ void application::run() noexcept {
         
         scene_shader.uniform("u_view_position", m_camera.position);
         scene_shader.uniform("u_material.shininess", material_shininess);
+        instance_shader.uniform("u_view_position", m_camera.position);
+        instance_shader.uniform("u_material.shininess", material_shininess);
 
         for (size_t i = 0; i < point_lights.size(); ++i) {
             const std::string str_i = std::to_string(i);
             
             scene_shader.uniform(("u_point_lights[" + str_i + "].position").c_str(), point_lights[i].position);
-
             scene_shader.uniform(("u_point_lights[" + str_i + "].linear"   ).c_str(), point_lights[i].linear);
             scene_shader.uniform(("u_point_lights[" + str_i + "].quadratic").c_str(), point_lights[i].quadratic);
-            
             scene_shader.uniform(("u_point_lights[" + str_i + "].ambient" ).c_str(), point_lights[i].color * point_lights[i].ambient);
             scene_shader.uniform(("u_point_lights[" + str_i + "].diffuse" ).c_str(), point_lights[i].color * point_lights[i].diffuse);
             scene_shader.uniform(("u_point_lights[" + str_i + "].specular").c_str(), point_lights[i].color * point_lights[i].specular);
+
+            instance_shader.uniform(("u_point_lights[" + str_i + "].position").c_str(), point_lights[i].position);
+            instance_shader.uniform(("u_point_lights[" + str_i + "].linear"   ).c_str(), point_lights[i].linear);
+            instance_shader.uniform(("u_point_lights[" + str_i + "].quadratic").c_str(), point_lights[i].quadratic);
+            instance_shader.uniform(("u_point_lights[" + str_i + "].ambient" ).c_str(), point_lights[i].color * point_lights[i].ambient);
+            instance_shader.uniform(("u_point_lights[" + str_i + "].diffuse" ).c_str(), point_lights[i].color * point_lights[i].diffuse);
+            instance_shader.uniform(("u_point_lights[" + str_i + "].specular").c_str(), point_lights[i].color * point_lights[i].specular);
         }
         for (size_t i = 0; i < spot_lights.size(); ++i) {
             const std::string str_i = std::to_string(i);
@@ -265,17 +308,36 @@ void application::run() noexcept {
             scene_shader.uniform(("u_spot_lights[" + str_i + "].position" ).c_str(), spot_lights[i].position);
             scene_shader.uniform(("u_spot_lights[" + str_i + "].direction").c_str(), glm::normalize(spot_lights[i].direction));
             scene_shader.uniform(("u_spot_lights[" + str_i + "].cutoff"   ).c_str(), glm::cos(glm::radians(spot_lights[i].cutoff)));
-
             scene_shader.uniform(("u_spot_lights[" + str_i + "].ambient" ).c_str(),  spot_lights[i].color * spot_lights[i].ambient);
             scene_shader.uniform(("u_spot_lights[" + str_i + "].diffuse" ).c_str(),  spot_lights[i].color * spot_lights[i].diffuse);
             scene_shader.uniform(("u_spot_lights[" + str_i + "].specular").c_str(), spot_lights[i].color * spot_lights[i].specular);
+
+            instance_shader.uniform(("u_spot_lights[" + str_i + "].position" ).c_str(), spot_lights[i].position);
+            instance_shader.uniform(("u_spot_lights[" + str_i + "].direction").c_str(), glm::normalize(spot_lights[i].direction));
+            instance_shader.uniform(("u_spot_lights[" + str_i + "].cutoff"   ).c_str(), glm::cos(glm::radians(spot_lights[i].cutoff)));
+            instance_shader.uniform(("u_spot_lights[" + str_i + "].ambient" ).c_str(),  spot_lights[i].color * spot_lights[i].ambient);
+            instance_shader.uniform(("u_spot_lights[" + str_i + "].diffuse" ).c_str(),  spot_lights[i].color * spot_lights[i].diffuse);
+            instance_shader.uniform(("u_spot_lights[" + str_i + "].specular").c_str(), spot_lights[i].color * spot_lights[i].specular);
         }
 
         scene_shader.uniform("u_dir_light.direction", glm::normalize(directional_light.direction));
         scene_shader.uniform("u_dir_light.ambient", directional_light.color  * directional_light.ambient);
         scene_shader.uniform("u_dir_light.diffuse", directional_light.color  * directional_light.diffuse);
         scene_shader.uniform("u_dir_light.specular", directional_light.color * directional_light.specular);
+
+        instance_shader.uniform("u_dir_light.direction", glm::normalize(directional_light.direction));
+        instance_shader.uniform("u_dir_light.ambient", directional_light.color  * directional_light.ambient);
+        instance_shader.uniform("u_dir_light.diffuse", directional_light.color  * directional_light.diffuse);
+        instance_shader.uniform("u_dir_light.specular", directional_light.color * directional_light.specular);
         
+        {
+            const glm::mat4 model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 100.0f, 0.0f)), glm::vec3(5.0f));
+            scene_shader.uniform("u_model", model_matrix);
+            scene_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(model_matrix)));
+            m_renderer.render(GL_TRIANGLES, scene_shader, planet);
+        }
+        m_renderer.render_instanced(GL_TRIANGLES, instance_shader, rock, instance_model_matrices.size());
+
         {
             const glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), sponza_transform.position) 
                 * glm::mat4_cast(glm::quat(sponza_transform.rotation * (glm::pi<float>() / 180.0f)))
@@ -307,12 +369,10 @@ void application::run() noexcept {
         m_renderer.render(GL_TRIANGLES, scene_shader, sphere.get_mesh());
         scene_shader.uniform("u_is_sphere", false);
 
-
         distances_to_transparent_cubes.clear();
-        for (size_t i = 0; i < cube_positions.size(); ++i) {
-            distances_to_transparent_cubes.insert(std::make_pair(glm::length2(m_camera.position - cube_positions[i]), cube_positions[i]));
+        for (size_t i = 0; i < cube_transforms.size(); ++i) {
+            distances_to_transparent_cubes.insert(std::make_pair(glm::length2(m_camera.position - cube_transforms[i].position), cube_transforms[i].position));
         }
-
         for (auto& it = distances_to_transparent_cubes.rbegin(); it != distances_to_transparent_cubes.rend(); ++it) {
             auto model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), it->second), glm::vec3(0.7f));
             scene_shader.uniform("u_model", model_matrix);
