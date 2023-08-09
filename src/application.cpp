@@ -191,18 +191,16 @@ void application::run() noexcept {
     normals_visualization_shader.uniform("u_color", glm::vec3(0.85f, 0.54f, 0.08f));
 
 
+    framebuffer post_process_fbo;
+    post_process_fbo.create();
+    texture post_process_color_buffer(texture::config(GL_TEXTURE_2D, m_proj_settings.width, m_proj_settings.height, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, GL_FALSE, GL_FALSE, GL_FALSE, GL_LINEAR, GL_LINEAR));
+    renderbuffer post_process_depth_stencil_buffer( m_proj_settings.width, m_proj_settings.height, GL_DEPTH24_STENCIL8);
+    post_process_fbo.attach(GL_COLOR_ATTACHMENT0, post_process_color_buffer);
+    post_process_fbo.attach(GL_DEPTH_STENCIL_ATTACHMENT, post_process_depth_stencil_buffer);
+    ASSERT(post_process_fbo.is_complete(), "framebuffer error", "framebuffer is incomplit");
 
-    texture color_buffer(texture::config(GL_TEXTURE_2D, m_proj_settings.width, m_proj_settings.height, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, GL_FALSE, GL_FALSE, GL_FALSE, GL_LINEAR, GL_LINEAR));
-    renderbuffer depth_stencil_buffer( m_proj_settings.width, m_proj_settings.height, GL_DEPTH24_STENCIL8);
-
-    framebuffer fbo;
-    fbo.create();
-    fbo.attach(GL_COLOR_ATTACHMENT0, color_buffer);
-    fbo.attach(GL_DEPTH_STENCIL_ATTACHMENT, depth_stencil_buffer);
-    ASSERT(fbo.is_complete(), "framebuffer error", "framebuffer is incomplit");
-
-    buffer matrices_uniform_buffer(GL_UNIFORM_BUFFER, 2, sizeof(glm::mat4), GL_DYNAMIC_DRAW, nullptr);
-    OGL_CALL(glBindBufferBase(GL_UNIFORM_BUFFER, 0, matrices_uniform_buffer.get_id()));
+    buffer view_projection_uniform_buffer(GL_UNIFORM_BUFFER, 2, sizeof(glm::mat4), GL_DYNAMIC_DRAW, nullptr);
+    OGL_CALL(glBindBufferBase(GL_UNIFORM_BUFFER, 0, view_projection_uniform_buffer.get_id()));
 
     mesh plane({ 
         mesh::vertex { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f), glm::vec2(0.0f, 0.0f) },
@@ -244,11 +242,11 @@ void application::run() noexcept {
             }
         }
 
-        fbo.bind();
+        post_process_fbo.bind();
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-        matrices_uniform_buffer.subdata(0, sizeof(glm::mat4), glm::value_ptr(m_camera.get_view()));
-        matrices_uniform_buffer.subdata(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(m_proj_settings.projection_mat));
+        view_projection_uniform_buffer.subdata(0, sizeof(glm::mat4), glm::value_ptr(m_camera.get_view()));
+        view_projection_uniform_buffer.subdata(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(m_proj_settings.projection_mat));
 
         for (size_t i = 0; i < point_lights.size(); ++i) {
             const glm::mat4 model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), point_lights[i].position), glm::vec3(0.2f));
@@ -351,16 +349,18 @@ void application::run() noexcept {
             m_renderer.render(GL_TRIANGLES, scene_shader, backpack);
         }
 
-        scene_shader.uniform("u_is_sphere", false);
-        earth_texture_diff.bind(10);
-        scene_shader.uniform("u_material.diffuse0", 10);
-        const glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), sphere_transform.position) 
-            * glm::mat4_cast(glm::quat(sphere_transform.rotation * (glm::pi<float>() / 180.0f)))
-            * glm::scale(glm::mat4(1.0f), sphere_transform.scale);
-        scene_shader.uniform("u_model", model_matrix);
-        scene_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(model_matrix)));
-        m_renderer.render(GL_TRIANGLES, scene_shader, sphere.get_mesh());
-        scene_shader.uniform("u_is_sphere", false);
+        {
+            scene_shader.uniform("u_is_sphere", false);
+            earth_texture_diff.bind(10);
+            scene_shader.uniform("u_material.diffuse0", 10);
+            const glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), sphere_transform.position) 
+                * glm::mat4_cast(glm::quat(sphere_transform.rotation * (glm::pi<float>() / 180.0f)))
+                * glm::scale(glm::mat4(1.0f), sphere_transform.scale);
+            scene_shader.uniform("u_model", model_matrix);
+            scene_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(model_matrix)));
+            m_renderer.render(GL_TRIANGLES, scene_shader, sphere.get_mesh());
+            scene_shader.uniform("u_is_sphere", false);
+        }
 
         distances_to_transparent_cubes.clear();
         for (size_t i = 0; i < cube_transforms.size(); ++i) {
@@ -383,11 +383,11 @@ void application::run() noexcept {
             m_renderer.enable(GL_CULL_FACE);
         }
         
-        m_renderer.polygon_mode(GL_FRONT_AND_BACK, GL_FILL);
-        fbo.unbind();
-        m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        post_process_fbo.unbind();
 
-        color_buffer.bind(0);
+        m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        m_renderer.polygon_mode(GL_FRONT_AND_BACK, GL_FILL);
+        post_process_color_buffer.bind(0);
         framebuffer_shader.uniform("u_texture", 0);
         m_renderer.render(GL_TRIANGLES, framebuffer_shader, plane);
         m_renderer.polygon_mode(GL_FRONT_AND_BACK, m_wireframed ? GL_LINE : GL_FILL);

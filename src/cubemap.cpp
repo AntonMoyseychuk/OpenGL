@@ -67,15 +67,15 @@ void cubemap::unbind() const noexcept {
     OGL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, 0));
 }
 
-cubemap::cubemap(cubemap &&other)
-    : m_id(other.m_id)
+cubemap::cubemap(cubemap &&cubemap)
+    : m_id(cubemap.m_id)
 {
-    other.m_id = 0;
+    cubemap.m_id = 0;
 }
 
-cubemap &cubemap::operator=(cubemap &&other) noexcept {
-    m_id = other.m_id;
-    other.m_id = 0;
+cubemap &cubemap::operator=(cubemap &&cubemap) noexcept {
+    m_id = cubemap.m_id;
+    cubemap.m_id = 0;
     
     return *this;
 }

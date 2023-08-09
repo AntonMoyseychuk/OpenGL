@@ -23,11 +23,11 @@ public:
     uint32_t get_usage() const noexcept;
     uint32_t get_id() const noexcept;
 
-    buffer(buffer&& other) noexcept;
-    buffer& operator=(buffer&& other) noexcept;
+    buffer(buffer&& buffer) noexcept;
+    buffer& operator=(buffer&& buffer) noexcept;
 
-    buffer(const buffer& other) = delete;
-    buffer& operator=(const buffer& other) = delete;
+    buffer(const buffer& buffer) = delete;
+    buffer& operator=(const buffer& buffer) = delete;
 
 private:
     static const std::string& _target_to_string(uint32_t target) noexcept;

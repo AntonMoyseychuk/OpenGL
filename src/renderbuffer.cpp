@@ -57,3 +57,20 @@ uint32_t renderbuffer::get_height() const noexcept {
 uint32_t renderbuffer::get_internal_format() const noexcept {
     return m_internal_format;
 }
+
+renderbuffer::renderbuffer(renderbuffer &&renderbuffer) 
+    : m_id(renderbuffer.m_id), m_width(renderbuffer.m_width), m_height(renderbuffer.m_height), m_internal_format(renderbuffer.m_internal_format)
+{
+    memset(&renderbuffer, 0, sizeof(renderbuffer));
+}
+
+renderbuffer &renderbuffer::operator=(renderbuffer &&renderbuffer) noexcept {
+    m_id = renderbuffer.m_id;
+    m_width = renderbuffer.m_width;
+    m_height = renderbuffer.m_height;
+    m_internal_format = renderbuffer.m_internal_format;
+
+    memset(&renderbuffer, 0, sizeof(renderbuffer));
+
+    return *this;
+}

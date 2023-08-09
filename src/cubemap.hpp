@@ -14,11 +14,11 @@ public:
     void bind(uint32_t unit = 0) const noexcept;
     void unbind() const noexcept;
 
-    cubemap(cubemap&& other);
-    cubemap& operator=(cubemap&& other) noexcept;
+    cubemap(cubemap&& cubemap);
+    cubemap& operator=(cubemap&& cubemap) noexcept;
 
-    cubemap(const cubemap& other) = delete;
-    cubemap& operator=(const cubemap& other) = delete;
+    cubemap(const cubemap& cubemap) = delete;
+    cubemap& operator=(const cubemap& cubemap) = delete;
 
 private:
     uint32_t m_id = 0;

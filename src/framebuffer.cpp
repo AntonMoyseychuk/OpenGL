@@ -45,6 +45,31 @@ void framebuffer::attach(uint32_t attachment, const renderbuffer &renderbuffer) 
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer.get_id());
 }
 
+void framebuffer::set_draw_buffer(uint32_t buffer) noexcept {
+    OGL_CALL(glDrawBuffer(buffer));
+}
+
+void framebuffer::set_read_buffer(uint32_t src) noexcept {
+    OGL_CALL(glReadBuffer(src));
+}
+
 bool framebuffer::is_complete() const noexcept {
     return m_is_complete;
+}
+
+framebuffer::framebuffer(framebuffer &&framebuffer)
+    : m_id(framebuffer.m_id), m_is_complete(framebuffer.m_is_complete)
+{
+    framebuffer.m_id = 0;
+    framebuffer.m_is_complete = false;
+}
+
+framebuffer &framebuffer::operator=(framebuffer &&framebuffer) noexcept {
+    m_id = framebuffer.m_id;
+    m_is_complete = framebuffer.m_is_complete;
+    
+    framebuffer.m_id = 0;
+    framebuffer.m_is_complete = false;
+    
+    return *this;
 }

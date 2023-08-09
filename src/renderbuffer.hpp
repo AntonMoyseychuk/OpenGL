@@ -18,6 +18,13 @@ public:
     uint32_t get_height() const noexcept;
     uint32_t get_internal_format() const noexcept;
 
+
+    renderbuffer(renderbuffer&& renderbuffer);
+    renderbuffer& operator=(renderbuffer&& renderbuffer) noexcept;
+
+    renderbuffer(const renderbuffer& renderbuffer) = delete;
+    renderbuffer& operator=(const renderbuffer& renderbuffer) = delete;
+
 private:
     uint32_t m_id = 0;
     uint32_t m_width = 0;

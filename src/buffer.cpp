@@ -65,20 +65,20 @@ uint32_t buffer::get_id() const noexcept {
     return m_id;
 }
 
-buffer::buffer(buffer&& other) noexcept
-    : m_element_count(other.m_element_count), m_element_size(other.m_element_size), m_target(other.m_target), m_usage(other.m_usage), m_id(other.m_id)
+buffer::buffer(buffer&& buffer) noexcept
+    : m_element_count(buffer.m_element_count), m_element_size(buffer.m_element_size), m_target(buffer.m_target), m_usage(buffer.m_usage), m_id(buffer.m_id)
 {
-    memset(&other, 0, sizeof(other));
+    memset(&buffer, 0, sizeof(buffer));
 }
 
-buffer& buffer::operator=(buffer&& other) noexcept {
-    m_element_count = other.m_element_count;
-    m_element_size = other.m_element_size; 
-    m_target = other.m_target;
-    m_usage = other.m_usage;
-    m_id = other.m_id;
+buffer& buffer::operator=(buffer&& buffer) noexcept {
+    m_element_count = buffer.m_element_count;
+    m_element_size = buffer.m_element_size; 
+    m_target = buffer.m_target;
+    m_usage = buffer.m_usage;
+    m_id = buffer.m_id;
 
-    memset(&other, 0, sizeof(other));
+    memset(&buffer, 0, sizeof(buffer));
 
     return *this;
 }
