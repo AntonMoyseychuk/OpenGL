@@ -92,8 +92,6 @@ void application::run() noexcept {
         GL_TEXTURE_2D, GL_FALSE, GL_FALSE, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture::variety::DIFFUSE
     );
     texture window_texture(RESOURCE_DIR "textures/blending_transparent_window.png", config);
-    
-    config.format = config.internal_format = GL_RGB;
     texture earth_texture_diff(RESOURCE_DIR "textures/earth.jpg", config);
     // config.type = texture::type::SPECULAR;
     // texture earth_texture_spec(RESOURCE_DIR "textures/earth_specular.png", config);
@@ -120,8 +118,6 @@ void application::run() noexcept {
     model backpack(RESOURCE_DIR "models/backpack/backpack.obj", config);
     model rock(RESOURCE_DIR "models/rock/rock.obj", config);
     model planet(RESOURCE_DIR "models/planet/planet.obj", config);
-
-    config.format = config.internal_format = GL_RGBA;
     model sponza(RESOURCE_DIR "models/Sponza/sponza.obj", config);
 
     std::vector<glm::mat4> instance_model_matrices(100'000);
