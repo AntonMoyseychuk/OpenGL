@@ -6,19 +6,19 @@
 
 std::unordered_map<std::string, std::vector<mesh>> model::preloaded_models;
 
-model::model(const std::string &filepath) {
-    create(filepath);
+model::model(const std::string &filepath, const texture::config& tex_config) {
+    create(filepath, tex_config);
 }
 
-void model::create(const std::string &filepath) noexcept {
-    _load_model(filepath);
+void model::create(const std::string &filepath, const texture::config& tex_config) noexcept {
+    _load_model(filepath, tex_config);
 }
 
 const std::vector<mesh> *model::get_meshes() const noexcept {
     return m_meshes;
 }
 
-void model::_load_model(const std::string& filepath) noexcept {
+void model::_load_model(const std::string& filepath, const texture::config& tex_config) noexcept {
     m_directory = std::filesystem::path(filepath).parent_path().u8string();
     
     if (preloaded_models.find(filepath) != preloaded_models.cend()) {
@@ -32,21 +32,21 @@ void model::_load_model(const std::string& filepath) noexcept {
     ASSERT(scene != nullptr && !(scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) && scene->mRootNode, "assimp error", importer.GetErrorString());
 
     m_meshes = &preloaded_models[filepath];
-    _process_node(scene->mRootNode, scene);
+    _process_node(scene->mRootNode, scene, tex_config);
 }
 
-void model::_process_node(aiNode *ai_node, const aiScene *ai_scene) noexcept {
+void model::_process_node(aiNode *ai_node, const aiScene *ai_scene, const texture::config& tex_config) noexcept {
     for (size_t i = 0; i < ai_node->mNumMeshes; ++i) {
         aiMesh* mesh = ai_scene->mMeshes[ai_node->mMeshes[i]];
-        m_meshes->push_back(_process_mesh(mesh, ai_scene));
+        m_meshes->push_back(_process_mesh(mesh, ai_scene, tex_config));
     }
 
     for (size_t i = 0; i < ai_node->mNumChildren; ++i) {
-        _process_node(ai_node->mChildren[i], ai_scene);
+        _process_node(ai_node->mChildren[i], ai_scene, tex_config);
     }
 }
 
-mesh model::_process_mesh(aiMesh *ai_mesh, const aiScene *ai_scene) const noexcept {
+mesh model::_process_mesh(aiMesh *ai_mesh, const aiScene *ai_scene, const texture::config& tex_config) const noexcept {
     std::vector<mesh::vertex> vertices;
     vertices.reserve(ai_mesh->mNumVertices);
 
@@ -77,19 +77,25 @@ mesh model::_process_mesh(aiMesh *ai_mesh, const aiScene *ai_scene) const noexce
     if(ai_mesh->mMaterialIndex >= 0) {
         aiMaterial *material = ai_scene->mMaterials[ai_mesh->mMaterialIndex];
 
-        for (const auto& t : _load_material_texture_configs(material, aiTextureType_DIFFUSE, texture::type::DIFFUSE)) {
+        texture::config temp = tex_config;
+
+        temp.variety = texture::variety::DIFFUSE;
+        for (const auto& t : _load_material_texture_configs(material, aiTextureType_DIFFUSE, temp)) {
             textures.insert(t);
         }
         
-        for (const auto& t : _load_material_texture_configs(material, aiTextureType_SPECULAR, texture::type::SPECULAR)) {
+        temp.variety = texture::variety::SPECULAR;
+        for (const auto& t : _load_material_texture_configs(material, aiTextureType_SPECULAR, temp)) {
             textures.insert(t);
         }
 
-        for (const auto& t : _load_material_texture_configs(material, aiTextureType_HEIGHT, texture::type::NORMAL)) {
+        temp.variety = texture::variety::NORMAL;
+        for (const auto& t : _load_material_texture_configs(material, aiTextureType_HEIGHT, temp)) {
             textures.insert(t);
         }
 
-        for (const auto& t : _load_material_texture_configs(material, aiTextureType_AMBIENT, texture::type::HEIGHT)) {
+        temp.variety = texture::variety::HEIGHT;
+        for (const auto& t : _load_material_texture_configs(material, aiTextureType_AMBIENT, temp)) {
             textures.insert(t);
         }
     }
@@ -101,17 +107,15 @@ mesh model::_process_mesh(aiMesh *ai_mesh, const aiScene *ai_scene) const noexce
 }
 
 std::unordered_map<std::string, texture::config> model::_load_material_texture_configs(
-    aiMaterial *ai_mat, aiTextureType ai_type, texture::type texture_type) const noexcept 
+    aiMaterial *ai_mat, aiTextureType ai_type, const texture::config& tex_config) const noexcept 
 {
     std::unordered_map<std::string, texture::config> texture_configs;
     texture_configs.reserve(ai_mat->GetTextureCount(ai_type));
 
-    const texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture_type);
-
     for(size_t i = 0; i < ai_mat->GetTextureCount(ai_type); ++i) {
         aiString texture_name;
         ai_mat->GetTexture(ai_type, i, &texture_name);
-        texture_configs.insert(std::make_pair(m_directory + "\\" + texture_name.C_Str(), config));
+        texture_configs.insert(std::make_pair(m_directory + "\\" + texture_name.C_Str(), tex_config));
     }
 
     return texture_configs;

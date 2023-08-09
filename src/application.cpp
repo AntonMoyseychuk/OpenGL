@@ -88,10 +88,12 @@ void application::run() noexcept {
         RESOURCE_DIR "textures/skybox/back.jpg"
     });
 
-    texture::config config(GL_TEXTURE_2D, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true);
+    texture::config config(
+        GL_TEXTURE_2D, GL_FALSE, GL_FALSE, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture::variety::DIFFUSE
+    );
     texture window_texture(RESOURCE_DIR "textures/blending_transparent_window.png", config);
     
-    config.type = texture::type::DIFFUSE;
+    config.format = config.internal_format = GL_RGB;
     texture earth_texture_diff(RESOURCE_DIR "textures/earth.jpg", config);
     // config.type = texture::type::SPECULAR;
     // texture earth_texture_spec(RESOURCE_DIR "textures/earth_specular.png", config);
@@ -114,11 +116,13 @@ void application::run() noexcept {
         { {}, glm::vec3( 2.5f, -2.5f, -2.5f), {} },
     };
 
-    model cube(RESOURCE_DIR "models/cube/cube.obj");
-    model backpack(RESOURCE_DIR "models/backpack/backpack.obj");
-    model sponza(RESOURCE_DIR "models/Sponza/sponza.obj");
-    model rock(RESOURCE_DIR "models/rock/rock.obj");
-    model planet(RESOURCE_DIR "models/planet/planet.obj");
+    model cube(RESOURCE_DIR "models/cube/cube.obj", config);
+    model backpack(RESOURCE_DIR "models/backpack/backpack.obj", config);
+    model rock(RESOURCE_DIR "models/rock/rock.obj", config);
+    model planet(RESOURCE_DIR "models/planet/planet.obj", config);
+
+    config.format = config.internal_format = GL_RGBA;
+    model sponza(RESOURCE_DIR "models/Sponza/sponza.obj", config);
 
     std::vector<glm::mat4> instance_model_matrices(100'000);
     srand(glfwGetTime());
@@ -156,7 +160,7 @@ void application::run() noexcept {
     };
     std::vector<spot_light> spot_lights = {
         spot_light(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 0.0f,  5.0f, -2.0f), glm::vec3( 0.0f, -1.0f, 0.0f), 15.0f),
-        spot_light(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 0.0f, -5.0f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
+        spot_light(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 0.0f, -4.5f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
         spot_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-5.0f,  0.0f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
         spot_light(glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 5.0f,  0.0f, -2.0f), glm::vec3(-1.0f,  0.0f, 0.0f), 15.0f),
     };
@@ -193,8 +197,7 @@ void application::run() noexcept {
     OGL_CALL(glGenFramebuffers(1, &fbo));
     OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
 
-    texture color_buffer(m_proj_settings.width, m_proj_settings.height, GL_RGB, 
-        texture::config(GL_TEXTURE_2D, GL_FALSE, GL_FALSE, GL_FALSE, GL_LINEAR, GL_LINEAR, false));
+    texture color_buffer(texture::config(GL_TEXTURE_2D, m_proj_settings.width, m_proj_settings.height, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, GL_FALSE, GL_FALSE, GL_FALSE, GL_LINEAR, GL_LINEAR));
 
     OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_buffer.get_id(), 0));
 
@@ -224,6 +227,7 @@ void application::run() noexcept {
 
     ImGuiIO& io = ImGui::GetIO();
     float material_shininess = 64.0f;
+    bool use_blinn_phong = false, use_gamma_correction = false;
     std::multimap<float, glm::vec3> distances_to_transparent_cubes;
 
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
@@ -250,7 +254,7 @@ void application::run() noexcept {
                 m_camera.move(-m_camera.get_right() * io.DeltaTime);
             }
         }
-        
+
         OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -389,7 +393,7 @@ void application::run() noexcept {
         if (m_cull_face) {
             m_renderer.enable(GL_CULL_FACE);
         }
-
+        
         m_renderer.polygon_mode(GL_FRONT_AND_BACK, GL_FILL);
         OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -411,6 +415,10 @@ void application::run() noexcept {
 
             if (ImGui::Checkbox("cull face", &m_cull_face)) {
                 m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
+            }
+
+            if (ImGui::Checkbox("use gamma correction", &use_gamma_correction)) {
+                framebuffer_shader.uniform("u_use_gamma_correction", use_gamma_correction);
             }
                 
             if (ImGui::NewLine(), ImGui::ColorEdit3("background color", glm::value_ptr(m_clear_color))) {
@@ -443,6 +451,11 @@ void application::run() noexcept {
         ImGui::End();
 
         ImGui::Begin("Light");
+            if (ImGui::Checkbox("use blinn-phong", &use_blinn_phong)) {
+                scene_shader.uniform("u_use_blinn_phong", use_blinn_phong);
+                instance_shader.uniform("u_use_blinn_phong", use_blinn_phong);
+            } ImGui::NewLine();
+
             ImGui::TextColored({1.0f, 0.0f, 0.0f, 1.0f}, "directional-light"); 
             ImGui::DragFloat3("direction##dl", glm::value_ptr(directional_light.direction), 0.1f); 
             ImGui::ColorEdit3("color##dl", glm::value_ptr(directional_light.color));

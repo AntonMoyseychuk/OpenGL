@@ -39,23 +39,23 @@ void mesh::bind(const shader &shader) const noexcept {
     for (int32_t i = 0; i < m_textures.size(); ++i) {
         m_textures[i].bind(i);
 
-        switch (m_textures[i].get_type()) {
-        case texture::type::NONE:
+        switch (m_textures[i].get_variety()) {
+        case texture::variety::NONE:
             shader.uniform(("u_material.texture" + std::to_string(simple_texture++)).c_str(), i);
             break;
-        case texture::type::DIFFUSE:
+        case texture::variety::DIFFUSE:
             shader.uniform(("u_material.diffuse" + std::to_string(diffuse_number++)).c_str(), i);
             break;
-        case texture::type::SPECULAR:
+        case texture::variety::SPECULAR:
             shader.uniform(("u_material.specular" + std::to_string(specular_number++)).c_str(), i);
             break;
-        case texture::type::EMISSION:
+        case texture::variety::EMISSION:
             shader.uniform(("u_material.emission" + std::to_string(emission_number++)).c_str(), i);
             break;
-        case texture::type::NORMAL:
+        case texture::variety::NORMAL:
             shader.uniform(("u_material.normal" + std::to_string(normal_number++)).c_str(), i);
             break;
-        case texture::type::HEIGHT:
+        case texture::variety::HEIGHT:
             shader.uniform(("u_material.height" + std::to_string(normal_number++)).c_str(), i);
             break;
         default:

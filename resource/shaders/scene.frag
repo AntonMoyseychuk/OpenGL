@@ -59,59 +59,73 @@ uniform SpotLight u_spot_lights[MAX_SPOT_LIGTHS_COUNT];
 uniform Material u_material;
 
 uniform vec3 u_view_position;
+uniform bool u_use_blinn_phong;
+
+vec3 calculate_ambient(vec3 light_ambient, vec3 ambient_map) {
+    return light_ambient * ambient_map;
+}
+
+vec3 calculate_diffuse(vec3 light_direction, vec3 normal, vec3 light_diffuse, vec3 diffuse_map) {
+    const float diff = max(dot(normal, -light_direction), 0.0);
+    return light_diffuse * diff * diffuse_map;
+}
+
+vec3 calculate_specular(bool use_blinn_phong_model, vec3 view_direction, vec3 light_direction, vec3 normal, vec3 light_specular, vec3 specular_map) {
+    if (use_blinn_phong_model) {
+        const vec3 half_direction = normalize(light_direction + view_direction);
+        const float spec = pow(max(dot(normal, -half_direction), 0.0), u_material.shininess);
+        return light_specular * spec * specular_map;
+    } else {
+        const vec3 reflect_direction = normalize(reflect(light_direction, normal));
+        const float spec = pow(max(dot(-view_direction, reflect_direction), 0.0), u_material.shininess);
+        return light_specular * spec * specular_map;
+    }
+}
 
 vec3 calculate_directional_light(DirectionalLight light, vec3 normal, vec3 diffuse_map, vec3 specular_map) {
-    const vec3 ambient = light.ambient * diffuse_map;   
+    vec3 color = calculate_ambient(light.ambient, diffuse_map);   
 
-    const vec3 light_dir = normalize(light.direction);
-    const float diff = max(dot(normal, -light_dir), 0.0);
-    const vec3 diffuse = light.diffuse * diff * diffuse_map;
+    const vec3 light_direction = normalize(light.direction);
+    color += calculate_diffuse(light_direction, normal, light.diffuse, diffuse_map);
 
     const vec3 view_direction = normalize(fs_in.frag_pos - u_view_position);
-    const vec3 half_direction = normalize(light_dir + view_direction);
-    const float spec = pow(max(dot(normal, -half_direction), 0.0), u_material.shininess);
-    const vec3 specular = light.specular * spec * specular_map;
+    color += calculate_specular(u_use_blinn_phong, view_direction, light_direction, normal, 
+        light.specular, specular_map);
 
-    return (ambient + diffuse + specular);
+    return color;
 }
 
 vec3 calculate_point_light(PointLight light, vec3 normal, vec3 diffuse_map, vec3 specular_map) {
     const float dist = length(light.position - fs_in.frag_pos);
     const float attenuation = 1.0 / (1.0 + light.linear * dist + light.quadratic * (dist * dist));
 
-    const vec3 ambient = light.ambient * diffuse_map * attenuation;
+    vec3 color = calculate_ambient(light.ambient, diffuse_map) * attenuation;
 
-    const vec3 light_dir = normalize(fs_in.frag_pos - light.position);
-    const float diff = max(dot(normal, -light_dir), 0.0);
-    const vec3 diffuse = light.diffuse * diff * diffuse_map * attenuation;
+    const vec3 light_direction = normalize(fs_in.frag_pos - light.position);
+    color += calculate_diffuse(light_direction, normal, light.diffuse, diffuse_map) * attenuation;
 
     const vec3 view_direction = normalize(fs_in.frag_pos - u_view_position);
-    const vec3 half_direction = normalize(light_dir + view_direction);
-    const float spec = pow(max(dot(normal, -half_direction), 0.0), u_material.shininess);
-    const vec3 specular = light.specular * spec * specular_map * attenuation;
+    color += calculate_specular(u_use_blinn_phong, view_direction, light_direction, normal, 
+        light.specular, specular_map) * attenuation;
 
-    return (ambient + diffuse + specular);
+    return color;
 }
 
 vec3 calculate_spot_light(SpotLight light, vec3 normal, vec3 diffuse_map, vec3 specular_map) {
-    const vec3 ambient = light.ambient * diffuse_map;
+    vec3 color = calculate_ambient(light.ambient, diffuse_map);
     
-    const vec3 light_dir = normalize(fs_in.frag_pos - light.position);
+    const vec3 light_direction = normalize(fs_in.frag_pos - light.position);
 
-    const float theta = dot(light_dir, normalize(light.direction));
+    const float theta = dot(light_direction, normalize(light.direction));
     if (theta > light.cutoff) {
-        const float diff = max(dot(normal, -light_dir), 0.0);
-        const vec3 diffuse = light.diffuse * diff * diffuse_map;
+        color += calculate_diffuse(light_direction, normal, light.diffuse, diffuse_map);
 
         const vec3 view_direction = normalize(fs_in.frag_pos - u_view_position);
-        const vec3 half_direction = normalize(light_dir + view_direction);
-        const float spec = pow(max(dot(normal, -half_direction), 0.0), u_material.shininess);
-        const vec3 specular = light.specular * spec * specular_map;
-
-        return (ambient + diffuse + specular);
-    } else {
-        return ambient;
+        color += calculate_specular(u_use_blinn_phong, view_direction, light_direction, normal, 
+            light.specular, specular_map);
     }
+    
+    return color;
 }
 
 uniform bool u_is_sphere;
