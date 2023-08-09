@@ -53,7 +53,7 @@ public:
     void unbind() const noexcept;
 
     uint32_t get_id() const noexcept;
-    variety get_variety() const noexcept;
+    const config& get_config_data() const noexcept;
 
     texture(texture&& texture);
     texture& operator=(texture&& texture) noexcept;

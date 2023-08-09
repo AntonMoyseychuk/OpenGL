@@ -106,8 +106,8 @@ uint32_t texture::get_id() const noexcept {
     return m_data.id;
 }
 
-texture::variety texture::get_variety() const noexcept {
-    return m_data.config.variety;
+const texture::config &texture::get_config_data() const noexcept {
+    return m_data.config;
 }
 
 texture::texture(texture &&texture)
@@ -148,12 +148,18 @@ uint32_t texture::_get_channel_correct_format(uint32_t format, uint32_t channel_
     case GL_RGB:
     case GL_RGBA:
         return channel_count == 3 ? GL_RGB : GL_RGBA;
+
+    case GL_SRGB:
+    case GL_SRGB_ALPHA:
+        return channel_count == 3 ? GL_SRGB : GL_SRGB_ALPHA;
     }
 
     ASSERT(false, "texture error", "Unknown texture file format");
+    return 0;
 }
 
-texture::config::config(uint32_t target, 
+texture::config::config(
+    uint32_t target, 
     uint32_t width, uint32_t height, 
     uint32_t internal_format, uint32_t format, uint32_t type, 
     uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, uint32_t min_filter, uint32_t mag_filter, 

@@ -13,6 +13,7 @@
 #include "texture.hpp"
 #include "cubemap.hpp"
 #include "model.hpp"
+#include "framebuffer.hpp"
 
 #include "light/spot_light.hpp"
 #include "light/point_light.hpp"
@@ -189,24 +190,16 @@ void application::run() noexcept {
     shader normals_visualization_shader(RESOURCE_DIR "shaders/normals_visualization.vert", RESOURCE_DIR "shaders/single_color.frag", RESOURCE_DIR "shaders/normals_visualization.geom");
     normals_visualization_shader.uniform("u_color", glm::vec3(0.85f, 0.54f, 0.08f));
 
-    uint32_t fbo;
-    OGL_CALL(glGenFramebuffers(1, &fbo));
-    OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
+
 
     texture color_buffer(texture::config(GL_TEXTURE_2D, m_proj_settings.width, m_proj_settings.height, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, GL_FALSE, GL_FALSE, GL_FALSE, GL_LINEAR, GL_LINEAR));
+    renderbuffer depth_stencil_buffer( m_proj_settings.width, m_proj_settings.height, GL_DEPTH24_STENCIL8);
 
-    OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_buffer.get_id(), 0));
-
-    uint32_t depth_stencil_buffer;
-    OGL_CALL(glGenRenderbuffers(1, &depth_stencil_buffer));
-    OGL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, depth_stencil_buffer));
-    OGL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_proj_settings.width, m_proj_settings.height));
-    OGL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, 0));
-
-    OGL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depth_stencil_buffer));
-    
-    ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "framebuffer error", "framebuffer is incomplit");
-    OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    framebuffer fbo;
+    fbo.create();
+    fbo.attach(GL_COLOR_ATTACHMENT0, color_buffer);
+    fbo.attach(GL_DEPTH_STENCIL_ATTACHMENT, depth_stencil_buffer);
+    ASSERT(fbo.is_complete(), "framebuffer error", "framebuffer is incomplit");
 
     buffer matrices_uniform_buffer(GL_UNIFORM_BUFFER, 2, sizeof(glm::mat4), GL_DYNAMIC_DRAW, nullptr);
     OGL_CALL(glBindBufferBase(GL_UNIFORM_BUFFER, 0, matrices_uniform_buffer.get_id()));
@@ -251,7 +244,7 @@ void application::run() noexcept {
             }
         }
 
-        OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
+        fbo.bind();
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         matrices_uniform_buffer.subdata(0, sizeof(glm::mat4), glm::value_ptr(m_camera.get_view()));
@@ -391,7 +384,7 @@ void application::run() noexcept {
         }
         
         m_renderer.polygon_mode(GL_FRONT_AND_BACK, GL_FILL);
-        OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+        fbo.unbind();
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         color_buffer.bind(0);

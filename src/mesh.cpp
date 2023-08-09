@@ -39,7 +39,7 @@ void mesh::bind(const shader &shader) const noexcept {
     for (int32_t i = 0; i < m_textures.size(); ++i) {
         m_textures[i].bind(i);
 
-        switch (m_textures[i].get_variety()) {
+        switch (m_textures[i].get_config_data().variety) {
         case texture::variety::NONE:
             shader.uniform(("u_material.texture" + std::to_string(simple_texture++)).c_str(), i);
             break;
