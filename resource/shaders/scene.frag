@@ -8,6 +8,8 @@ in VS_OUT {
     vec2 texcoord;
 } fs_in;
 
+in vec4 in_frag_pos_light_space;
+
 struct PointLight {
     vec3 position;
 
@@ -58,6 +60,8 @@ uniform SpotLight u_spot_lights[MAX_SPOT_LIGTHS_COUNT];
 
 uniform Material u_material;
 
+uniform sampler2D u_shadow_map;
+
 uniform vec3 u_view_position;
 uniform bool u_use_blinn_phong;
 
@@ -82,15 +86,29 @@ vec3 calculate_specular(bool use_blinn_phong_model, vec3 view_direction, vec3 li
     }
 }
 
+float calculate_shadow(vec4 frag_pos_light_space) {
+    vec3 proj_coord = frag_pos_light_space.xyz / frag_pos_light_space.w;
+    
+    proj_coord = proj_coord * 0.5 + 0.5;
+    
+    float closest_depth = texture(u_shadow_map, proj_coord.xy).r; 
+    
+    float current_depth = proj_coord.z;
+
+    return current_depth > closest_depth ? 1.0f : 0.0f;
+}
+
 vec3 calculate_directional_light(DirectionalLight light, vec3 normal, vec3 diffuse_map, vec3 specular_map) {
+    const float shadow = calculate_shadow(in_frag_pos_light_space);
+
     vec3 color = calculate_ambient(light.ambient, diffuse_map);   
 
     const vec3 light_direction = normalize(light.direction);
-    color += calculate_diffuse(light_direction, normal, light.diffuse, diffuse_map);
+    color += calculate_diffuse(light_direction, normal, light.diffuse, diffuse_map) * (1.0f - shadow);
 
     const vec3 view_direction = normalize(fs_in.frag_pos - u_view_position);
     color += calculate_specular(u_use_blinn_phong, view_direction, light_direction, normal, 
-        light.specular, specular_map);
+        light.specular, specular_map) * (1.0f - shadow);
 
     return color;
 }
@@ -138,11 +156,11 @@ void main() {
 
     vec3 out_color = calculate_directional_light(u_dir_light, normal, diffuse_map.rgb, specular_map.rgb);
 
-    for (uint i = 0; i < u_point_lights_count; ++i) {
+    for (uint i = 0; i < min(u_point_lights_count, MAX_POINT_LIGTHS_COUNT); ++i) {
         out_color += calculate_point_light(u_point_lights[i], normal, diffuse_map.rgb, specular_map.rgb);
     }
 
-    for (uint i = 0; i < u_spot_lights_count; ++i) {
+    for (uint i = 0; i < min(u_spot_lights_count, MAX_SPOT_LIGTHS_COUNT); ++i) {
         out_color += calculate_spot_light(u_spot_lights[i], normal, diffuse_map.rgb, specular_map.rgb);
     }
 
