@@ -16,6 +16,10 @@ void renderer::depth_func(uint32_t func) const noexcept {
     OGL_CALL(glDepthFunc(func));
 }
 
+void renderer::cull_face(uint32_t face) const noexcept {
+    OGL_CALL(glCullFace(face));
+}
+
 void renderer::set_clear_color(float r, float g, float b, float a) const noexcept {
     OGL_CALL(glClearColor(r, g, b, a));
 }

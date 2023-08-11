@@ -36,8 +36,6 @@ void shader::create(const std::string& vs_filepath, const std::string& fs_filepa
         ASSERT(false, "shader program linking error", shader_error_log);
     }
 #endif
-
-    unbind();
 }
 
 void shader::destroy() noexcept {

@@ -86,24 +86,30 @@ vec3 calculate_specular(bool use_blinn_phong_model, vec3 view_direction, vec3 li
     }
 }
 
-float calculate_shadow(vec4 frag_pos_light_space) {
-    vec3 proj_coord = frag_pos_light_space.xyz / frag_pos_light_space.w;
+float calculate_shadow(vec4 frag_pos_light_space, vec3 normal, vec3 light_direction) {
+    const vec3 proj_coord = (frag_pos_light_space.xyz / frag_pos_light_space.w + 1.0f) / 2.0f;
     
-    proj_coord = proj_coord * 0.5 + 0.5;
-    
-    float closest_depth = texture(u_shadow_map, proj_coord.xy).r; 
-    
-    float current_depth = proj_coord.z;
+    const float bias = max(0.05f * (1.0f - dot(normal, -light_direction)), 0.005f);
+    const vec2 offset = 1.0f / textureSize(u_shadow_map, 0);
 
-    return current_depth > closest_depth ? 1.0f : 0.0f;
+    float shadow = 0.0f;
+
+    for (int y = -2; y <= 2; ++y) {
+        for (int x = -2; x <= 2; ++x) {
+            float closest_depth = texture(u_shadow_map, proj_coord.xy + vec2(x, y) * offset).r;
+            shadow += (proj_coord.z > closest_depth + bias ? 1.0f : 0.0f);
+        }
+    }
+
+    return shadow / 25.0f;
 }
 
 vec3 calculate_directional_light(DirectionalLight light, vec3 normal, vec3 diffuse_map, vec3 specular_map) {
-    const float shadow = calculate_shadow(in_frag_pos_light_space);
-
     vec3 color = calculate_ambient(light.ambient, diffuse_map);   
 
     const vec3 light_direction = normalize(light.direction);
+    const float shadow = calculate_shadow(in_frag_pos_light_space, normal, light_direction);
+    
     color += calculate_diffuse(light_direction, normal, light.diffuse, diffuse_map) * (1.0f - shadow);
 
     const vec3 view_direction = normalize(fs_in.frag_pos - u_view_position);

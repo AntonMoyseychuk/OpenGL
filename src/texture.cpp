@@ -36,15 +36,15 @@ void texture::load(const std::string &filepath, const config &config, bool flip_
     m_data.config = config;
     
     stbi_set_flip_vertically_on_load(flip_on_load);
-    uint8_t* texture_data = stbi_load(filepath.c_str(), (int*)&m_data.config.width, (int*)&m_data.config.height, (int*)&m_data.config.channel_count, 0);
+    uint8_t* texture_data = stbi_load(filepath.c_str(), (int*)&m_data.config.width, (int*)&m_data.config.height, (int*)&m_data.channel_count, 0);
     
     ASSERT(texture_data != nullptr, "texture error", "couldn't load texture \"" + filepath + "\"");
 
     OGL_CALL(glGenTextures(1, &m_data.id));
     bind();
 
-    m_data.config.internal_format = _get_channel_correct_format(m_data.config.internal_format, m_data.config.channel_count);
-    m_data.config.format = _get_channel_correct_format(m_data.config.format, m_data.config.channel_count);
+    m_data.config.internal_format = _get_channel_correct_format(m_data.config.internal_format, m_data.channel_count);
+    m_data.config.format = _get_channel_correct_format(m_data.config.format, m_data.channel_count);
     OGL_CALL(glTexImage2D(m_data.config.target, m_data.config.level, m_data.config.internal_format, m_data.config.width, m_data.config.height, 0, m_data.config.format, m_data.config.type, texture_data));
     if (m_data.config.generate_mipmap) {
         OGL_CALL(glGenerateMipmap(m_data.config.target));
@@ -55,8 +55,6 @@ void texture::load(const std::string &filepath, const config &config, bool flip_
     stbi_image_free(texture_data);
 
     preloaded_textures[filepath] = m_data;
-
-    unbind();
 }
 
 void texture::create(const config &config) noexcept {
@@ -76,8 +74,6 @@ void texture::create(const config &config) noexcept {
     }
 
     _setup_tex_parametes(m_data.config);
-
-    unbind();
 }
 
 void texture::destroy() noexcept {
@@ -92,8 +88,8 @@ void texture::bind(uint32_t unit) const noexcept {
     ASSERT(unit < max_units_count, "texture error", "unit value is greater than GL_MAX_TEXTURE_UNITS");
 #endif
 
-    const_cast<texture*>(this)->m_data.config.texture_unit = GL_TEXTURE0 + unit;
-    OGL_CALL(glActiveTexture(m_data.config.texture_unit));
+    const_cast<texture*>(this)->m_data.texture_unit = GL_TEXTURE0 + unit;
+    OGL_CALL(glActiveTexture(m_data.texture_unit));
 
     OGL_CALL(glBindTexture(m_data.config.target, m_data.id));
 }
@@ -104,6 +100,10 @@ void texture::unbind() const noexcept {
 
 uint32_t texture::get_id() const noexcept {
     return m_data.id;
+}
+
+uint32_t texture::get_unit() const noexcept {
+    return m_data.texture_unit;
 }
 
 const texture::config &texture::get_config_data() const noexcept {

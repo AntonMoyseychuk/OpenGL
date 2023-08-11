@@ -12,6 +12,7 @@ public:
     void polygon_mode(uint32_t face, uint32_t mode) const noexcept;
     void blend_func(uint32_t sfactor, uint32_t dfactor) const noexcept;
     void depth_func(uint32_t func) const noexcept;
+    void cull_face(uint32_t face) const noexcept;
 
     void enable(uint32_t flag) const noexcept;
     void disable(uint32_t flag) const noexcept;

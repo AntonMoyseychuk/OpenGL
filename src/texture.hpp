@@ -20,10 +20,8 @@ public:
         uint32_t target = 0;
         variety variety = variety::NONE;
 
-        uint32_t texture_unit = 0;
         uint32_t width = 0;
         uint32_t height = 0;
-        uint32_t channel_count = 0;
 
         uint32_t level = 0;
         uint32_t internal_format = 0;
@@ -53,6 +51,7 @@ public:
     void unbind() const noexcept;
 
     uint32_t get_id() const noexcept;
+    uint32_t get_unit() const noexcept;
     const config& get_config_data() const noexcept;
 
     texture(texture&& texture);
@@ -69,6 +68,8 @@ private:
     struct texture_data {
         config config;
         uint32_t id = 0;
+        uint32_t texture_unit = 0;
+        uint32_t channel_count = 0;
     };
 
 private:
