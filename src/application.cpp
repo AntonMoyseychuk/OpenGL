@@ -87,7 +87,7 @@ void application::run() noexcept {
         RESOURCE_DIR "textures/skybox/bottom.jpg",
         RESOURCE_DIR "textures/skybox/front.jpg",
         RESOURCE_DIR "textures/skybox/back.jpg"
-    });
+    }, cubemap::config(GL_FALSE, GL_FALSE, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR));
 
     texture::config config(
         GL_TEXTURE_2D, GL_FALSE, GL_FALSE, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_REPEAT, GL_REPEAT, GL_FALSE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true, texture::variety::DIFFUSE

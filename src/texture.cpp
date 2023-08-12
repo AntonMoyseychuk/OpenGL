@@ -68,7 +68,8 @@ void texture::create(const config &config) noexcept {
     OGL_CALL(glGenTextures(1, &m_data.id));
     bind();
 
-    OGL_CALL(glTexImage2D(m_data.config.target, m_data.config.level, m_data.config.internal_format, m_data.config.width, m_data.config.height, 0, m_data.config.format, m_data.config.type, nullptr));
+    OGL_CALL(glTexImage2D(m_data.config.target, m_data.config.level, m_data.config.internal_format, m_data.config.width, m_data.config.height, 
+        0, m_data.config.format, m_data.config.type, nullptr));
     if (m_data.config.generate_mipmap) {
         OGL_CALL(glGenerateMipmap(m_data.config.target));
     }
@@ -88,8 +89,8 @@ void texture::bind(uint32_t unit) const noexcept {
     ASSERT(unit < max_units_count, "texture error", "unit value is greater than GL_MAX_TEXTURE_UNITS");
 #endif
 
-    const_cast<texture*>(this)->m_data.texture_unit = GL_TEXTURE0 + unit;
-    OGL_CALL(glActiveTexture(m_data.texture_unit));
+    const_cast<texture*>(this)->m_data.texture_unit = unit;
+    OGL_CALL(glActiveTexture(GL_TEXTURE0 + unit));
 
     OGL_CALL(glBindTexture(m_data.config.target, m_data.id));
 }

@@ -97,7 +97,7 @@ float calculate_shadow(vec4 frag_pos_light_space, vec3 normal, vec3 light_direct
     for (int y = -2; y <= 2; ++y) {
         for (int x = -2; x <= 2; ++x) {
             float closest_depth = texture(u_shadow_map, proj_coord.xy + vec2(x, y) * offset).r;
-            shadow += (proj_coord.z > closest_depth + bias ? 1.0f : 0.0f);
+            shadow += (proj_coord.z > closest_depth + bias ? 0.0f : 1.0f);
         }
     }
 
@@ -110,11 +110,11 @@ vec3 calculate_directional_light(DirectionalLight light, vec3 normal, vec3 diffu
     const vec3 light_direction = normalize(light.direction);
     const float shadow = calculate_shadow(in_frag_pos_light_space, normal, light_direction);
     
-    color += calculate_diffuse(light_direction, normal, light.diffuse, diffuse_map) * (1.0f - shadow);
+    color += calculate_diffuse(light_direction, normal, light.diffuse, diffuse_map) * shadow;
 
     const vec3 view_direction = normalize(fs_in.frag_pos - u_view_position);
     color += calculate_specular(u_use_blinn_phong, view_direction, light_direction, normal, 
-        light.specular, specular_map) * (1.0f - shadow);
+        light.specular, specular_map) * shadow;
 
     return color;
 }
