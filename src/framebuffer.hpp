@@ -13,8 +13,8 @@ public:
     void bind() const noexcept;
     void unbind() const noexcept;
 
-    void attach(uint32_t attachment, const texture& texture) noexcept;
-    void attach(uint32_t attachment, const renderbuffer& renderbuffer) noexcept;
+    bool attach(uint32_t attachment, const texture& texture) noexcept;
+    bool attach(uint32_t attachment, const renderbuffer& renderbuffer) noexcept;
 
     void set_draw_buffer(uint32_t buffer) noexcept;
     void set_read_buffer(uint32_t src) noexcept;

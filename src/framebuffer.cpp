@@ -31,18 +31,22 @@ void framebuffer::unbind() const noexcept {
     OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
-void framebuffer::attach(uint32_t attachment, const texture &texture) noexcept {
+bool framebuffer::attach(uint32_t attachment, const texture &texture) noexcept {
     bind();
 
     ASSERT(texture.get_config_data().target == GL_TEXTURE_2D, "framebuffer error", "can't attach not GL_TEXTURE_2D textures yet");
     OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, texture.get_config_data().target, texture.get_id(), texture.get_config_data().level));
     OGL_CALL(m_is_complete = (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE));
+
+    return is_complete();
 }
 
-void framebuffer::attach(uint32_t attachment, const renderbuffer &renderbuffer) noexcept {
+bool framebuffer::attach(uint32_t attachment, const renderbuffer &renderbuffer) noexcept {
     bind();
 
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer.get_id());
+    OGL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer.get_id()));
+
+    return is_complete();
 }
 
 void framebuffer::set_draw_buffer(uint32_t buffer) noexcept {
