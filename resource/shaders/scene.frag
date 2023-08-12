@@ -152,11 +152,9 @@ vec3 calculate_spot_light(SpotLight light, vec3 normal, vec3 diffuse_map, vec3 s
     return color;
 }
 
-uniform bool u_is_sphere;
-
 void main() {
-    const vec4 diffuse_map = u_is_sphere ? vec4(1.0f, 0.0f, 0.0f, 1.0f) : texture(u_material.diffuse0, fs_in.texcoord);
-    const vec4 specular_map = u_is_sphere ? vec4(1.0f) : texture(u_material.specular0, fs_in.texcoord);
+    const vec4 diffuse_map = texture(u_material.diffuse0, fs_in.texcoord);
+    const vec4 specular_map = texture(u_material.specular0, fs_in.texcoord);
 
     const vec3 normal = normalize(fs_in.normal);
 
