@@ -186,8 +186,7 @@ void application::run() noexcept {
     shader normals_visualization_shader(RESOURCE_DIR "shaders/normals_visualization.vert", RESOURCE_DIR "shaders/single_color.frag", RESOURCE_DIR "shaders/normals_visualization.geom");
     normals_visualization_shader.uniform("u_color", glm::vec3(0.85f, 0.54f, 0.08f));
 
-    shader depth_buffer_shader(RESOURCE_DIR "shaders/depth_buffer.vert", RESOURCE_DIR "shaders/empty.frag");
-    shader depth_buffer_instance_shader(RESOURCE_DIR "shaders/instance_shader.vert", RESOURCE_DIR "shaders/empty.frag");
+    shader directional_shadow_shader(RESOURCE_DIR "shaders/directional_shadow_shader.vert", RESOURCE_DIR "shaders/empty.frag");
 
 
     framebuffer post_process_fbo;
@@ -234,7 +233,7 @@ void application::run() noexcept {
     std::multimap<float, glm::vec3> distances_to_transparent_cubes;
 
     float ortho_size = 30.0f;
-    float ortho_far = 90.0f;
+    float shadow_far_plane = 90.0f;
 
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
@@ -263,38 +262,36 @@ void application::run() noexcept {
         view_projection_uniform_buffer.subdata(0, sizeof(glm::mat4), glm::value_ptr(m_camera.get_view()));
         view_projection_uniform_buffer.subdata(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(m_proj_settings.projection_mat));
         light_space_shader_buffer.subdata(0, sizeof(glm::mat4), glm::value_ptr(
-            glm::ortho<float>(-ortho_size, ortho_size, -ortho_size, ortho_size, 0.1f, ortho_far) 
+            glm::ortho<float>(-ortho_size, ortho_size, -ortho_size, ortho_size, 0.1f, shadow_far_plane) 
                 * glm::lookAt(dir_light_pos, dir_light_pos + dir_light.direction, glm::vec3(0.0f, 1.0f, 0.0f))
         ));
 
     #pragma region directional-light-depth-buffer
         directional_shadow_map_fbo.bind();
         m_renderer.clear(GL_DEPTH_BUFFER_BIT);
-        m_renderer.disable(GL_CULL_FACE);
 
         glViewport(0, 0, directional_shadow_map.get_config_data().width, directional_shadow_map.get_config_data().height);
 
         {
             const glm::mat4 model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 100.0f, 0.0f)), glm::vec3(5.0f));
-            depth_buffer_shader.uniform("u_model", model_matrix);
-            m_renderer.render(GL_TRIANGLES, depth_buffer_shader, planet);
+            directional_shadow_shader.uniform("u_model", model_matrix);
+            m_renderer.render(GL_TRIANGLES, directional_shadow_shader, planet);
         }
-        m_renderer.render_instanced(GL_TRIANGLES, depth_buffer_instance_shader, rock, instance_model_matrices.size());
 
         {
             const glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), sponza_transform.position) 
                 * glm::mat4_cast(glm::quat(sponza_transform.rotation * (glm::pi<float>() / 180.0f)))
                 * glm::scale(glm::mat4(1.0f), sponza_transform.scale);
-            depth_buffer_shader.uniform("u_model", model_matrix);
-            m_renderer.render(GL_TRIANGLES, depth_buffer_shader, sponza);
+            directional_shadow_shader.uniform("u_model", model_matrix);
+            m_renderer.render(GL_TRIANGLES, directional_shadow_shader, sponza);
         }
 
         {
             const glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), sphere_transform.position) 
                 * glm::mat4_cast(glm::quat(sphere_transform.rotation * (glm::pi<float>() / 180.0f)))
                 * glm::scale(glm::mat4(1.0f), sphere_transform.scale);
-            depth_buffer_shader.uniform("u_model", model_matrix);
-            m_renderer.render(GL_TRIANGLES, depth_buffer_shader, sphere.get_mesh());
+            directional_shadow_shader.uniform("u_model", model_matrix);
+            m_renderer.render(GL_TRIANGLES, directional_shadow_shader, sphere.get_mesh());
         }
 
         distances_to_transparent_cubes.clear();
@@ -303,13 +300,10 @@ void application::run() noexcept {
         }
         for (auto& it = distances_to_transparent_cubes.rbegin(); it != distances_to_transparent_cubes.rend(); ++it) {
             const glm::mat4 model_matrix = glm::scale(glm::translate(glm::mat4(1.0f), it->second), glm::vec3(0.7f));
-            depth_buffer_shader.uniform("u_model", model_matrix);
-            m_renderer.render(GL_TRIANGLES, depth_buffer_shader, cube);
+            directional_shadow_shader.uniform("u_model", model_matrix);
+            m_renderer.render(GL_TRIANGLES, directional_shadow_shader, cube);
         }
-
-        if (m_cull_face) {
-            m_renderer.enable(GL_CULL_FACE);
-        }
+        
         glViewport(0, 0, m_proj_settings.width, m_proj_settings.height);
     #pragma endregion directional-light-depth-buffer
 
@@ -457,8 +451,8 @@ void application::run() noexcept {
         if (ImGui::DragFloat("size", &ortho_size, 0.1f)) {
             ortho_size = glm::clamp(ortho_size, 1.0f, std::numeric_limits<float>::max());
         }
-        if (ImGui::DragFloat("far", &ortho_far, 0.1f)) {
-            ortho_far = glm::clamp(ortho_far, 1.0f, std::numeric_limits<float>::max());
+        if (ImGui::DragFloat("far", &shadow_far_plane, 0.1f)) {
+            shadow_far_plane = glm::clamp(shadow_far_plane, 1.0f, std::numeric_limits<float>::max());
         }
         ImGui::End();
 

@@ -7,13 +7,13 @@ public:
     struct config {
         config() = default;
         config(
-            uint32_t face_width, uint32_t face_height, 
+            uint32_t width, uint32_t height, 
             uint32_t internal_format, uint32_t format, uint32_t type,
             uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, uint32_t min_filter, uint32_t mag_filter
         );
 
-        uint32_t face_width = 0;
-        uint32_t face_height = 0;
+        uint32_t width = 0;
+        uint32_t height = 0;
 
         uint32_t internal_format = 0;
         uint32_t format = 0;

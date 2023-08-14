@@ -32,12 +32,12 @@ void cubemap::load(const std::vector<std::string> &faces, const config& config, 
 
     stbi_set_flip_vertically_on_load(flip_on_load);
     for (size_t i = 0; i < faces.size(); ++i) {
-        uint8_t* texture_data = stbi_load(faces[i].c_str(), (int*)&m_data.config.face_width, (int*)&m_data.config.face_height, (int*)&m_data.channel_count, 0);
+        uint8_t* texture_data = stbi_load(faces[i].c_str(), (int*)&m_data.config.width, (int*)&m_data.config.height, (int*)&m_data.channel_count, 0);
     
         ASSERT(texture_data != nullptr, "cubemap creation error", "couldn't load texture \"" + faces[i] + "\"");
 
         OGL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, m_data.config.internal_format, 
-            m_data.config.face_width, m_data.config.face_width, 0, m_data.config.format, m_data.config.type, texture_data));
+            m_data.config.width, m_data.config.width, 0, m_data.config.format, m_data.config.type, texture_data));
 
         stbi_image_free(texture_data);
     }
@@ -57,7 +57,7 @@ void cubemap::create(const config &config) noexcept {
 
     for (size_t i = 0; i < 6; ++i) {
         OGL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, m_data.config.internal_format, 
-            m_data.config.face_width, m_data.config.face_width, 0, m_data.config.format, m_data.config.type, nullptr));
+            m_data.config.width, m_data.config.width, 0, m_data.config.format, m_data.config.type, nullptr));
     }
     _setup_tex_parametes(config);
 }
@@ -142,10 +142,10 @@ uint32_t cubemap::_get_channel_correct_format(uint32_t format, uint32_t channel_
 }
 
 cubemap::config::config(
-    uint32_t face_width, uint32_t face_height, 
+    uint32_t width, uint32_t height, 
     uint32_t internal_format, uint32_t format, uint32_t type, 
     uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, uint32_t min_filter, uint32_t mag_filter
-) : face_width(face_width), face_height(face_height), internal_format(internal_format), format(format), type(type),
+) : width(width), height(height), internal_format(internal_format), format(format), type(type),
     wrap_s(wrap_s), wrap_t(wrap_t), wrap_r(wrap_r), min_filter(min_filter), mag_filter(mag_filter)
 {
 }
