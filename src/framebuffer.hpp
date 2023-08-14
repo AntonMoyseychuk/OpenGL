@@ -1,5 +1,6 @@
 #pragma once
 #include "texture.hpp"
+#include "cubemap.hpp"
 #include "renderbuffer.hpp"
 
 class framebuffer {
@@ -14,6 +15,7 @@ public:
     void unbind() const noexcept;
 
     bool attach(uint32_t attachment, const texture& texture) noexcept;
+    bool attach(uint32_t attachment, const cubemap& cubemap) noexcept;
     bool attach(uint32_t attachment, const renderbuffer& renderbuffer) noexcept;
 
     void set_draw_buffer(uint32_t buffer) noexcept;

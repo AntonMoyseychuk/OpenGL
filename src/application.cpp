@@ -263,7 +263,7 @@ void application::run() noexcept {
         view_projection_uniform_buffer.subdata(0, sizeof(glm::mat4), glm::value_ptr(m_camera.get_view()));
         view_projection_uniform_buffer.subdata(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(m_proj_settings.projection_mat));
         light_space_shader_buffer.subdata(0, sizeof(glm::mat4), glm::value_ptr(
-            glm::ortho<float>(-ortho_size, ortho_size, -ortho_size * m_proj_settings.aspect, ortho_size * m_proj_settings.aspect, 0.1f, ortho_far) 
+            glm::ortho<float>(-ortho_size, ortho_size, -ortho_size, ortho_size, 0.1f, ortho_far) 
                 * glm::lookAt(dir_light_pos, dir_light_pos + dir_light.direction, glm::vec3(0.0f, 1.0f, 0.0f))
         ));
 

@@ -39,6 +39,10 @@ public:
     void bind(uint32_t unit = 0) const noexcept;
     void unbind() const noexcept;
 
+    uint32_t get_id() const noexcept;
+    uint32_t get_unit() const noexcept;
+    const config& get_config_data() const noexcept;
+
     cubemap(cubemap&& cubemap);
     cubemap& operator=(cubemap&& cubemap) noexcept;
 

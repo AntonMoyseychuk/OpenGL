@@ -83,6 +83,18 @@ void cubemap::unbind() const noexcept {
     OGL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, 0));
 }
 
+uint32_t cubemap::get_id() const noexcept {
+    return m_data.id;
+}
+
+uint32_t cubemap::get_unit() const noexcept {
+    return m_data.texture_unit;
+}
+
+const cubemap::config &cubemap::get_config_data() const noexcept {
+    return m_data.config;
+}
+
 cubemap::cubemap(cubemap &&cubemap)
     : m_data(cubemap.m_data)
 {
@@ -125,7 +137,7 @@ uint32_t cubemap::_get_channel_correct_format(uint32_t format, uint32_t channel_
         return channel_count == 3 ? GL_SRGB : GL_SRGB_ALPHA;
     }
 
-    ASSERT(false, "cubemap error", "Unknown texture file format");
+    ASSERT(false, "cubemap error", "Unknown cubemap format");
     return 0;
 }
 

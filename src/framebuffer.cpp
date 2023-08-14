@@ -34,8 +34,19 @@ void framebuffer::unbind() const noexcept {
 bool framebuffer::attach(uint32_t attachment, const texture &texture) noexcept {
     bind();
 
-    ASSERT(texture.get_config_data().target == GL_TEXTURE_2D, "framebuffer error", "can't attach not GL_TEXTURE_2D textures yet");
-    OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, texture.get_config_data().target, texture.get_id(), texture.get_config_data().level));
+    const texture::config& conf = texture.get_config_data();
+
+    ASSERT(conf.target == GL_TEXTURE_2D, "framebuffer error", "can't attach not GL_TEXTURE_2D textures yet");
+    OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, conf.target, texture.get_id(), conf.level));
+    OGL_CALL(m_is_complete = (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE));
+
+    return is_complete();
+}
+
+bool framebuffer::attach(uint32_t attachment, const cubemap &cubemap) noexcept {
+    bind();
+
+    OGL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, attachment, cubemap.get_id(), 0));
     OGL_CALL(m_is_complete = (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE));
 
     return is_complete();
