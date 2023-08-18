@@ -1,6 +1,7 @@
 #version 430 core
 
-out vec4 frag_color;
+layout (location = 0) out vec4 frag_color;
+layout (location = 1) out vec4 bright_color;
 
 in VS_OUT {
     vec3 frag_pos;
@@ -197,4 +198,7 @@ void main() {
     }
 
     frag_color = vec4(out_color, diffuse_map.a);
+
+    const float brightness = dot(frag_color.rgb, vec3(0.2126, 0.7152, 0.0722));
+    bright_color = (brightness > 1.0f) ? vec4(frag_color.rgb, 1.0f) : vec4(0.0f, 0.0f, 0.0f, 1.0f);
 }

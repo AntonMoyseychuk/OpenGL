@@ -153,8 +153,8 @@ void application::run() noexcept {
     std::vector<spot_light> spot_lights = {
         spot_light(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 0.0f,  5.0f, -2.0f), glm::vec3( 0.0f, -1.0f, 0.0f), 15.0f),
         spot_light(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 0.0f, -4.5f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
-        spot_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-5.0f,  0.0f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
-        spot_light(glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 5.0f,  0.0f, -2.0f), glm::vec3(-1.0f,  0.0f, 0.0f), 15.0f),
+        spot_light(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3( 5.0f,  0.0f, -2.0f), glm::vec3( 1.0f,  0.0f, 0.0f), 15.0f),
+        spot_light(glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.5f), glm::vec3(1.0f), glm::vec3(-5.0f,  0.0f, -2.0f), glm::vec3(-1.0f,  0.0f, 0.0f), 15.0f),
     };
     directional_light dir_light(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.05f), glm::vec3(0.8f), glm::vec3(1.0f), glm::vec3(1.0f, -1.0f, -1.0f));
     glm::vec3 dir_light_pos(-30.0f, 30.0f, 20.0f);
@@ -180,7 +180,7 @@ void application::run() noexcept {
     // shader refract_shader(RESOURCE_DIR "shaders/scene.vert", RESOURCE_DIR "shaders/refract.frag");
 
     shader light_source_shader(RESOURCE_DIR "shaders/simple.vert", RESOURCE_DIR "shaders/light_source.frag");
-    shader framebuffer_shader(RESOURCE_DIR "shaders/post_process.vert", RESOURCE_DIR "shaders/post_process.frag");
+    shader postprocess_shader(RESOURCE_DIR "shaders/post_process.vert", RESOURCE_DIR "shaders/post_process.frag");
     shader skybox_shader(RESOURCE_DIR "shaders/skybox.vert", RESOURCE_DIR "shaders/skybox.frag");
 
     shader normals_visualization_shader(RESOURCE_DIR "shaders/normals_visualization.vert", RESOURCE_DIR "shaders/single_color.frag", RESOURCE_DIR "shaders/normals_visualization.geom");
@@ -188,14 +188,32 @@ void application::run() noexcept {
 
     shader directional_shadow_shader(RESOURCE_DIR "shaders/directional_shadow_shader.vert", RESOURCE_DIR "shaders/empty.frag");
 
+    shader gaussian_blur_shader(RESOURCE_DIR "shaders/post_process.vert", RESOURCE_DIR "shaders/gaussian_blur.frag");
 
-    framebuffer post_process_fbo;
-    post_process_fbo.create();
-    texture post_process_color_buffer(texture::config(GL_TEXTURE_2D, m_proj_settings.width, m_proj_settings.height, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, GL_FALSE, GL_FALSE, GL_FALSE, GL_LINEAR, GL_LINEAR));
-    renderbuffer post_process_depth_stencil_buffer( m_proj_settings.width, m_proj_settings.height, GL_DEPTH24_STENCIL8);
-    post_process_fbo.attach(GL_COLOR_ATTACHMENT0, post_process_color_buffer);
-    post_process_fbo.attach(GL_DEPTH_STENCIL_ATTACHMENT, post_process_depth_stencil_buffer);
-    ASSERT(post_process_fbo.is_complete(), "framebuffer error", "framebuffer is incomplit");
+
+    framebuffer main_fbo;
+    main_fbo.create();
+    texture main_color_buffer(texture::config(GL_TEXTURE_2D, m_proj_settings.width, m_proj_settings.height, GL_RGBA16F, GL_RGBA, GL_FLOAT, GL_FALSE, GL_FALSE, GL_FALSE, GL_LINEAR, GL_LINEAR));
+    texture main_bright_buffer(texture::config(GL_TEXTURE_2D, m_proj_settings.width, m_proj_settings.height, GL_RGBA16F, GL_RGBA, GL_FLOAT, GL_FALSE, GL_FALSE, GL_FALSE, GL_LINEAR, GL_LINEAR));
+    renderbuffer main_depth_stencil_buffer( m_proj_settings.width, m_proj_settings.height, GL_DEPTH24_STENCIL8);
+    main_fbo.attach(GL_COLOR_ATTACHMENT0, main_color_buffer);
+    main_fbo.attach(GL_COLOR_ATTACHMENT1, main_bright_buffer);
+    uint32_t attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    OGL_CALL(glDrawBuffers(2, attachments));
+    main_fbo.attach(GL_DEPTH_STENCIL_ATTACHMENT, main_depth_stencil_buffer);
+    ASSERT(main_fbo.is_complete(), "framebuffer error", "main framebuffer is incomplit");
+
+    framebuffer pinpong_fbo[2];
+    pinpong_fbo[0].create();
+    pinpong_fbo[1].create();
+    texture pinpong_buffer[2] = {
+        texture(texture::config(GL_TEXTURE_2D, m_proj_settings.width, m_proj_settings.height, GL_RGBA16F, GL_RGBA, GL_FLOAT, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_FALSE, GL_LINEAR, GL_LINEAR)),
+        texture(texture::config(GL_TEXTURE_2D, m_proj_settings.width, m_proj_settings.height, GL_RGBA16F, GL_RGBA, GL_FLOAT, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_FALSE, GL_LINEAR, GL_LINEAR)),
+    };
+    pinpong_fbo[0].attach(GL_COLOR_ATTACHMENT0, pinpong_buffer[0]);
+    pinpong_fbo[1].attach(GL_COLOR_ATTACHMENT0, pinpong_buffer[1]);
+    ASSERT(pinpong_fbo[0].is_complete(), "framebuffer error", "pin-pong0 framebuffer is incomplit");
+    ASSERT(pinpong_fbo[1].is_complete(), "framebuffer error", "pin-pong1 framebuffer is incomplit");
 
     framebuffer directional_shadow_map_fbo;
     directional_shadow_map_fbo.create();
@@ -228,7 +246,7 @@ void application::run() noexcept {
     }, {});
 
     ImGuiIO& io = ImGui::GetIO();
-    float material_shininess = 64.0f;
+    float material_shininess = 64.0f, exposure = 1.0f;
     bool use_blinn_phong = false, use_gamma_correction = false;
     std::multimap<float, glm::vec3> distances_to_transparent_cubes;
 
@@ -307,7 +325,7 @@ void application::run() noexcept {
         glViewport(0, 0, m_proj_settings.width, m_proj_settings.height);
     #pragma endregion directional-light-depth-buffer
 
-        post_process_fbo.bind();
+        main_fbo.bind();
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     
         directional_shadow_map.bind(31);
@@ -433,14 +451,32 @@ void application::run() noexcept {
         if (m_cull_face) {
             m_renderer.enable(GL_CULL_FACE);
         }
+
+        bool horizontal = true, first_iteration = true;
+        for (size_t i = 0; i < 10; ++i) {
+            pinpong_fbo[horizontal].bind();
+            gaussian_blur_shader.uniform("u_horizontal", horizontal);
+            gaussian_blur_shader.uniform("u_scene", 13);
+            if (first_iteration) {
+                first_iteration = false;
+                main_bright_buffer.bind(13);
+            } else {
+                pinpong_buffer[horizontal].bind(13);
+            }
+            m_renderer.render(GL_TRIANGLES, gaussian_blur_shader, plane);
+            horizontal = !horizontal;
+        }
         
-        post_process_fbo.unbind();
+        main_fbo.unbind();
 
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         m_renderer.polygon_mode(GL_FRONT_AND_BACK, GL_FILL);
-        post_process_color_buffer.bind(13);
-        framebuffer_shader.uniform("u_texture", 13);
-        m_renderer.render(GL_TRIANGLES, framebuffer_shader, plane);
+        main_color_buffer.bind(13);
+        postprocess_shader.uniform("u_scene", 13);
+        pinpong_buffer[horizontal].bind(14);
+        postprocess_shader.uniform("u_bloom_blur", 14);
+        postprocess_shader.uniform("u_exposure", exposure);
+        m_renderer.render(GL_TRIANGLES, postprocess_shader, plane);
         m_renderer.polygon_mode(GL_FRONT_AND_BACK, m_wireframed ? GL_LINE : GL_FILL);
 
     #pragma region ImGui
@@ -468,8 +504,9 @@ void application::run() noexcept {
             }
 
             if (ImGui::Checkbox("use gamma correction", &use_gamma_correction)) {
-                framebuffer_shader.uniform("u_use_gamma_correction", use_gamma_correction);
+                postprocess_shader.uniform("u_use_gamma_correction", use_gamma_correction);
             }
+            ImGui::DragFloat("exposure", &exposure, 0.01f);
                 
             if (ImGui::NewLine(), ImGui::ColorEdit3("background color", glm::value_ptr(m_clear_color))) {
                 m_renderer.set_clear_color(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f);
