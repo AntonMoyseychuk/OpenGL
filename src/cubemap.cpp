@@ -5,6 +5,8 @@
 #include <glad/glad.h>
 #include <stb/stb_image.h>
 
+#include <algorithm>
+
 cubemap::cubemap(uint32_t width, uint32_t height, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, 
     const std::array<uint8_t*, 6> &pixels
 ) {
@@ -27,13 +29,26 @@ void cubemap::load(const std::array<std::string, 6> &faces,
     stbi_set_flip_vertically_on_load(flip_on_load);
 
     std::array<uint8_t*, 6> pixels;
+    std::array<int32_t, 6> face_widths;
+    std::array<int32_t, 6> face_heights;
+
     int32_t channel_count = 0;
     for (size_t i = 0; i < pixels.size(); ++i) {
-        pixels[i] = stbi_load(faces[i].c_str(), (int*)&m_data.width, (int*)&m_data.height, &channel_count, 0);
+        pixels[i] = stbi_load(faces[i].c_str(), &face_widths[i], &face_heights[i], &channel_count, 0);
+        
         ASSERT(pixels[i] != nullptr, "cubemap creation error", "couldn't load texture \"" + faces[i] + "\"");
     }
 
-    create(m_data.width, m_data.height, level, internal_format, format, type, pixels);
+#ifdef _DEBUG
+    if (std::count_if(face_widths.cbegin(), face_widths.cend(), [&face_widths](int32_t width) { return width != face_widths[0]; })) {
+        LOG_WARN("cubemap", "faces in cubemap have different sizes");
+    }
+    if (std::count_if(face_heights.cbegin(), face_heights.cend(), [&face_heights](int32_t height) { return height != face_heights[0]; })) {
+        LOG_WARN("cubemap", "faces in cubemap have different sizes");
+    }
+#endif
+
+    create(face_widths[0], face_heights[0], level, internal_format, format, type, pixels);
 }
 
 void cubemap::create(uint32_t width, uint32_t height, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, 
