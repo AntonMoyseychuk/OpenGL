@@ -7,7 +7,7 @@ public:
     uv_sphere(uint32_t stacks, uint32_t slices);
 
     void generate(uint32_t stacks, uint32_t slices) noexcept;
-    void set_textures(const std::unordered_map<std::string, texture::config>& texture_configs) noexcept;
+    void add_texture(texture&& texture) noexcept;
 
     const mesh& get_mesh() const noexcept;
 

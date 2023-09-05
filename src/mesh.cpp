@@ -2,16 +2,13 @@
 #include "debug.hpp"
 
 #include <glad/glad.h>
+#include <utility>
 
-mesh::mesh(const std::vector<mesh::vertex> &vertices, const std::vector<uint32_t> &indices, 
-    const std::unordered_map<std::string, texture::config>& texture_configs) 
-{
-    create(vertices, indices, texture_configs);
+mesh::mesh(const std::vector<mesh::vertex> &vertices, const std::vector<uint32_t> &indices) {
+    create(vertices, indices);
 }
 
-void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_t> &indices, 
-    const std::unordered_map<std::string, texture::config>& texture_configs) noexcept 
-{
+void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_t> &indices) noexcept {
     m_vao.create();
     m_vao.bind();
 
@@ -28,7 +25,7 @@ void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_
 
     m_vao.unbind();
 
-    set_textures(texture_configs);
+    // set_textures(texture_configs);
 }
 
 void mesh::bind(const shader &shader) const noexcept {
@@ -36,10 +33,11 @@ void mesh::bind(const shader &shader) const noexcept {
     size_t diffuse_number = 0, specular_number = 0, emission_number = 0, normal_number = 0;
     
     shader.bind();
-    for (int32_t i = 0; i < m_textures.size(); ++i) {
-        m_textures[i].bind(i);
+    int32_t i = 0;
+    for (const auto& texture : m_textures) {
+        texture.bind(i);
 
-        switch (m_textures[i].get_config_data().variety) {
+        switch (texture.get_variety()) {
         case texture::variety::NONE:
             shader.uniform(("u_material.texture" + std::to_string(simple_texture++)).c_str(), i);
             break;
@@ -62,20 +60,26 @@ void mesh::bind(const shader &shader) const noexcept {
             ASSERT(false, "mesh drawing error", "invalid texture type");
             break;
         }
+
+        ++i;
     }
 
     m_vao.bind();
 }
 
-void mesh::set_textures(const std::unordered_map<std::string, texture::config> &texture_configs) noexcept {
-    if (!m_textures.empty()) {
-        m_textures.resize(0);
-    }
-    m_textures.reserve(texture_configs.size());
-    for (const auto& [filepath, config] : texture_configs) {
-        m_textures.emplace_back(filepath, config);
-    }
+void mesh::add_texture(texture &&tex) noexcept {
+    m_textures.push_front(std::forward<texture>(tex));
 }
+
+// void mesh::set_textures(const std::unordered_map<std::string, texture::data> &texture_configs) noexcept {
+//     if (!m_textures.empty()) {
+//         m_textures.resize(0);
+//     }
+//     m_textures.reserve(texture_configs.size());
+//     for (const auto& [filepath, config] : texture_configs) {
+//         m_textures.emplace_back(filepath, config);
+//     }
+// }
 
 const buffer& mesh::get_vertex_buffer() const noexcept {
     return m_vbo;

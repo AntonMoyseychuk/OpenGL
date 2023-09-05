@@ -16,6 +16,7 @@ public:
     void remove_attribute(uint32_t index) const noexcept;
     
     void set_attribute_divisor(uint32_t index, uint32_t divisor) const noexcept;
+    uint32_t get_id() const noexcept;
 
     vertex_array(vertex_array&& vao);
     vertex_array& operator=(vertex_array&& vao) noexcept;

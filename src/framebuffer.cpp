@@ -31,25 +31,22 @@ void framebuffer::unbind() const noexcept {
     OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
-bool framebuffer::attach(uint32_t attachment, const texture &texture) noexcept {
+bool framebuffer::attach(uint32_t attachment, uint32_t level, const texture &texture) noexcept {
     bind();
 
-    const texture::config& conf = texture.get_config_data();
-
-    ASSERT(conf.target == GL_TEXTURE_2D, "framebuffer error", "can't attach not GL_TEXTURE_2D textures yet");
-    OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, conf.target, texture.get_id(), conf.level));
+    OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, texture.get_target(), texture.get_id(), level));
     OGL_CALL(m_is_complete = (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE));
 
-    return is_complete();
+    return m_is_complete;
 }
 
-bool framebuffer::attach(uint32_t attachment, const cubemap &cubemap) noexcept {
+bool framebuffer::attach(uint32_t attachment, uint32_t level, const cubemap &cubemap) noexcept {
     bind();
 
-    OGL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, attachment, cubemap.get_id(), 0));
+    OGL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, attachment, cubemap.get_id(), level));
     OGL_CALL(m_is_complete = (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE));
 
-    return is_complete();
+    return m_is_complete;
 }
 
 bool framebuffer::attach(uint32_t attachment, const renderbuffer &renderbuffer) noexcept {
@@ -57,7 +54,7 @@ bool framebuffer::attach(uint32_t attachment, const renderbuffer &renderbuffer) 
 
     OGL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer.get_id()));
 
-    return is_complete();
+    return m_is_complete;
 }
 
 void framebuffer::set_draw_buffer(uint32_t buffer) noexcept {

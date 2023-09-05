@@ -82,11 +82,11 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
         vertices[indices[i - 0]].normal = vertices[indices[i - 1]].normal = vertices[indices[i - 2]].normal = normal;
     }
 
-    m_mesh.create(vertices, indices, {});
+    m_mesh.create(vertices, indices);
 }
 
-void uv_sphere::set_textures(const std::unordered_map<std::string, texture::config>& texture_configs) noexcept {
-    m_mesh.set_textures(texture_configs);
+void uv_sphere::add_texture(texture&& tex) noexcept {
+    m_mesh.add_texture(std::forward<texture>(tex));
 }
 
 const mesh &uv_sphere::get_mesh() const noexcept {

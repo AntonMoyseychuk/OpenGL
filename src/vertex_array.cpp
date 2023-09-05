@@ -48,6 +48,10 @@ void vertex_array::set_attribute_divisor(uint32_t index, uint32_t divisor) const
     OGL_CALL(glVertexAttribDivisor(index, divisor));
 }
 
+uint32_t vertex_array::get_id() const noexcept {
+    return m_id;
+}
+
 vertex_array::vertex_array(vertex_array &&vao)
     : m_id(vao.m_id)
 {
