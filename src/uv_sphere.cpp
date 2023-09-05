@@ -85,8 +85,8 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
     m_mesh.create(vertices, indices);
 }
 
-void uv_sphere::add_texture(texture&& tex) noexcept {
-    m_mesh.add_texture(std::forward<texture>(tex));
+void uv_sphere::add_texture(texture_2d&& tex) noexcept {
+    m_mesh.add_texture(std::forward<texture_2d>(tex));
 }
 
 const mesh &uv_sphere::get_mesh() const noexcept {

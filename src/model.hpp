@@ -31,8 +31,8 @@ private:
     mesh _process_mesh(uint32_t target, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load,    
         aiMesh *ai_mesh, const aiScene *ai_scene) const noexcept;
     
-    std::unordered_map<std::string, texture> _load_material_texture_configs(uint32_t target, uint32_t level, uint32_t internal_format, uint32_t format, 
-        uint32_t type, bool flip_on_load, texture::variety variety, aiMaterial *ai_mat, aiTextureType ai_type) const noexcept;
+    std::unordered_map<std::string, texture_2d> _load_material_texture_configs(uint32_t target, uint32_t level, uint32_t internal_format, uint32_t format, 
+        uint32_t type, bool flip_on_load, texture_2d::variety variety, aiMaterial *ai_mat, aiTextureType ai_type) const noexcept;
 
 private:
     static std::unordered_map<std::string, std::vector<mesh>> preloaded_models;

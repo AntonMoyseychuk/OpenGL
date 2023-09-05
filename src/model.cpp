@@ -85,27 +85,27 @@ mesh model::_process_mesh(
         }
     }
     
-    std::unordered_map<std::string, texture> textures;
+    std::unordered_map<std::string, texture_2d> textures;
     if(ai_mesh->mMaterialIndex >= 0) {
         aiMaterial *material = ai_scene->mMaterials[ai_mesh->mMaterialIndex];
 
         for (auto& t : _load_material_texture_configs(target, level, internal_format, format, type,
-            flip_on_load, texture::variety::DIFFUSE, material, aiTextureType_DIFFUSE)) {
+            flip_on_load, texture_2d::variety::DIFFUSE, material, aiTextureType_DIFFUSE)) {
             textures.insert(std::move(t));
         }
         
         for (auto& t : _load_material_texture_configs(target, level, internal_format, format, type,
-            flip_on_load, texture::variety::SPECULAR, material, aiTextureType_DIFFUSE)) {
+            flip_on_load, texture_2d::variety::SPECULAR, material, aiTextureType_DIFFUSE)) {
             textures.insert(std::move(t));
         }
 
         for (auto& t : _load_material_texture_configs(target, level, internal_format, format, type,
-            flip_on_load, texture::variety::NORMAL, material, aiTextureType_DIFFUSE)) {
+            flip_on_load, texture_2d::variety::NORMAL, material, aiTextureType_DIFFUSE)) {
             textures.insert(std::move(t));
         }
 
         for (auto& t : _load_material_texture_configs(target, level, internal_format, format, type,
-            flip_on_load, texture::variety::HEIGHT, material, aiTextureType_DIFFUSE)) {
+            flip_on_load, texture_2d::variety::HEIGHT, material, aiTextureType_DIFFUSE)) {
             textures.insert(std::move(t));
         }
     }
@@ -120,12 +120,12 @@ mesh model::_process_mesh(
     return mesh;
 }
 
-std::unordered_map<std::string, texture> model::_load_material_texture_configs(
+std::unordered_map<std::string, texture_2d> model::_load_material_texture_configs(
     uint32_t target, uint32_t level, uint32_t internal_format, uint32_t format, 
-    uint32_t type, bool flip_on_load, texture::variety variety, 
+    uint32_t type, bool flip_on_load, texture_2d::variety variety, 
     aiMaterial *ai_mat, aiTextureType ai_type
 ) const noexcept {
-    std::unordered_map<std::string, texture> textures;
+    std::unordered_map<std::string, texture_2d> textures;
     textures.reserve(ai_mat->GetTextureCount(ai_type));
 
     for(size_t i = 0; i < ai_mat->GetTextureCount(ai_type); ++i) {
@@ -133,7 +133,7 @@ std::unordered_map<std::string, texture> model::_load_material_texture_configs(
         ai_mat->GetTexture(ai_type, i, &texture_name);
 
         const std::string filepath = m_directory + "\\" + texture_name.C_Str();
-        texture texture(filepath, target, level, internal_format, format, type, flip_on_load, variety);
+        texture_2d texture(filepath, target, level, internal_format, format, type, flip_on_load, variety);
         textures[filepath] = std::move(texture);
     }
 

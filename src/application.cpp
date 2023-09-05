@@ -157,7 +157,7 @@ void application::run() noexcept {
 	};
 
     mesh cube(std::vector<mesh::vertex>((mesh::vertex*)cube_vertices, (mesh::vertex*)cube_vertices + sizeof(cube_vertices) / sizeof(mesh::vertex)), {});
-    texture texture(RESOURCE_DIR "textures/container.png", GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
+    texture_2d texture(RESOURCE_DIR "textures/container.png", GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
     texture.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
     texture.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
     texture.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -167,9 +167,13 @@ void application::run() noexcept {
     framebuffer shadow_map_fbo;
     shadow_map_fbo.create();
 
-    const float shadow_map_width = 1024, shadow_map_height = 1024;
-	cubemap shadow_cubemap(cubemap::config(1024, 1024, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT,
-        GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST));
+    const float shadow_map_width = 2048, shadow_map_height = 2048;
+	cubemap shadow_cubemap(shadow_map_width, shadow_map_height, 0, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT);
+    shadow_cubemap.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    shadow_cubemap.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    shadow_cubemap.set_tex_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
+    shadow_cubemap.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    shadow_cubemap.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
     shadow_map_fbo.attach(GL_DEPTH_ATTACHMENT, 0, shadow_cubemap);
     shadow_map_fbo.set_read_buffer(GL_NONE);
@@ -178,18 +182,9 @@ void application::run() noexcept {
     shadow_map_shader.bind();
     glm::vec3 light_pos_world = glm::vec3(0.0f, 0.0f, 0.0f);
 	float near = 1.0f;
-	float far = 45.0f;
-	glm::mat4 light_projection = glm::perspective(glm::radians(90.0f), shadow_map_width / shadow_map_height, near, far);
+	float far = 25.0f;
 	glm::mat4 light_space_transforms[6];
-	light_space_transforms[0] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f,  0.0f));
-	light_space_transforms[1] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f,  0.0f));
-	light_space_transforms[2] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f));
-	light_space_transforms[3] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f));
-	light_space_transforms[4] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 1.0f,  0.0f));
-	light_space_transforms[5] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f,  0.0f));
-    for(size_t I = 0; I < 6; I++) {
-        shadow_map_shader.uniform("LightSpaceMatrices[" + std::to_string(I) + "]", light_space_transforms[I]);
-	}
+	
     shadow_map_shader.uniform("LightPos", light_pos_world);
     shadow_map_shader.uniform("FarPlane", far);
     
@@ -217,6 +212,17 @@ void application::run() noexcept {
             } else if (glfwGetKey(m_window, GLFW_KEY_A)) {
                 m_camera.move(-m_camera.get_right() * io.DeltaTime);
             }
+        }
+
+        glm::mat4 light_projection = glm::perspective(glm::radians(90.0f), shadow_map_width / shadow_map_height, near, far);
+        light_space_transforms[0] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f,  0.0f));
+        light_space_transforms[1] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f,  0.0f));
+        light_space_transforms[2] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f));
+        light_space_transforms[3] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f));
+        light_space_transforms[4] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 1.0f,  0.0f));
+        light_space_transforms[5] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f,  0.0f));
+        for(size_t I = 0; I < 6; I++) {
+            shadow_map_shader.uniform("LightSpaceMatrices[" + std::to_string(I) + "]", light_space_transforms[I]);
         }
 
 		shadow_map_fbo.bind();
@@ -256,7 +262,9 @@ void application::run() noexcept {
                 m_renderer.set_clear_color(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f);
             }
 
-            ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            ImGui::DragFloat3("light position", glm::value_ptr(light_pos_world), 0.1f);
+            ImGui::DragFloat("light far", &far, 0.1f);
         ImGui::End();
 
         ImGui::Begin("Camera");

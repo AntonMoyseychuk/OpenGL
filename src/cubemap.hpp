@@ -1,47 +1,34 @@
 #pragma once
-#include <vector>
+#include <array>
 #include <string>
 
 class cubemap {
 public:
-    struct config {
-        config() = default;
-        config(
-            uint32_t width, uint32_t height, 
-            uint32_t internal_format, uint32_t format, uint32_t type,
-            uint32_t wrap_s, uint32_t wrap_t, uint32_t wrap_r, uint32_t min_filter, uint32_t mag_filter
-        );
-
-        uint32_t width = 0;
-        uint32_t height = 0;
-
-        uint32_t internal_format = 0;
-        uint32_t format = 0;
-        uint32_t type = 0;
-
-        uint32_t wrap_s = 0;
-        uint32_t wrap_t = 0;
-        uint32_t wrap_r = 0;
-        uint32_t min_filter = 0;
-        uint32_t mag_filter = 0;
-    };
-
-public:
     cubemap() = default;
-    cubemap(const config& config);
-    cubemap(const std::vector<std::string>& faces, const config& config, bool flip_on_load = false);
+    cubemap(uint32_t width, uint32_t height, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, 
+        const std::array<uint8_t*, 6>& pixels = {});
+    cubemap(const std::array<std::string, 6>& faces, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, 
+        bool flip_on_load = false);
     ~cubemap();
 
-    void load(const std::vector<std::string>& faces, const config& config, bool flip_on_load = false) noexcept;
-    void create(const config& config) noexcept;
+    void load(const std::array<std::string, 6>& faces, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, 
+        bool flip_on_load = false) noexcept;
+    void create(uint32_t width, uint32_t height, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, 
+        const std::array<uint8_t*, 6>& pixels = {}) noexcept;
     void destroy() noexcept;
 
-    void bind(uint32_t unit = 0) const noexcept;
+    void bind(int32_t unit = -1) const noexcept;
     void unbind() const noexcept;
+
+    void generate_mipmap() const noexcept;
+    void set_tex_parameter(uint32_t pname, int32_t param) const noexcept;
+    void set_tex_parameter(uint32_t pname, float param) const noexcept;
+    void set_tex_parameter(uint32_t pname, const float* params) const noexcept;
 
     uint32_t get_id() const noexcept;
     uint32_t get_unit() const noexcept;
-    const config& get_config_data() const noexcept;
+    uint32_t get_width() const noexcept;
+    uint32_t get_height() const noexcept;
 
     cubemap(cubemap&& cubemap);
     cubemap& operator=(cubemap&& cubemap) noexcept;
@@ -50,17 +37,15 @@ public:
     cubemap& operator=(const cubemap& cubemap) = delete;
 
 private:
-    void _setup_tex_parametes(const config& config) const noexcept;
-    uint32_t _get_channel_correct_format(uint32_t format, uint32_t channel_count) const noexcept;
-
-private:
-    struct cubemap_data {
-        config config;
+    struct data {
         uint32_t id = 0;
+        
+        uint32_t width = 0;
+        uint32_t height = 0;
+        
         uint32_t texture_unit = 0;
-        uint32_t channel_count = 0;
     };
 
 private:
-    cubemap_data m_data;
+    data m_data;
 };

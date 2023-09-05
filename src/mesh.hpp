@@ -26,7 +26,7 @@ public:
     
     void bind(const shader& shader) const noexcept;
 
-    void add_texture(texture&& texture) noexcept;
+    void add_texture(texture_2d&& texture) noexcept;
     // void set_textures(const std::unordered_map<std::string, texture::config>& texture_configs) noexcept;
 
     const buffer& get_vertex_buffer() const noexcept;
@@ -34,7 +34,7 @@ public:
     const vertex_array& get_vertex_array() const noexcept;
 
 private:
-    std::forward_list<texture> m_textures;
+    std::forward_list<texture_2d> m_textures;
 
     buffer m_vbo;
     buffer m_ibo;

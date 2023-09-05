@@ -38,22 +38,22 @@ void mesh::bind(const shader &shader) const noexcept {
         texture.bind(i);
 
         switch (texture.get_variety()) {
-        case texture::variety::NONE:
+        case texture_2d::variety::NONE:
             shader.uniform(("u_material.texture" + std::to_string(simple_texture++)).c_str(), i);
             break;
-        case texture::variety::DIFFUSE:
+        case texture_2d::variety::DIFFUSE:
             shader.uniform(("u_material.diffuse" + std::to_string(diffuse_number++)).c_str(), i);
             break;
-        case texture::variety::SPECULAR:
+        case texture_2d::variety::SPECULAR:
             shader.uniform(("u_material.specular" + std::to_string(specular_number++)).c_str(), i);
             break;
-        case texture::variety::EMISSION:
+        case texture_2d::variety::EMISSION:
             shader.uniform(("u_material.emission" + std::to_string(emission_number++)).c_str(), i);
             break;
-        case texture::variety::NORMAL:
+        case texture_2d::variety::NORMAL:
             shader.uniform(("u_material.normal" + std::to_string(normal_number++)).c_str(), i);
             break;
-        case texture::variety::HEIGHT:
+        case texture_2d::variety::HEIGHT:
             shader.uniform(("u_material.height" + std::to_string(normal_number++)).c_str(), i);
             break;
         default:
@@ -67,8 +67,8 @@ void mesh::bind(const shader &shader) const noexcept {
     m_vao.bind();
 }
 
-void mesh::add_texture(texture &&tex) noexcept {
-    m_textures.push_front(std::forward<texture>(tex));
+void mesh::add_texture(texture_2d &&tex) noexcept {
+    m_textures.push_front(std::forward<texture_2d>(tex));
 }
 
 // void mesh::set_textures(const std::unordered_map<std::string, texture::data> &texture_configs) noexcept {

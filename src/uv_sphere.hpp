@@ -7,7 +7,7 @@ public:
     uv_sphere(uint32_t stacks, uint32_t slices);
 
     void generate(uint32_t stacks, uint32_t slices) noexcept;
-    void add_texture(texture&& texture) noexcept;
+    void add_texture(texture_2d&& texture) noexcept;
 
     const mesh& get_mesh() const noexcept;
 

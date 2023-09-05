@@ -31,7 +31,7 @@ void framebuffer::unbind() const noexcept {
     OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
-bool framebuffer::attach(uint32_t attachment, uint32_t level, const texture &texture) noexcept {
+bool framebuffer::attach(uint32_t attachment, uint32_t level, const texture_2d &texture) noexcept {
     bind();
 
     OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, texture.get_target(), texture.get_id(), level));

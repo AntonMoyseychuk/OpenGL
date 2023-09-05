@@ -3,16 +3,16 @@
 #include <cstdint>
 #include <unordered_map>
 
-class texture {
+class texture_2d {
 public:
     enum class variety { NONE, DIFFUSE, SPECULAR, NORMAL, HEIGHT, EMISSION };
 
-    texture() = default;
-    texture(const std::string &filepath, uint32_t target, uint32_t level, 
+    texture_2d() = default;
+    texture_2d(const std::string &filepath, uint32_t target, uint32_t level, 
         uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load = true, variety variety = variety::NONE);
-    texture(uint32_t width, uint32_t height, uint32_t target, uint32_t level, 
+    texture_2d(uint32_t width, uint32_t height, uint32_t target, uint32_t level, 
         uint32_t internal_format, uint32_t format, uint32_t type, void* pixels = nullptr, variety variety = variety::NONE);
-    ~texture();
+    ~texture_2d();
 
     void load(const std::string &filepath, uint32_t target, uint32_t level, 
         uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load = true, variety variety = variety::NONE) noexcept;
@@ -34,11 +34,11 @@ public:
     uint32_t get_height() const noexcept;
     variety get_variety() const noexcept;
 
-    texture(texture&& texture);
-    texture& operator=(texture&& texture) noexcept;
+    texture_2d(texture_2d&& texture);
+    texture_2d& operator=(texture_2d&& texture) noexcept;
 
-    texture(const texture& texture) = delete;
-    texture& operator=(const texture& texture) = delete;
+    texture_2d(const texture_2d& texture) = delete;
+    texture_2d& operator=(const texture_2d& texture) = delete;
     
 private:
     struct data {

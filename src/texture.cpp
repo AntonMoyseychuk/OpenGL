@@ -8,25 +8,25 @@
 #include "debug.hpp"
 #include "log.hpp"
 
-std::unordered_map<std::string, texture::data> texture::preloaded_textures;
+std::unordered_map<std::string, texture_2d::data> texture_2d::preloaded_textures;
 
-texture::texture(const std::string &filepath, uint32_t target, uint32_t level, 
+texture_2d::texture_2d(const std::string &filepath, uint32_t target, uint32_t level, 
     uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load, variety variety
 ) {
     load(filepath, target, level, internal_format, format, type, flip_on_load, variety);
 }
 
-texture::texture(uint32_t width, uint32_t height, uint32_t target, uint32_t level, 
+texture_2d::texture_2d(uint32_t width, uint32_t height, uint32_t target, uint32_t level, 
     uint32_t internal_format, uint32_t format, uint32_t type, void *pixels, variety variety
 ) {
     create(width, height, target, level, internal_format, format, type, pixels, variety);
 }
 
-texture::~texture() {
+texture_2d::~texture_2d() {
     destroy();
 }
 
-void texture::load(const std::string &filepath, uint32_t target, uint32_t level, 
+void texture_2d::load(const std::string &filepath, uint32_t target, uint32_t level, 
     uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load, variety variety
 ) noexcept {
     if (m_data.id != 0) {
@@ -53,7 +53,7 @@ void texture::load(const std::string &filepath, uint32_t target, uint32_t level,
     preloaded_textures[filepath] = m_data;
 }
 
-void texture::create(uint32_t width, uint32_t height, uint32_t target, uint32_t level, 
+void texture_2d::create(uint32_t width, uint32_t height, uint32_t target, uint32_t level, 
     uint32_t internal_format, uint32_t format, uint32_t type, void* pixels, variety variety
 ) noexcept {
     if (m_data.id != 0) {
@@ -72,24 +72,24 @@ void texture::create(uint32_t width, uint32_t height, uint32_t target, uint32_t 
     OGL_CALL(glTexImage2D(m_data.target, level, internal_format, m_data.width, m_data.height, 0, format, type, pixels));
 }
 
-void texture::destroy() noexcept {
+void texture_2d::destroy() noexcept {
     OGL_CALL(glDeleteTextures(1, &m_data.id));
     memset(&m_data, 0, sizeof(m_data));
 }
 
-void texture::generate_mipmap() const noexcept {
+void texture_2d::generate_mipmap() const noexcept {
     OGL_CALL(glGenerateMipmap(m_data.target));
 }
 
-void texture::set_tex_parameter(uint32_t pname, int32_t param) const noexcept {
+void texture_2d::set_tex_parameter(uint32_t pname, int32_t param) const noexcept {
     OGL_CALL(glTexParameteri(m_data.target, pname, param));
 }
 
-void texture::set_tex_parameter(uint32_t pname, float param) const noexcept {
+void texture_2d::set_tex_parameter(uint32_t pname, float param) const noexcept {
     OGL_CALL(glTexParameterf(m_data.target, pname, param));
 }
 
-void texture::bind(int32_t unit) const noexcept {
+void texture_2d::bind(int32_t unit) const noexcept {
 #ifdef _DEBUG
     int32_t max_units_count;
     OGL_CALL(glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_units_count));
@@ -97,48 +97,48 @@ void texture::bind(int32_t unit) const noexcept {
 #endif
 
     if (unit >= 0) {
-        const_cast<texture*>(this)->m_data.texture_unit = unit;
+        const_cast<texture_2d*>(this)->m_data.texture_unit = unit;
         OGL_CALL(glActiveTexture(GL_TEXTURE0 + unit));
     }
 
     OGL_CALL(glBindTexture(m_data.target, m_data.id));
 }
 
-void texture::unbind() const noexcept {
+void texture_2d::unbind() const noexcept {
     OGL_CALL(glBindTexture(m_data.target, 0));
 }
 
-uint32_t texture::get_id() const noexcept {
+uint32_t texture_2d::get_id() const noexcept {
     return m_data.id;
 }
 
-uint32_t texture::get_unit() const noexcept {
+uint32_t texture_2d::get_unit() const noexcept {
     return m_data.texture_unit;
 }
 
-uint32_t texture::get_target() const noexcept {
+uint32_t texture_2d::get_target() const noexcept {
     return m_data.target;
 }
 
-uint32_t texture::get_width() const noexcept {
+uint32_t texture_2d::get_width() const noexcept {
     return m_data.width;
 }
 
-uint32_t texture::get_height() const noexcept {
+uint32_t texture_2d::get_height() const noexcept {
     return m_data.height;
 }
 
-texture::variety texture::get_variety() const noexcept {
+texture_2d::variety texture_2d::get_variety() const noexcept {
     return m_data.variety;
 }
 
-texture::texture(texture &&texture)
+texture_2d::texture_2d(texture_2d &&texture)
     : m_data(texture.m_data)
 {
     memset(&texture, 0, sizeof(texture));
 }
 
-texture &texture::operator=(texture &&texture) noexcept {
+texture_2d &texture_2d::operator=(texture_2d &&texture) noexcept {
     m_data = texture.m_data;
     memset(&texture, 0, sizeof(texture));
 
