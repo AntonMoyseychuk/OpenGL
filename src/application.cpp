@@ -70,47 +70,15 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     m_renderer.enable(GL_DEPTH_TEST);
     m_renderer.depth_func(GL_LEQUAL);
 
-    m_renderer.enable(GL_STENCIL_TEST);
-
-    m_renderer.enable(GL_BLEND);
-    m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // m_renderer.enable(GL_STENCIL_TEST);
+    //
+    // m_renderer.enable(GL_BLEND);
+    // m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     _imgui_init("#version 430 core");
 }
 
-void RenderScene(shader& shader, GLuint CubeVAO) {
-	glm::mat4 Model = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f));
-	shader.uniform("Model", Model);
-	glDisable(GL_CULL_FACE);
-    shader.uniform("ReverseNormals", -1);	
-	glBindVertexArray(CubeVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-	shader.uniform("ReverseNormals", 1);
-	glEnable(GL_CULL_FACE);
-
-    Model = glm::scale(glm::mat4(1.0f), glm::vec3(18.0f)) * glm::translate(glm::mat4(1.0f), glm::vec3(4.0f, -3.5f, 0.0f));
-	shader.uniform("Model", Model);	
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-    Model = glm::scale(glm::mat4(1.0f), glm::vec3(0.75f)) * glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 3.0f, 1.0f));
-	shader.uniform("Model", Model);	
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-    Model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f)) * glm::translate(glm::mat4(1.0f), glm::vec3(-4.0f, -2.0f, 0.0f));
-	shader.uniform("Model", Model);
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-    Model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f)) * glm::translate(glm::mat4(1.0f), glm::vec3(-1.5f, 1.0f, 1.5f));
-	shader.uniform("Model", Model);
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-    Model = glm::scale(glm::mat4(1.0f), glm::vec3(0.75f)) * glm::rotate(glm::mat4(1.0f), glm::radians(60.0f), glm::vec3(1.0f, 0.0f, 1.0f))
-        * glm::translate(glm::mat4(1.0f), glm::vec3(-1.5f, 2.0f, -3.0f)); 
-	shader.uniform("Model", Model);
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-}
-
-
-void application::run() noexcept {
-    shader scene_shader(RESOURCE_DIR "shaders/vertex.vert", RESOURCE_DIR "shaders/fragment.frag");
-	shader shadow_map_shader(RESOURCE_DIR "shaders/shadowmap.vert", RESOURCE_DIR "shaders/shadowmap.frag", RESOURCE_DIR "shaders/shadowmap.geom");
-    
+void application::run() noexcept {    
     float cube_vertices[] = {
 		// back face
 		-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
@@ -156,6 +124,16 @@ void application::run() noexcept {
 		-1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
 	};
 
+    float plane_vertices[] = {
+        -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+        -1.0f,  1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+         1.0f,  1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+         1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+    };
+
+    mesh plane(std::vector<mesh::vertex>((mesh::vertex*)plane_vertices, (mesh::vertex*)plane_vertices + sizeof(plane_vertices) / sizeof(mesh::vertex)),
+        {0, 2, 1, 0, 3, 2});
+
     mesh cube(std::vector<mesh::vertex>((mesh::vertex*)cube_vertices, (mesh::vertex*)cube_vertices + sizeof(cube_vertices) / sizeof(mesh::vertex)), {});
     texture_2d texture(RESOURCE_DIR "textures/container.png", GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
     texture.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -163,33 +141,70 @@ void application::run() noexcept {
     texture.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     texture.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     texture.generate_mipmap();
+    texture_2d spec_texture(RESOURCE_DIR "textures/container_specular.png", GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
+    spec_texture.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    spec_texture.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    spec_texture.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    spec_texture.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    spec_texture.generate_mipmap();
 
-    framebuffer shadow_map_fbo;
-    shadow_map_fbo.create();
-
-    const float shadow_map_width = 2048, shadow_map_height = 2048;
-	cubemap shadow_cubemap(shadow_map_width, shadow_map_height, 0, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT);
-    shadow_cubemap.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    shadow_cubemap.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    shadow_cubemap.set_tex_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
-    shadow_cubemap.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    shadow_cubemap.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-    shadow_map_fbo.attach(GL_DEPTH_ATTACHMENT, 0, shadow_cubemap);
-    shadow_map_fbo.set_read_buffer(GL_NONE);
-    shadow_map_fbo.set_draw_buffer(GL_NONE);
-
-    shadow_map_shader.bind();
-    glm::vec3 light_pos_world = glm::vec3(0.0f, 0.0f, 0.0f);
-	float near = 1.0f;
-	float far = 25.0f;
-	glm::mat4 light_space_transforms[6];
-	
-    shadow_map_shader.uniform("LightPos", light_pos_world);
-    shadow_map_shader.uniform("FarPlane", far);
+    framebuffer g_framebuffer;
+    g_framebuffer.create();
     
-    scene_shader.uniform("DiffuseTexture", 0);
-    scene_shader.uniform("ShadowMap", 1);    
+    texture_2d position_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+    position_buffer.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    position_buffer.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    g_framebuffer.attach(GL_COLOR_ATTACHMENT0, 0, position_buffer);
+
+    texture_2d normal_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+    normal_buffer.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    normal_buffer.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    g_framebuffer.attach(GL_COLOR_ATTACHMENT1, 0, normal_buffer);
+
+    texture_2d albedo_spec_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+    albedo_spec_buffer.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    albedo_spec_buffer.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    g_framebuffer.attach(GL_COLOR_ATTACHMENT2, 0, albedo_spec_buffer);
+
+    uint32_t attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+    glDrawBuffers(3, attachments);
+
+    renderbuffer depth_buffer(m_proj_settings.width, m_proj_settings.height, GL_DEPTH_COMPONENT);
+    ASSERT(g_framebuffer.attach(GL_DEPTH_ATTACHMENT, depth_buffer), "G Buffer", "invalid G Buffer");
+
+    shader gpass_shader(RESOURCE_DIR "shaders/deffered_rendering/gpass.vert", RESOURCE_DIR "shaders/deffered_rendering/gpass.frag");
+    shader colorpass_shader(RESOURCE_DIR "shaders/deffered_rendering/colorpass.vert", RESOURCE_DIR "shaders/deffered_rendering/colorpass.frag");
+    shader light_source_shader(RESOURCE_DIR "shaders/deffered_rendering/light_source.vert", RESOURCE_DIR "shaders/deffered_rendering/light_source.frag");
+
+    std::vector<glm::vec3> cube_positions;
+    cube_positions.push_back(glm::vec3(-3.0,  -0.5, -3.0));
+    cube_positions.push_back(glm::vec3( 0.0,  -0.5, -3.0));
+    cube_positions.push_back(glm::vec3( 3.0,  -0.5, -3.0));
+    cube_positions.push_back(glm::vec3(-3.0,  -0.5,  0.0));
+    cube_positions.push_back(glm::vec3( 0.0,  -0.5,  0.0));
+    cube_positions.push_back(glm::vec3( 3.0,  -0.5,  0.0));
+    cube_positions.push_back(glm::vec3(-3.0,  -0.5,  3.0));
+    cube_positions.push_back(glm::vec3( 0.0,  -0.5,  3.0));
+    cube_positions.push_back(glm::vec3( 3.0,  -0.5,  3.0));
+    
+    constexpr size_t NR_LIGHTS = 32;
+    std::vector<glm::vec3> light_positions;
+    std::vector<glm::vec3> light_colors;
+    srand(time(0));
+    for (size_t i = 0; i < NR_LIGHTS; i++) {
+        light_positions.push_back(glm::vec3(
+            ((rand() % 100) / 100.0f) * 6.0f - 3.0f,
+            ((rand() % 100) / 100.0f) * 6.0f - 4.0f,
+            ((rand() % 100) / 100.0f) * 6.0f - 3.0f
+        ));
+        
+        light_colors.push_back(glm::vec3(
+            ((rand() % 100) / 200.0f) + 0.5f,
+            ((rand() % 100) / 200.0f) + 0.5f,
+            ((rand() % 100) / 200.0f) + 0.5f
+        ));
+    }
+
     
     ImGuiIO& io = ImGui::GetIO();
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
@@ -214,36 +229,64 @@ void application::run() noexcept {
             }
         }
 
-        glm::mat4 light_projection = glm::perspective(glm::radians(90.0f), shadow_map_width / shadow_map_height, near, far);
-        light_space_transforms[0] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f,  0.0f));
-        light_space_transforms[1] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f,  0.0f));
-        light_space_transforms[2] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f));
-        light_space_transforms[3] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f));
-        light_space_transforms[4] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 1.0f,  0.0f));
-        light_space_transforms[5] = light_projection * glm::lookAt(light_pos_world, light_pos_world + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f,  0.0f));
-        for(size_t I = 0; I < 6; I++) {
-            shadow_map_shader.uniform("LightSpaceMatrices[" + std::to_string(I) + "]", light_space_transforms[I]);
+
+        g_framebuffer.bind();
+        m_renderer.set_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
+        m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        gpass_shader.uniform("u_projection", m_proj_settings.projection_mat);
+        gpass_shader.uniform("u_view", m_camera.get_view());
+        gpass_shader.uniform("u_albedo_texture", 0);
+        gpass_shader.uniform("u_specular_texture", 1);
+        texture.bind(0);
+        spec_texture.bind(1);
+        for (size_t i = 0; i < cube_positions.size(); i++) {
+            glm::mat4 model = glm::translate(glm::mat4(1.0f), cube_positions[i]);
+            model = glm::scale(model, glm::vec3(0.5f));
+            gpass_shader.uniform("u_model", model);
+            m_renderer.render(GL_TRIANGLES, gpass_shader, cube);
         }
 
-		shadow_map_fbo.bind();
-        shadow_map_shader.bind();
-		glViewport(0, 0, shadow_map_width, shadow_map_height);
-		glClear(GL_DEPTH_BUFFER_BIT);
-		RenderScene(shadow_map_shader, cube.get_vertex_array().get_id());
+        g_framebuffer.unbind();
+        m_renderer.set_clear_color(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f);
+        m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        colorpass_shader.uniform("u_position_buffer", 0);
+        colorpass_shader.uniform("u_normal_buffer", 1);
+        colorpass_shader.uniform("u_albedo_spec_buffer", 2);
+        position_buffer.bind(0);
+        normal_buffer.bind(1);
+        albedo_spec_buffer.bind(2);
 
-		shadow_map_fbo.unbind();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-		glViewport(0, 0, m_proj_settings.width, m_proj_settings.height);
-		glm::mat4 View = glm::lookAt(m_camera.position, m_camera.position + m_camera.get_forward(), glm::vec3(0.0f, 1.0f, 0.0f));
-        scene_shader.uniform("Projection", m_proj_settings.projection_mat);
-        scene_shader.uniform("View", View);
-        scene_shader.uniform("CamPosWorld", m_camera.position);
-        scene_shader.uniform("LightPosWorld", light_pos_world);
-        scene_shader.uniform("FarPlane", far);
+        colorpass_shader.uniform("u_material.shininess", 64.0f);
+        for (size_t i = 0; i < light_positions.size(); i++) {
+            colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].position", light_positions[i]);
+            colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].color", light_colors[i]);
+            
+            const float linear = 0.7f;
+            const float quadratic = 1.8f;
+            colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].constant", 1.0f);
+            colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].linear", linear);
+            colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].quadratic", quadratic);
+        }
+        colorpass_shader.uniform("u_camera_position", m_camera.position);
+        
+        m_renderer.render(GL_TRIANGLES, colorpass_shader, plane);
 
-		texture.bind(0);
-		shadow_cubemap.bind(1);
-		RenderScene(scene_shader, cube.get_vertex_array().get_id());
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, g_framebuffer.get_id());
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
+        // blit to default framebuffer. Note that this may or may not work as the internal formats of both the FBO and default framebuffer have to match.
+        // the internal formats are implementation defined. This works on all of my systems, but if it doesn't on yours you'll likely have to write to the 		
+        // depth buffer in another shader stage (or somehow see to match the default framebuffer's internal format with the FBO's internal format).
+        glBlitFramebuffer(0, 0, m_proj_settings.width, m_proj_settings.height, 0, 0, m_proj_settings.width, m_proj_settings.height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        light_source_shader.uniform("u_projection", m_proj_settings.projection_mat);
+        light_source_shader.uniform("u_view", m_camera.get_view());
+        for (size_t i = 0; i < NR_LIGHTS; ++i) {
+            light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), light_positions[i]), glm::vec3(0.1f)));
+            light_source_shader.uniform("u_color", glm::vec4(light_colors[i], 1.0f));
+            m_renderer.render(GL_TRIANGLES, light_source_shader, cube);
+        }
 
 
         _imgui_frame_begin();
@@ -263,9 +306,11 @@ void application::run() noexcept {
             }
 
             ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-            ImGui::DragFloat3("light position", glm::value_ptr(light_pos_world), 0.1f);
-            ImGui::DragFloat("light far", &far, 0.1f);
         ImGui::End();
+
+        // ImGui::Begin("GBuffer");
+        //     ImGui::Image((void*)(intptr_t)position_buffer.get_id(), ImVec2(m_proj_settings.width, m_proj_settings.height), ImVec2(0, 1), ImVec2(1, 0));
+        // ImGui::End();
 
         ImGui::Begin("Camera");
             ImGui::DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f);

@@ -10,14 +10,14 @@
 
 std::unordered_map<std::string, texture_2d::data> texture_2d::preloaded_textures;
 
-texture_2d::texture_2d(const std::string &filepath, uint32_t target, uint32_t level, 
-    uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load, variety variety
+texture_2d::texture_2d(const std::string &filepath, int32_t target, int32_t level, 
+    int32_t internal_format, int32_t format, int32_t type, bool flip_on_load, variety variety
 ) {
     load(filepath, target, level, internal_format, format, type, flip_on_load, variety);
 }
 
-texture_2d::texture_2d(uint32_t width, uint32_t height, uint32_t target, uint32_t level, 
-    uint32_t internal_format, uint32_t format, uint32_t type, void *pixels, variety variety
+texture_2d::texture_2d(uint32_t width, uint32_t height, int32_t target, int32_t level, 
+    int32_t internal_format, int32_t format, int32_t type, void *pixels, variety variety
 ) {
     create(width, height, target, level, internal_format, format, type, pixels, variety);
 }
@@ -26,8 +26,8 @@ texture_2d::~texture_2d() {
     destroy();
 }
 
-void texture_2d::load(const std::string &filepath, uint32_t target, uint32_t level, 
-    uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load, variety variety
+void texture_2d::load(const std::string &filepath, int32_t target, int32_t level, 
+    int32_t internal_format, int32_t format, int32_t type, bool flip_on_load, variety variety
 ) noexcept {
     if (m_data.id != 0) {
         LOG_WARN("texture warning", "texture reloading (prev id = " + std::to_string(m_data.id) + ")");
@@ -53,8 +53,8 @@ void texture_2d::load(const std::string &filepath, uint32_t target, uint32_t lev
     preloaded_textures[filepath] = m_data;
 }
 
-void texture_2d::create(uint32_t width, uint32_t height, uint32_t target, uint32_t level, 
-    uint32_t internal_format, uint32_t format, uint32_t type, void* pixels, variety variety
+void texture_2d::create(uint32_t width, uint32_t height, int32_t target, int32_t level, 
+    int32_t internal_format, int32_t format, int32_t type, void* pixels, variety variety
 ) noexcept {
     if (m_data.id != 0) {
         LOG_WARN("texture warning", "texture recreation (prev id = " + std::to_string(m_data.id) + ")");

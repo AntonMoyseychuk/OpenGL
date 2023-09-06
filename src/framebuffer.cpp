@@ -31,6 +31,10 @@ void framebuffer::unbind() const noexcept {
     OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
+uint32_t framebuffer::get_id() const noexcept {
+    return m_id;
+}
+
 bool framebuffer::attach(uint32_t attachment, uint32_t level, const texture_2d &texture) noexcept {
     bind();
 

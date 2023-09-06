@@ -14,6 +14,8 @@ public:
     void bind() const noexcept;
     void unbind() const noexcept;
 
+    uint32_t get_id() const noexcept;
+
     bool attach(uint32_t attachment, uint32_t level, const texture_2d& texture) noexcept;
     bool attach(uint32_t attachment, uint32_t level, const cubemap& cubemap) noexcept;
     bool attach(uint32_t attachment, const renderbuffer& renderbuffer) noexcept;
