@@ -135,18 +135,31 @@ void application::run() noexcept {
         {0, 2, 1, 0, 3, 2});
 
     mesh cube(std::vector<mesh::vertex>((mesh::vertex*)cube_vertices, (mesh::vertex*)cube_vertices + sizeof(cube_vertices) / sizeof(mesh::vertex)), {});
-    texture_2d texture(RESOURCE_DIR "textures/container.png", GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
-    texture.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    texture.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    texture.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    texture.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    texture.generate_mipmap();
-    texture_2d spec_texture(RESOURCE_DIR "textures/container_specular.png", GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
-    spec_texture.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    spec_texture.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    spec_texture.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    spec_texture.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    spec_texture.generate_mipmap();
+    // texture_2d texture(RESOURCE_DIR "textures/container.png", GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
+    // texture.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    // texture.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // texture.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // texture.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // texture.generate_mipmap();
+    // texture_2d spec_texture(RESOURCE_DIR "textures/container_specular.png", GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
+    // spec_texture.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    // spec_texture.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // spec_texture.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // spec_texture.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // spec_texture.generate_mipmap();
+    model::texture_config config;
+    config.target = GL_TEXTURE_2D;
+    config.level = 0;
+    config.internal_format = GL_RGB;
+    config.format = GL_RGB;
+    config.type = GL_UNSIGNED_BYTE;
+    config.mag_filter = GL_LINEAR;
+    config.min_filter = GL_LINEAR;
+    config.wrap_s = GL_REPEAT;
+    config.wrap_t = GL_REPEAT;
+    config.generate_mipmap = true;
+    config.flip_on_load = true;
+    model backpack(RESOURCE_DIR "models/backpack/backpack.obj", config);
 
     framebuffer g_framebuffer;
     g_framebuffer.create();
@@ -200,8 +213,10 @@ void application::run() noexcept {
         
         light_colors.push_back(glm::vec3(
             ((rand() % 100) / 200.0f) + 0.5f,
-            ((rand() % 100) / 200.0f) + 0.5f,
-            ((rand() % 100) / 200.0f) + 0.5f
+            0.0f, 
+            0.0f
+            // ((rand() % 100) / 200.0f) + 0.5f,
+            // ((rand() % 100) / 200.0f) + 0.5f
         ));
     }
 
@@ -238,13 +253,14 @@ void application::run() noexcept {
         gpass_shader.uniform("u_view", m_camera.get_view());
         gpass_shader.uniform("u_albedo_texture", 0);
         gpass_shader.uniform("u_specular_texture", 1);
-        texture.bind(0);
-        spec_texture.bind(1);
+        // texture.bind(0);
+        // spec_texture.bind(1);
         for (size_t i = 0; i < cube_positions.size(); i++) {
             glm::mat4 model = glm::translate(glm::mat4(1.0f), cube_positions[i]);
             model = glm::scale(model, glm::vec3(0.5f));
             gpass_shader.uniform("u_model", model);
-            m_renderer.render(GL_TRIANGLES, gpass_shader, cube);
+            // m_renderer.render(GL_TRIANGLES, gpass_shader, cube);
+            m_renderer.render(GL_TRIANGLES, gpass_shader, backpack);
         }
 
         g_framebuffer.unbind();
@@ -272,13 +288,11 @@ void application::run() noexcept {
         
         m_renderer.render(GL_TRIANGLES, colorpass_shader, plane);
 
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, g_framebuffer.get_id());
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
-        // blit to default framebuffer. Note that this may or may not work as the internal formats of both the FBO and default framebuffer have to match.
-        // the internal formats are implementation defined. This works on all of my systems, but if it doesn't on yours you'll likely have to write to the 		
-        // depth buffer in another shader stage (or somehow see to match the default framebuffer's internal format with the FBO's internal format).
-        glBlitFramebuffer(0, 0, m_proj_settings.width, m_proj_settings.height, 0, 0, m_proj_settings.width, m_proj_settings.height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        OGL_CALL(glBindFramebuffer(GL_READ_FRAMEBUFFER, g_framebuffer.get_id()));
+        OGL_CALL(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
+        OGL_CALL(glBlitFramebuffer(0, 0, m_proj_settings.width, m_proj_settings.height, 0, 0, 
+            m_proj_settings.width, m_proj_settings.height, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
+        OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
         light_source_shader.uniform("u_projection", m_proj_settings.projection_mat);
         light_source_shader.uniform("u_view", m_camera.get_view());
@@ -309,7 +323,7 @@ void application::run() noexcept {
         ImGui::End();
 
         // ImGui::Begin("GBuffer");
-        //     ImGui::Image((void*)(intptr_t)position_buffer.get_id(), ImVec2(m_proj_settings.width, m_proj_settings.height), ImVec2(0, 1), ImVec2(1, 0));
+        //     ImGui::Image((void*)(intptr_t)normal_buffer.get_id(), ImVec2(m_proj_settings.width, m_proj_settings.height), ImVec2(0, 1), ImVec2(1, 0));
         // ImGui::End();
 
         ImGui::Begin("Camera");

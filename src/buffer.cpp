@@ -3,80 +3,70 @@
 #include "buffer.hpp"
 #include "debug.hpp"
 
-buffer::buffer(uint32_t target, size_t element_count, size_t element_size, uint32_t usage, const void *data) {
-    create(target, element_count, element_size, usage, data);
+buffer::buffer(int32_t target, size_t size, size_t element_size, int32_t usage, const void* data) {
+    create(target, size, element_size, usage, data);
 }
 
 buffer::~buffer() {
     destroy();
 }
 
-void buffer::create(uint32_t target, size_t element_count, size_t element_size, uint32_t usage, const void *data) noexcept {
-    if (m_id != 0) {
-        LOG_WARN(_target_to_string(target) + " buffer", _target_to_string(target) + "buffer recreation (prev id = " + std::to_string(m_id) + ")");
+void buffer::create(int32_t target, size_t size, size_t element_size, int32_t usage, const void* data) noexcept {
+    if (id != 0) {
+        LOG_WARN(_target_to_string(target) + " buffer", _target_to_string(target) + "buffer recreation (prev id = " + std::to_string(id) + ")");
         destroy();
     }
 
-    m_target = target;
-    m_element_count = element_count;
-    m_element_size = element_size;
-    m_usage = usage;
+    this->size = size;
+    this->element_size = element_size;
+    this->target = target;
+    this->usage = usage;
 
-    OGL_CALL(glGenBuffers(1, &m_id));
+    OGL_CALL(glGenBuffers(1, &id));
     bind();
-    OGL_CALL(glBufferData(m_target, m_element_count * m_element_size, data, usage));
+    OGL_CALL(glBufferData(target, size, data, usage));
 }
 
 void buffer::destroy() noexcept {
-    OGL_CALL(glDeleteBuffers(1, &m_id));
-    m_id = 0;
+    OGL_CALL(glDeleteBuffers(1, &id));
+    id = 0;
 }
 
-void buffer::subdata(uint32_t offset, uint32_t size, const void* data) const noexcept {
+void buffer::subdata(uint32_t offset, size_t size, const void* data) const noexcept {
     bind();
-    OGL_CALL(glBufferSubData(m_target, offset, size, data));
+    OGL_CALL(glBufferSubData(target, offset, size, data));
 }
 
 void buffer::bind() const noexcept {
-    OGL_CALL(glBindBuffer(m_target, m_id));
+    OGL_CALL(glBindBuffer(target, id));
 }
 
 void buffer::unbind() const noexcept {
-    OGL_CALL(glBindBuffer(m_target, 0));
+    OGL_CALL(glBindBuffer(target, 0));
 }
 
 size_t buffer::get_element_count() const noexcept {
-    return m_element_count;
-}
+    if (element_size == 0) {
+        return 0;
+    }
 
-size_t buffer::get_element_size() const noexcept {
-    return m_element_size;
-}
+    ASSERT(size % element_size == 0, "buffer", "remainder of size divided by element_size is not zero");
 
-uint32_t buffer::get_target() const noexcept {
-    return m_target;
-}
-
-uint32_t buffer::get_usage() const noexcept {
-    return m_usage;
-}
-
-uint32_t buffer::get_id() const noexcept {
-    return m_id;
+    return size / element_size;
 }
 
 buffer::buffer(buffer&& buffer) noexcept
-    : m_element_count(buffer.m_element_count), m_element_size(buffer.m_element_size), m_target(buffer.m_target), m_usage(buffer.m_usage), m_id(buffer.m_id)
+    : size(buffer.size), element_size(buffer.element_size), target(buffer.target), usage(buffer.usage), id(buffer.id)
 {
     memset(&buffer, 0, sizeof(buffer));
 }
 
 buffer& buffer::operator=(buffer&& buffer) noexcept {
-    m_element_count = buffer.m_element_count;
-    m_element_size = buffer.m_element_size; 
-    m_target = buffer.m_target;
-    m_usage = buffer.m_usage;
-    m_id = buffer.m_id;
+    size = buffer.size;
+    element_size = buffer.element_size;
+    target = buffer.target;
+    usage = buffer.usage;
+    id = buffer.id;
 
     memset(&buffer, 0, sizeof(buffer));
 

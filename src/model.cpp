@@ -6,25 +6,19 @@
 
 std::unordered_map<std::string, std::vector<mesh>> model::preloaded_models;
 
-model::model(const std::string &filepath, 
-    uint32_t target, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load
-) {
-    create(filepath, target, level, internal_format, format, type, flip_on_load);
+model::model(const std::string &filepath, const texture_config& config) {
+    create(filepath, config);
 }
 
-void model::create(const std::string &filepath, 
-    uint32_t target, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load
-) noexcept {
-    _load_model(filepath, target, level, internal_format, format, type, flip_on_load);
+void model::create(const std::string &filepath, const texture_config& config) noexcept {
+    _load_model(filepath, config);
 }
 
 const std::vector<mesh> *model::get_meshes() const noexcept {
     return m_meshes;
 }
 
-void model::_load_model(const std::string& filepath, 
-    uint32_t target, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load
-) noexcept {
+void model::_load_model(const std::string& filepath, const texture_config& config) noexcept {
     m_directory = std::filesystem::path(filepath).parent_path().u8string();
     
     if (preloaded_models.find(filepath) != preloaded_models.cend()) {
@@ -38,27 +32,21 @@ void model::_load_model(const std::string& filepath,
     ASSERT(scene != nullptr && !(scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) && scene->mRootNode, "assimp error", importer.GetErrorString());
 
     m_meshes = &preloaded_models[filepath];
-    _process_node(target, level, internal_format, format, type, flip_on_load, scene->mRootNode, scene);
+    _process_node(config, scene->mRootNode, scene);
 }
 
-void model::_process_node(
-    uint32_t target, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load,
-    aiNode *ai_node, const aiScene *ai_scene
-) noexcept {
+void model::_process_node(const texture_config& config, aiNode *ai_node, const aiScene *ai_scene) noexcept {
     for (size_t i = 0; i < ai_node->mNumMeshes; ++i) {
         aiMesh* mesh = ai_scene->mMeshes[ai_node->mMeshes[i]];
-        m_meshes->push_back(_process_mesh(target, level, internal_format, format, type, flip_on_load, mesh, ai_scene));
+        m_meshes->push_back(_process_mesh(config, mesh, ai_scene));
     }
 
     for (size_t i = 0; i < ai_node->mNumChildren; ++i) {
-        _process_node(target, level, internal_format, format, type, flip_on_load, ai_node->mChildren[i], ai_scene);
+        _process_node(config, ai_node->mChildren[i], ai_scene);
     }
 }
 
-mesh model::_process_mesh(
-    uint32_t target, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load,   
-    aiMesh *ai_mesh, const aiScene *ai_scene
-) const noexcept {
+mesh model::_process_mesh(const texture_config& config, aiMesh *ai_mesh, const aiScene *ai_scene) const noexcept {
     std::vector<mesh::vertex> vertices;
     vertices.reserve(ai_mesh->mNumVertices);
 
@@ -89,23 +77,19 @@ mesh model::_process_mesh(
     if(ai_mesh->mMaterialIndex >= 0) {
         aiMaterial *material = ai_scene->mMaterials[ai_mesh->mMaterialIndex];
 
-        for (auto& t : _load_material_texture_configs(target, level, internal_format, format, type,
-            flip_on_load, texture_2d::variety::DIFFUSE, material, aiTextureType_DIFFUSE)) {
+        for (auto& t : _load_material_texture_configs(config, texture_2d::variety::DIFFUSE, material, aiTextureType_DIFFUSE)) {
             textures.insert(std::move(t));
         }
         
-        for (auto& t : _load_material_texture_configs(target, level, internal_format, format, type,
-            flip_on_load, texture_2d::variety::SPECULAR, material, aiTextureType_DIFFUSE)) {
+        for (auto& t : _load_material_texture_configs(config, texture_2d::variety::SPECULAR, material, aiTextureType_SPECULAR)) {
             textures.insert(std::move(t));
         }
 
-        for (auto& t : _load_material_texture_configs(target, level, internal_format, format, type,
-            flip_on_load, texture_2d::variety::NORMAL, material, aiTextureType_DIFFUSE)) {
+        for (auto& t : _load_material_texture_configs(config, texture_2d::variety::NORMAL, material, aiTextureType_HEIGHT)) {
             textures.insert(std::move(t));
         }
 
-        for (auto& t : _load_material_texture_configs(target, level, internal_format, format, type,
-            flip_on_load, texture_2d::variety::HEIGHT, material, aiTextureType_DIFFUSE)) {
+        for (auto& t : _load_material_texture_configs(config, texture_2d::variety::HEIGHT, material, aiTextureType_AMBIENT)) {
             textures.insert(std::move(t));
         }
     }
@@ -120,10 +104,8 @@ mesh model::_process_mesh(
     return mesh;
 }
 
-std::unordered_map<std::string, texture_2d> model::_load_material_texture_configs(
-    uint32_t target, uint32_t level, uint32_t internal_format, uint32_t format, 
-    uint32_t type, bool flip_on_load, texture_2d::variety variety, 
-    aiMaterial *ai_mat, aiTextureType ai_type
+std::unordered_map<std::string, texture_2d> model::_load_material_texture_configs(const texture_config& config, 
+    texture_2d::variety variety, aiMaterial *ai_mat, aiTextureType ai_type
 ) const noexcept {
     std::unordered_map<std::string, texture_2d> textures;
     textures.reserve(ai_mat->GetTextureCount(ai_type));
@@ -132,8 +114,15 @@ std::unordered_map<std::string, texture_2d> model::_load_material_texture_config
         aiString texture_name;
         ai_mat->GetTexture(ai_type, i, &texture_name);
 
-        const std::string filepath = m_directory + "\\" + texture_name.C_Str();
-        texture_2d texture(filepath, target, level, internal_format, format, type, flip_on_load, variety);
+        const std::string filepath = m_directory + "/" + texture_name.C_Str();
+        texture_2d texture(filepath, config.target, config.level, config.internal_format, config.format, config.type, config.flip_on_load, variety);
+        texture.set_tex_parameter(GL_TEXTURE_WRAP_S, config.wrap_s);
+        texture.set_tex_parameter(GL_TEXTURE_WRAP_T, config.wrap_t);
+        texture.set_tex_parameter(GL_TEXTURE_MAG_FILTER, config.mag_filter);
+        texture.set_tex_parameter(GL_TEXTURE_MIN_FILTER, config.min_filter);
+        if (config.generate_mipmap) {
+            texture.generate_mipmap();
+        }
         textures[filepath] = std::move(texture);
     }
 

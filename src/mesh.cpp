@@ -4,28 +4,26 @@
 #include <glad/glad.h>
 #include <utility>
 
-mesh::mesh(const std::vector<mesh::vertex> &vertices, const std::vector<uint32_t> &indices) {
+mesh::mesh(const std::vector<vertex> &vertices, const std::vector<uint32_t> &indices) {
     create(vertices, indices);
 }
 
 void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_t> &indices) noexcept {
-    m_vao.create();
-    m_vao.bind();
+    vao.create();
+    vao.bind();
 
-    m_vbo.create(GL_ARRAY_BUFFER, vertices.size(), sizeof(vertex), GL_STATIC_DRAW, &vertices[0]);
+    vbo.create(GL_ARRAY_BUFFER, vertices.size() * sizeof(vertices[0]), sizeof(vertex), GL_STATIC_DRAW, &vertices[0]);
 
-    m_vao.set_attribute(m_vbo, 0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)0);
-    m_vao.set_attribute(m_vbo, 1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, normal));
-    m_vao.set_attribute(m_vbo, 2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, texcoord));
+    vao.set_attribute(vbo, 0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)0);
+    vao.set_attribute(vbo, 1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, normal));
+    vao.set_attribute(vbo, 2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, texcoord));
 
     if (!indices.empty()) {
-        m_ibo.create(GL_ELEMENT_ARRAY_BUFFER, indices.size(), sizeof(indices[0]), GL_STATIC_DRAW, &indices[0]);
-        m_ibo.bind();
+        ibo.create(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(indices[0]), sizeof(indices[0]), GL_STATIC_DRAW, &indices[0]);
+        ibo.bind();
     }
 
-    m_vao.unbind();
-
-    // set_textures(texture_configs);
+    vao.unbind();
 }
 
 void mesh::bind(const shader &shader) const noexcept {
@@ -34,7 +32,7 @@ void mesh::bind(const shader &shader) const noexcept {
     
     shader.bind();
     int32_t i = 0;
-    for (const auto& texture : m_textures) {
+    for (const auto& texture : textures) {
         texture.bind(i);
 
         switch (texture.get_variety()) {
@@ -64,31 +62,9 @@ void mesh::bind(const shader &shader) const noexcept {
         ++i;
     }
 
-    m_vao.bind();
+    vao.bind();
 }
 
 void mesh::add_texture(texture_2d &&tex) noexcept {
-    m_textures.push_front(std::forward<texture_2d>(tex));
-}
-
-// void mesh::set_textures(const std::unordered_map<std::string, texture::data> &texture_configs) noexcept {
-//     if (!m_textures.empty()) {
-//         m_textures.resize(0);
-//     }
-//     m_textures.reserve(texture_configs.size());
-//     for (const auto& [filepath, config] : texture_configs) {
-//         m_textures.emplace_back(filepath, config);
-//     }
-// }
-
-const buffer& mesh::get_vertex_buffer() const noexcept {
-    return m_vbo;
-}
-
-const buffer& mesh::get_index_buffer() const noexcept {
-    return m_ibo;
-}
-
-const vertex_array& mesh::get_vertex_array() const noexcept {
-    return m_vao;
+    textures.push_back(std::forward<texture_2d>(tex));
 }

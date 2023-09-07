@@ -39,9 +39,9 @@ void renderer::viewport(int32_t x, int32_t y, uint32_t width, uint32_t height) c
 void renderer::render(uint32_t mode, const shader &shader, const mesh &mesh) const noexcept {
     mesh.bind(shader);
 
-    const uint32_t index_count = mesh.get_index_buffer().get_element_count();
+    const size_t index_count = mesh.ibo.get_element_count();
     if (index_count == 0) {
-        OGL_CALL(glDrawArrays(mode, 0, mesh.get_vertex_buffer().get_element_count()));
+        OGL_CALL(glDrawArrays(mode, 0, mesh.vbo.get_element_count()));
     } else {
         OGL_CALL(glDrawElements(mode, index_count, GL_UNSIGNED_INT, nullptr));
     }
@@ -62,9 +62,9 @@ void renderer::render(uint32_t mode, const shader &shader, const model &model) c
 void renderer::render_instanced(uint32_t mode, const shader &shader, const mesh &mesh, size_t count) const noexcept {
     mesh.bind(shader);
 
-    const uint32_t index_count = mesh.get_index_buffer().get_element_count();
+    const size_t index_count = mesh.ibo.get_element_count();
     if (index_count == 0) {
-        OGL_CALL(glDrawArraysInstanced(mode, 0, mesh.get_vertex_buffer().get_element_count(), count));
+        OGL_CALL(glDrawArraysInstanced(mode, 0, mesh.vbo.get_element_count(), count));
     } else {
         OGL_CALL(glDrawElementsInstanced(mode, index_count, GL_UNSIGNED_INT, nullptr, count));
     }

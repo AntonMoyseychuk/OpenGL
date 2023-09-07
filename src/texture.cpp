@@ -46,7 +46,7 @@ void texture_2d::load(const std::string &filepath, int32_t target, int32_t level
     
     ASSERT(texture_data != nullptr, "texture error", "couldn't load texture \"" + filepath + "\"");
 
-    create(m_data.width, m_data.height, target, level, internal_format, format, type, texture_data);
+    create(m_data.width, m_data.height, target, level, internal_format, format, type, texture_data, variety);
     
     stbi_image_free(texture_data);
 

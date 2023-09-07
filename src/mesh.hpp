@@ -7,36 +7,27 @@
 
 #include <glm/glm.hpp>
 
-#include <forward_list>
+#include <vector>
 
-
-class mesh {
-public:
+struct mesh {
     struct vertex {
         glm::vec3 position;
         glm::vec3 normal;
         glm::vec2 texcoord;
     };
 
-public:
     mesh() = default;
-    mesh(const std::vector<mesh::vertex>& vertices, const std::vector<uint32_t>& indices);
+    mesh(const std::vector<vertex>& vertices, const std::vector<uint32_t>& indices);
     
-    void create(const std::vector<mesh::vertex>& vertices, const std::vector<uint32_t>& indices) noexcept;
+    void create(const std::vector<vertex>& vertices, const std::vector<uint32_t>& indices) noexcept;
     
     void bind(const shader& shader) const noexcept;
 
     void add_texture(texture_2d&& texture) noexcept;
-    // void set_textures(const std::unordered_map<std::string, texture::config>& texture_configs) noexcept;
 
-    const buffer& get_vertex_buffer() const noexcept;
-    const buffer& get_index_buffer() const noexcept;
-    const vertex_array& get_vertex_array() const noexcept;
 
-private:
-    std::forward_list<texture_2d> m_textures;
-
-    buffer m_vbo;
-    buffer m_ibo;
-    vertex_array m_vao;
+    std::vector<texture_2d> textures;
+    buffer vbo;
+    buffer ibo;
+    vertex_array vao;
 };
