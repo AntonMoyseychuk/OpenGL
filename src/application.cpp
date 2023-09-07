@@ -234,11 +234,14 @@ void application::run() noexcept {
             ((rand() % 100) / 100.0f) * 6.0f - 2.0f,
             ((rand() % 100) / 100.0f) * 6.0f - 3.0f
         ));
-        
+
         light_colors.push_back(glm::vec3(
-            ((rand() % 100) / 200.0f) + 0.5f,
-            ((rand() % 100) / 200.0f) + 0.5f,
-            ((rand() % 100) / 200.0f) + 0.5f
+            // ((rand() % 100) / 200.0f) + 0.5f,
+            // ((rand() % 100) / 200.0f) + 0.5f,
+            // ((rand() % 100) / 200.0f) + 0.5f
+            rand() % 2,
+            rand() % 2,
+            rand() % 2
         ));
     }
 
