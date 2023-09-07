@@ -10,13 +10,15 @@ in VS_OUT {
     vec2 texcoord;
 } fs_in;
 
-uniform sampler2D u_albedo_texture;
-uniform sampler2D u_specular_texture;
+struct Material {
+    sampler2D albedo_texture;
+    sampler2D specular_texture;
+};  
+uniform Material u_material;
 
 void main() {
     gbuf_position = fs_in.frag_pos;
     gbuf_normal = normalize(fs_in.normal);
-    gbuf_albedo_spec.rgb = texture(u_albedo_texture, fs_in.texcoord).rgb;
-    gbuf_albedo_spec.a = texture(u_specular_texture, fs_in.texcoord).r;
-    // gbuf_albedo_spec.a = 1.0f;
+    gbuf_albedo_spec.rgb = texture(u_material.albedo_texture, fs_in.texcoord).rgb;
+    gbuf_albedo_spec.a = texture(u_material.specular_texture, fs_in.texcoord).r;
 }

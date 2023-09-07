@@ -189,16 +189,40 @@ void application::run() noexcept {
     shader colorpass_shader(RESOURCE_DIR "shaders/deffered_rendering/colorpass.vert", RESOURCE_DIR "shaders/deffered_rendering/colorpass.frag");
     shader light_source_shader(RESOURCE_DIR "shaders/deffered_rendering/light_source.vert", RESOURCE_DIR "shaders/deffered_rendering/light_source.frag");
 
-    std::vector<glm::vec3> cube_positions;
-    cube_positions.push_back(glm::vec3(-3.0,  -0.5, -3.0));
-    cube_positions.push_back(glm::vec3( 0.0,  -0.5, -3.0));
-    cube_positions.push_back(glm::vec3( 3.0,  -0.5, -3.0));
-    cube_positions.push_back(glm::vec3(-3.0,  -0.5,  0.0));
-    cube_positions.push_back(glm::vec3( 0.0,  -0.5,  0.0));
-    cube_positions.push_back(glm::vec3( 3.0,  -0.5,  0.0));
-    cube_positions.push_back(glm::vec3(-3.0,  -0.5,  3.0));
-    cube_positions.push_back(glm::vec3( 0.0,  -0.5,  3.0));
-    cube_positions.push_back(glm::vec3( 3.0,  -0.5,  3.0));
+    std::vector<glm::mat4> instance_model_matrices {
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, -0.5, -2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, -0.5, -2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, -0.5, -2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, -0.5,  0.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, -0.5,  0.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, -0.5,  0.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, -0.5,  2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, -0.5,  2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, -0.5,  2.0)), glm::vec3(0.35f)),
+        
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, 1.5, -2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, 1.5, -2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, 1.5, -2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, 1.5,  0.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, 1.5,  0.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, 1.5,  0.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, 1.5,  2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, 1.5,  2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, 1.5,  2.0)), glm::vec3(0.35f)),
+
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, 3.5, -2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, 3.5, -2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, 3.5, -2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, 3.5,  0.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, 3.5,  0.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, 3.5,  0.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, 3.5,  2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, 3.5,  2.0)), glm::vec3(0.35f)),
+        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, 3.5,  2.0)), glm::vec3(0.35f)),
+    };
+    buffer instance_models_shader_buffer(GL_SHADER_STORAGE_BUFFER, instance_model_matrices.size() * sizeof(glm::mat4), sizeof(glm::mat4), 
+        GL_STATIC_DRAW, instance_model_matrices.data());
+    OGL_CALL(glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, instance_models_shader_buffer.id));
     
     constexpr size_t NR_LIGHTS = 32;
     std::vector<glm::vec3> light_positions;
@@ -207,16 +231,14 @@ void application::run() noexcept {
     for (size_t i = 0; i < NR_LIGHTS; i++) {
         light_positions.push_back(glm::vec3(
             ((rand() % 100) / 100.0f) * 6.0f - 3.0f,
-            ((rand() % 100) / 100.0f) * 6.0f - 4.0f,
+            ((rand() % 100) / 100.0f) * 6.0f - 2.0f,
             ((rand() % 100) / 100.0f) * 6.0f - 3.0f
         ));
         
         light_colors.push_back(glm::vec3(
             ((rand() % 100) / 200.0f) + 0.5f,
-            0.0f, 
-            0.0f
-            // ((rand() % 100) / 200.0f) + 0.5f,
-            // ((rand() % 100) / 200.0f) + 0.5f
+            ((rand() % 100) / 200.0f) + 0.5f,
+            ((rand() % 100) / 200.0f) + 0.5f
         ));
     }
 
@@ -251,24 +273,16 @@ void application::run() noexcept {
 
         gpass_shader.uniform("u_projection", m_proj_settings.projection_mat);
         gpass_shader.uniform("u_view", m_camera.get_view());
-        gpass_shader.uniform("u_albedo_texture", 0);
-        gpass_shader.uniform("u_specular_texture", 1);
-        // texture.bind(0);
-        // spec_texture.bind(1);
-        for (size_t i = 0; i < cube_positions.size(); i++) {
-            glm::mat4 model = glm::translate(glm::mat4(1.0f), cube_positions[i]);
-            model = glm::scale(model, glm::vec3(0.5f));
-            gpass_shader.uniform("u_model", model);
-            // m_renderer.render(GL_TRIANGLES, gpass_shader, cube);
-            m_renderer.render(GL_TRIANGLES, gpass_shader, backpack);
-        }
+        gpass_shader.uniform("u_material.albedo_texture", 0);
+        gpass_shader.uniform("u_material.specular_texture", 1);
+        m_renderer.render_instanced(GL_TRIANGLES, gpass_shader, backpack, instance_model_matrices.size());
 
         g_framebuffer.unbind();
         m_renderer.set_clear_color(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f);
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        colorpass_shader.uniform("u_position_buffer", 0);
-        colorpass_shader.uniform("u_normal_buffer", 1);
-        colorpass_shader.uniform("u_albedo_spec_buffer", 2);
+        colorpass_shader.uniform("u_gbuffer.position_buffer", 0);
+        colorpass_shader.uniform("u_gbuffer.normal_buffer", 1);
+        colorpass_shader.uniform("u_gbuffer.albedo_spec_buffer", 2);
         position_buffer.bind(0);
         normal_buffer.bind(1);
         albedo_spec_buffer.bind(2);
@@ -278,6 +292,8 @@ void application::run() noexcept {
             colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].position", light_positions[i]);
             colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].color", light_colors[i]);
             
+            colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].intensity", 1.2f);
+
             const float linear = 0.7f;
             const float quadratic = 1.8f;
             colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].constant", 1.0f);

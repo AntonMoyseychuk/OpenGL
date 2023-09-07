@@ -4,12 +4,18 @@ out vec4 frag_color;
 
 in vec2 texcoord;
 
-uniform sampler2D u_position_buffer, u_normal_buffer, u_albedo_spec_buffer;
 uniform vec3 u_camera_position;
+
+struct GBuffer {
+    sampler2D position_buffer, normal_buffer, albedo_spec_buffer;
+};
+uniform GBuffer u_gbuffer;
 
 struct PointLight {
     vec3 position;
     vec3 color;
+
+    float intensity;
 
     float constant;
     float linear;
@@ -25,9 +31,9 @@ const uint LIGHT_NUMBER = 32;
 uniform PointLight u_lights[LIGHT_NUMBER];
 
 void main() {
-    const vec3 frag_pos = texture(u_position_buffer, texcoord).rgb;
-    const vec3 normal = normalize(texture(u_normal_buffer, texcoord).rgb);
-    const vec4 albedo_spec = texture(u_albedo_spec_buffer, texcoord);
+    const vec3 frag_pos = texture(u_gbuffer.position_buffer, texcoord).rgb;
+    const vec3 normal = normalize(texture(u_gbuffer.normal_buffer, texcoord).rgb);
+    const vec4 albedo_spec = texture(u_gbuffer.albedo_spec_buffer, texcoord);
 
     const vec3 view_direction = normalize(frag_pos - u_camera_position);
 
@@ -40,7 +46,7 @@ void main() {
         
         const vec3 half_direction = normalize(view_direction + light_direction);
 
-        const float attenuation = 1.0f / (u_lights[i].constant + u_lights[i].linear * dist + u_lights[i].quadratic * dist * dist);
+        const float attenuation = u_lights[i].intensity / (u_lights[i].constant + u_lights[i].linear * dist + u_lights[i].quadratic * dist * dist);
 
         const float diff = max(dot(-light_direction, normal), 0.0f);
         diffuse += diff * albedo_spec.rgb * u_lights[i].color * attenuation;
