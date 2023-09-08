@@ -27,7 +27,7 @@ void model::_load_model(const std::string& filepath, const texture_config& confi
     }
 
     Assimp::Importer importer;
-    const aiScene *scene = importer.ReadFile(filepath, aiProcess_Triangulate | aiProcess_FlipUVs);
+    const aiScene *scene = importer.ReadFile(filepath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
     ASSERT(scene != nullptr && !(scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) && scene->mRootNode, "assimp error", importer.GetErrorString());
 
@@ -63,6 +63,8 @@ mesh model::_process_mesh(const texture_config& config, aiMesh *ai_mesh, const a
             vertex.texcoord = glm::vec2(0.0f);
         }
 
+        vertex.tangent = glm::vec3(ai_mesh->mTangents[i].x, ai_mesh->mTangents[i].y, ai_mesh->mTangents[i].z);
+
         vertices.emplace_back(vertex);
     }
     
@@ -85,11 +87,11 @@ mesh model::_process_mesh(const texture_config& config, aiMesh *ai_mesh, const a
             textures.insert(std::move(t));
         }
 
-        for (auto& t : _load_material_texture_configs(config, texture_2d::variety::NORMAL, material, aiTextureType_HEIGHT)) {
+        for (auto& t : _load_material_texture_configs(config, texture_2d::variety::HEIGHT, material, aiTextureType_AMBIENT)) {
             textures.insert(std::move(t));
         }
 
-        for (auto& t : _load_material_texture_configs(config, texture_2d::variety::HEIGHT, material, aiTextureType_AMBIENT)) {
+        for (auto& t : _load_material_texture_configs(config, texture_2d::variety::NORMAL, material, aiTextureType_HEIGHT)) {
             textures.insert(std::move(t));
         }
     }

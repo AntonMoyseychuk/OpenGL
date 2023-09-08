@@ -79,173 +79,35 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 }
 
 void application::run() noexcept {    
-    float cube_vertices[] = {
-		// back face
-		-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-		1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-		1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
-		1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-		-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-		-1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
-		// front face
-		-1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-		1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
-		1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-		1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-		-1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
-		-1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-		// left face
-		-1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-		-1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
-		-1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-		-1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-		-1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-		-1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-		// right face
-		1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-		1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-		1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
-		1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-		1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-		1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
-		// bottom face
-		-1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-		1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
-		1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-		1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-		-1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-		-1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-		// top face
-		-1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-		1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-		1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
-		1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-		-1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-		-1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
-	};
+    texture_2d albedo_map(RESOURCE_DIR "textures/wall.jpg", GL_TEXTURE_2D, 0, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, true);
+    albedo_map.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    albedo_map.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    albedo_map.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    albedo_map.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    albedo_map.generate_mipmap();
+    texture_2d normal_map(RESOURCE_DIR "textures/wall_normal.jpg", GL_TEXTURE_2D, 0, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, true);
+    normal_map.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    normal_map.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    normal_map.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    normal_map.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    normal_map.generate_mipmap();
+    model cube(RESOURCE_DIR "models/cube/cube.obj", model::texture_config());
+    mesh plane(
+        std::vector<mesh::vertex>{
+            { {-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f} },
+            { {-1.0f,  1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f} },
+            { {1.0f,  1.0f, 0.0f},  {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 0.0f} },
+            { {1.0f, -1.0f, 0.0f},  {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.0f, 0.0f} },
+        }, 
+        {0, 2, 1, 0, 3, 2}
+    );
 
-    float plane_vertices[] = {
-        -1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-        -1.0f,  1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-         1.0f,  1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-         1.0f, -1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-    };
+    shader normal_map_shader(RESOURCE_DIR "shaders/normal_mapping/normal_mapping.vert", RESOURCE_DIR "shaders/normal_mapping/normal_mapping.frag");
+    shader light_source_shader(RESOURCE_DIR "shaders/normal_mapping/light_source.vert", RESOURCE_DIR "shaders/normal_mapping/light_source.frag");
 
-    mesh plane(std::vector<mesh::vertex>((mesh::vertex*)plane_vertices, (mesh::vertex*)plane_vertices + sizeof(plane_vertices) / sizeof(mesh::vertex)),
-        {0, 2, 1, 0, 3, 2});
+    glm::vec3 backpack_position(0.0f), light_position(0.0f, 0.0f, 4.0f);
+    glm::vec3 light_color(1.0f);    
 
-    mesh cube(std::vector<mesh::vertex>((mesh::vertex*)cube_vertices, (mesh::vertex*)cube_vertices + sizeof(cube_vertices) / sizeof(mesh::vertex)), {});
-    // texture_2d texture(RESOURCE_DIR "textures/container.png", GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
-    // texture.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    // texture.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // texture.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // texture.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    // texture.generate_mipmap();
-    // texture_2d spec_texture(RESOURCE_DIR "textures/container_specular.png", GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
-    // spec_texture.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    // spec_texture.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // spec_texture.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // spec_texture.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    // spec_texture.generate_mipmap();
-    model::texture_config config;
-    config.target = GL_TEXTURE_2D;
-    config.level = 0;
-    config.internal_format = GL_RGB;
-    config.format = GL_RGB;
-    config.type = GL_UNSIGNED_BYTE;
-    config.mag_filter = GL_LINEAR;
-    config.min_filter = GL_LINEAR;
-    config.wrap_s = GL_REPEAT;
-    config.wrap_t = GL_REPEAT;
-    config.generate_mipmap = true;
-    config.flip_on_load = true;
-    model backpack(RESOURCE_DIR "models/backpack/backpack.obj", config);
-
-    framebuffer g_framebuffer;
-    g_framebuffer.create();
-    
-    texture_2d position_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA16F, GL_RGBA, GL_FLOAT);
-    position_buffer.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    position_buffer.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    g_framebuffer.attach(GL_COLOR_ATTACHMENT0, 0, position_buffer);
-
-    texture_2d normal_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA16F, GL_RGBA, GL_FLOAT);
-    normal_buffer.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    normal_buffer.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    g_framebuffer.attach(GL_COLOR_ATTACHMENT1, 0, normal_buffer);
-
-    texture_2d albedo_spec_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-    albedo_spec_buffer.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    albedo_spec_buffer.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    g_framebuffer.attach(GL_COLOR_ATTACHMENT2, 0, albedo_spec_buffer);
-
-    uint32_t attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-    glDrawBuffers(3, attachments);
-
-    renderbuffer depth_buffer(m_proj_settings.width, m_proj_settings.height, GL_DEPTH_COMPONENT);
-    ASSERT(g_framebuffer.attach(GL_DEPTH_ATTACHMENT, depth_buffer), "G Buffer", "invalid G Buffer");
-
-    shader gpass_shader(RESOURCE_DIR "shaders/deffered_rendering/gpass.vert", RESOURCE_DIR "shaders/deffered_rendering/gpass.frag");
-    shader colorpass_shader(RESOURCE_DIR "shaders/deffered_rendering/colorpass.vert", RESOURCE_DIR "shaders/deffered_rendering/colorpass.frag");
-    shader light_source_shader(RESOURCE_DIR "shaders/deffered_rendering/light_source.vert", RESOURCE_DIR "shaders/deffered_rendering/light_source.frag");
-
-    std::vector<glm::mat4> instance_model_matrices {
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, -0.5, -2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, -0.5, -2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, -0.5, -2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, -0.5,  0.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, -0.5,  0.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, -0.5,  0.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, -0.5,  2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, -0.5,  2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, -0.5,  2.0)), glm::vec3(0.35f)),
-        
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, 1.5, -2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, 1.5, -2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, 1.5, -2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, 1.5,  0.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, 1.5,  0.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, 1.5,  0.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, 1.5,  2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, 1.5,  2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, 1.5,  2.0)), glm::vec3(0.35f)),
-
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, 3.5, -2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, 3.5, -2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, 3.5, -2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, 3.5,  0.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, 3.5,  0.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, 3.5,  0.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0, 3.5,  2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 0.0, 3.5,  2.0)), glm::vec3(0.35f)),
-        glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3( 2.0, 3.5,  2.0)), glm::vec3(0.35f)),
-    };
-    buffer instance_models_shader_buffer(GL_SHADER_STORAGE_BUFFER, instance_model_matrices.size() * sizeof(glm::mat4), sizeof(glm::mat4), 
-        GL_STATIC_DRAW, instance_model_matrices.data());
-    OGL_CALL(glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, instance_models_shader_buffer.id));
-    
-    constexpr size_t NR_LIGHTS = 32;
-    std::vector<glm::vec3> light_positions;
-    std::vector<glm::vec3> light_colors;
-    srand(time(0));
-    for (size_t i = 0; i < NR_LIGHTS; i++) {
-        light_positions.push_back(glm::vec3(
-            ((rand() % 100) / 100.0f) * 6.0f - 3.0f,
-            ((rand() % 100) / 100.0f) * 6.0f - 2.0f,
-            ((rand() % 100) / 100.0f) * 6.0f - 3.0f
-        ));
-
-        light_colors.push_back(glm::vec3(
-            // ((rand() % 100) / 200.0f) + 0.5f,
-            // ((rand() % 100) / 200.0f) + 0.5f,
-            // ((rand() % 100) / 200.0f) + 0.5f
-            rand() % 2,
-            rand() % 2,
-            rand() % 2
-        ));
-    }
-
-    
     ImGuiIO& io = ImGui::GetIO();
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
@@ -269,58 +131,30 @@ void application::run() noexcept {
             }
         }
 
-
-        g_framebuffer.bind();
-        m_renderer.set_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        gpass_shader.uniform("u_projection", m_proj_settings.projection_mat);
-        gpass_shader.uniform("u_view", m_camera.get_view());
-        gpass_shader.uniform("u_material.albedo_texture", 0);
-        gpass_shader.uniform("u_material.specular_texture", 1);
-        m_renderer.render_instanced(GL_TRIANGLES, gpass_shader, backpack, instance_model_matrices.size());
-
-        g_framebuffer.unbind();
-        m_renderer.set_clear_color(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f);
-        m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        colorpass_shader.uniform("u_gbuffer.position_buffer", 0);
-        colorpass_shader.uniform("u_gbuffer.normal_buffer", 1);
-        colorpass_shader.uniform("u_gbuffer.albedo_spec_buffer", 2);
-        position_buffer.bind(0);
-        normal_buffer.bind(1);
-        albedo_spec_buffer.bind(2);
-
-        colorpass_shader.uniform("u_material.shininess", 64.0f);
-        for (size_t i = 0; i < light_positions.size(); i++) {
-            colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].position", light_positions[i]);
-            colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].color", light_colors[i]);
-            
-            colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].intensity", 1.2f);
-
-            const float linear = 0.7f;
-            const float quadratic = 1.8f;
-            colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].constant", 1.0f);
-            colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].linear", linear);
-            colorpass_shader.uniform("u_lights[" + std::to_string(i) + "].quadratic", quadratic);
-        }
-        colorpass_shader.uniform("u_camera_position", m_camera.position);
-        
-        m_renderer.render(GL_TRIANGLES, colorpass_shader, plane);
-
-        OGL_CALL(glBindFramebuffer(GL_READ_FRAMEBUFFER, g_framebuffer.get_id()));
-        OGL_CALL(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
-        OGL_CALL(glBlitFramebuffer(0, 0, m_proj_settings.width, m_proj_settings.height, 0, 0, 
-            m_proj_settings.width, m_proj_settings.height, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
-        OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+        normal_map_shader.uniform("u_projection", m_proj_settings.projection_mat);
+        normal_map_shader.uniform("u_view", m_camera.get_view());
+        normal_map_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), backpack_position));
+        normal_map_shader.uniform("u_light.position", light_position);
+        normal_map_shader.uniform("u_light.color", light_color);
+        normal_map_shader.uniform("u_light.intensity", 2.0f);
+        normal_map_shader.uniform("u_light.constant", 1.0f);
+        normal_map_shader.uniform("u_light.linear", 0.7f);
+        normal_map_shader.uniform("u_light.quadratic", 1.8f);
+        normal_map_shader.uniform("u_material.shininess", 64.0f);
+        normal_map_shader.uniform("u_camera_position", m_camera.position);
+        normal_map_shader.uniform("u_material.diffuse", 0);
+        normal_map_shader.uniform("u_material.normal", 1);
+        albedo_map.bind(0);
+        normal_map.bind(1);
+        m_renderer.render(GL_TRIANGLES, normal_map_shader, plane);
 
         light_source_shader.uniform("u_projection", m_proj_settings.projection_mat);
         light_source_shader.uniform("u_view", m_camera.get_view());
-        for (size_t i = 0; i < NR_LIGHTS; ++i) {
-            light_source_shader.uniform("u_model", glm::scale(glm::translate(glm::mat4(1.0f), light_positions[i]), glm::vec3(0.1f)));
-            light_source_shader.uniform("u_color", glm::vec4(light_colors[i], 1.0f));
-            m_renderer.render(GL_TRIANGLES, light_source_shader, cube);
-        }
-
+        light_source_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), light_position) * glm::scale(glm::mat4(1.0f), glm::vec3(0.1f)));
+        light_source_shader.uniform("u_color", light_color);
+        m_renderer.render(GL_TRIANGLES, light_source_shader, cube);
 
         _imgui_frame_begin();
         ImGui::Begin("Information");
@@ -339,6 +173,8 @@ void application::run() noexcept {
             }
 
             ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            ImGui::DragFloat3("light position", glm::value_ptr(light_position), 0.1f);
+            ImGui::ColorEdit3("light color", glm::value_ptr(light_color));
         ImGui::End();
 
         // ImGui::Begin("GBuffer");

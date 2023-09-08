@@ -17,6 +17,7 @@ void mesh::create(const std::vector<vertex> &vertices, const std::vector<uint32_
     vao.set_attribute(vbo, 0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)0);
     vao.set_attribute(vbo, 1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, normal));
     vao.set_attribute(vbo, 2, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, texcoord));
+    vao.set_attribute(vbo, 3, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, tangent));
 
     if (!indices.empty()) {
         ibo.create(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(indices[0]), sizeof(indices[0]), GL_STATIC_DRAW, &indices[0]);
