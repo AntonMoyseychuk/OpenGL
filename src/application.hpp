@@ -63,4 +63,5 @@ private:
 
     bool m_wireframed = false;
     bool m_cull_face = false;
+    bool m_use_normal_mapping = true;
 };

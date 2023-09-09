@@ -79,18 +79,24 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 }
 
 void application::run() noexcept {    
-    texture_2d albedo_map(RESOURCE_DIR "textures/wall.jpg", GL_TEXTURE_2D, 0, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, true);
+    texture_2d albedo_map(RESOURCE_DIR "textures/wall_albedo_map.jpg", GL_TEXTURE_2D, 0, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, true);
     albedo_map.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
     albedo_map.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
     albedo_map.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     albedo_map.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     albedo_map.generate_mipmap();
-    texture_2d normal_map(RESOURCE_DIR "textures/wall_normal.jpg", GL_TEXTURE_2D, 0, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, true);
+    texture_2d normal_map(RESOURCE_DIR "textures/wall_normal_map.jpg", GL_TEXTURE_2D, 0, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, true);
     normal_map.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
     normal_map.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
     normal_map.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     normal_map.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     normal_map.generate_mipmap();
+    texture_2d height_map(RESOURCE_DIR "textures/wall_disp_map.jpg", GL_TEXTURE_2D, 0, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, true);
+    height_map.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    height_map.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    height_map.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    height_map.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    height_map.generate_mipmap();
     model cube(RESOURCE_DIR "models/cube/cube.obj", model::texture_config());
     mesh plane(
         std::vector<mesh::vertex>{
@@ -102,11 +108,14 @@ void application::run() noexcept {
         {0, 2, 1, 0, 3, 2}
     );
 
-    shader normal_map_shader(RESOURCE_DIR "shaders/normal_mapping/normal_mapping.vert", RESOURCE_DIR "shaders/normal_mapping/normal_mapping.frag");
-    shader light_source_shader(RESOURCE_DIR "shaders/normal_mapping/light_source.vert", RESOURCE_DIR "shaders/normal_mapping/light_source.frag");
+    std::vector<shader> scene_shaders;
+    scene_shaders.emplace_back(RESOURCE_DIR "shaders/normal_paralax_mapping/simple.vert", RESOURCE_DIR "shaders/normal_paralax_mapping/simple.frag");
+    scene_shaders.emplace_back(RESOURCE_DIR "shaders/normal_paralax_mapping/normal_mapping.vert", RESOURCE_DIR "shaders/normal_paralax_mapping/normal_mapping.frag");
+    shader light_source_shader(RESOURCE_DIR "shaders/normal_paralax_mapping/light_source.vert", RESOURCE_DIR "shaders/normal_paralax_mapping/light_source.frag");
 
     glm::vec3 backpack_position(0.0f), light_position(0.0f, 0.0f, 4.0f);
-    glm::vec3 light_color(1.0f);    
+    glm::vec3 light_color(1.0f);   
+    float height_scale = 0.1f; 
 
     ImGuiIO& io = ImGui::GetIO();
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
@@ -133,22 +142,25 @@ void application::run() noexcept {
 
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        normal_map_shader.uniform("u_projection", m_proj_settings.projection_mat);
-        normal_map_shader.uniform("u_view", m_camera.get_view());
-        normal_map_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), backpack_position));
-        normal_map_shader.uniform("u_light.position", light_position);
-        normal_map_shader.uniform("u_light.color", light_color);
-        normal_map_shader.uniform("u_light.intensity", 2.0f);
-        normal_map_shader.uniform("u_light.constant", 1.0f);
-        normal_map_shader.uniform("u_light.linear", 0.7f);
-        normal_map_shader.uniform("u_light.quadratic", 1.8f);
-        normal_map_shader.uniform("u_material.shininess", 64.0f);
-        normal_map_shader.uniform("u_camera_position", m_camera.position);
-        normal_map_shader.uniform("u_material.diffuse", 0);
-        normal_map_shader.uniform("u_material.normal", 1);
+        scene_shaders[m_use_normal_mapping].uniform("u_projection", m_proj_settings.projection_mat);
+        scene_shaders[m_use_normal_mapping].uniform("u_view", m_camera.get_view());
+        scene_shaders[m_use_normal_mapping].uniform("u_model", glm::translate(glm::mat4(1.0f), backpack_position));
+        scene_shaders[m_use_normal_mapping].uniform("u_light.position", light_position);
+        scene_shaders[m_use_normal_mapping].uniform("u_light.color", light_color);
+        scene_shaders[m_use_normal_mapping].uniform("u_light.intensity", 2.0f);
+        scene_shaders[m_use_normal_mapping].uniform("u_light.constant", 1.0f);
+        scene_shaders[m_use_normal_mapping].uniform("u_light.linear", 0.7f);
+        scene_shaders[m_use_normal_mapping].uniform("u_light.quadratic", 1.8f);
+        scene_shaders[m_use_normal_mapping].uniform("u_material.shininess", 16.0f);
+        scene_shaders[m_use_normal_mapping].uniform("u_camera_position", m_camera.position);
+        scene_shaders[m_use_normal_mapping].uniform("u_height_scale", height_scale);
+        scene_shaders[m_use_normal_mapping].uniform("u_material.diffuse", 0);
+        scene_shaders[m_use_normal_mapping].uniform("u_material.normal", 1);
+        scene_shaders[m_use_normal_mapping].uniform("u_material.height", 2);
         albedo_map.bind(0);
         normal_map.bind(1);
-        m_renderer.render(GL_TRIANGLES, normal_map_shader, plane);
+        height_map.bind(2);
+        m_renderer.render(GL_TRIANGLES, scene_shaders[m_use_normal_mapping], plane);
 
         light_source_shader.uniform("u_projection", m_proj_settings.projection_mat);
         light_source_shader.uniform("u_view", m_camera.get_view());
@@ -167,18 +179,21 @@ void application::run() noexcept {
             if (ImGui::Checkbox("cull face", &m_cull_face)) {
                 m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
             }
+
+            ImGui::Checkbox("use normal mapping", &m_use_normal_mapping);
                 
             if (ImGui::NewLine(), ImGui::ColorEdit3("background color", glm::value_ptr(m_clear_color))) {
                 m_renderer.set_clear_color(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f);
             }
 
-            ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
             ImGui::DragFloat3("light position", glm::value_ptr(light_position), 0.1f);
             ImGui::ColorEdit3("light color", glm::value_ptr(light_color));
+            ImGui::DragFloat("height scale", &height_scale, 0.1f);
+            ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::End();
 
         // ImGui::Begin("GBuffer");
-        //     ImGui::Image((void*)(intptr_t)normal_buffer.get_id(), ImVec2(m_proj_settings.width, m_proj_settings.height), ImVec2(0, 1), ImVec2(1, 0));
+        //     ImGui::Image((void*)(intptr_t)normal_map.get_id(), ImVec2(normal_map.get_width(), normal_map.get_height()), ImVec2(0, 1), ImVec2(1, 0));
         // ImGui::End();
 
         ImGui::Begin("Camera");

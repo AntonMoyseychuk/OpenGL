@@ -4,13 +4,12 @@ out vec4 frag_color;
 
 in VS_OUT {
     vec3 frag_pos;
+    vec3 normal;
     vec2 texcoord;
-    mat3 TBN;
 } fs_in;
 
 struct Material {
     sampler2D diffuse;
-    sampler2D normal;
 
     float shininess;
 };
@@ -29,16 +28,10 @@ uniform PointLight u_light;
 
 uniform vec3 u_camera_position;
 
-vec3 calc_normal() {
-    vec3 normal = texture(u_material.normal, fs_in.texcoord).xyz;
-    normal = 2.0f * normal - vec3(1.0f);
-    return normalize(fs_in.TBN * normal);
-}
-
 void main() {
     const vec3 albedo = texture(u_material.diffuse, fs_in.texcoord).rgb;
     
-    vec3 normal = calc_normal();
+    const vec3 normal = fs_in.normal;
 
     const vec3 view_direction = normalize(fs_in.frag_pos - u_camera_position);
 
