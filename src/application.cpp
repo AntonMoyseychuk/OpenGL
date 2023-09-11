@@ -98,6 +98,7 @@ void application::run() noexcept {
     height_map.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     height_map.generate_mipmap();
     model cube(RESOURCE_DIR "models/cube/cube.obj", model::texture_config());
+    uv_sphere sphere(40, 40);
     mesh plane(
         std::vector<mesh::vertex>{
             { {-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f} },
@@ -166,7 +167,7 @@ void application::run() noexcept {
         light_source_shader.uniform("u_view", m_camera.get_view());
         light_source_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), light_position) * glm::scale(glm::mat4(1.0f), glm::vec3(0.1f)));
         light_source_shader.uniform("u_color", light_color);
-        m_renderer.render(GL_TRIANGLES, light_source_shader, cube);
+        m_renderer.render(GL_TRIANGLES, light_source_shader, sphere.mesh);
 
         _imgui_frame_begin();
         ImGui::Begin("Information");

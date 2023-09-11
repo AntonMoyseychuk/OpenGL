@@ -17,9 +17,9 @@ void main() {
     vs_out.texcoord = a_texcoord;
     vs_out.frag_pos = vec3(u_model * vec4(a_position, 1.0f));
     
-    const mat4 normal_matrix = transpose(inverse(u_model));
-    const vec3 N = normalize(vec3(normal_matrix * vec4(normalize(a_normal), 0.0f)));
-    vec3 T = normalize(vec3(normal_matrix * vec4(normalize(a_tangent), 0.0f)));
+    const mat3 normal_matrix = transpose(inverse(mat3(u_model)));
+    const vec3 N = normalize(normal_matrix * normalize(a_normal));
+    vec3 T = normalize(normal_matrix * normalize(a_tangent));
     T = normalize(T - dot(T, N) * N);
     const vec3 B = cross(N, T);
     vs_out.TBN = mat3(T, B, N);

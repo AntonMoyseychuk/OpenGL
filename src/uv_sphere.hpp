@@ -9,15 +9,11 @@ public:
     void generate(uint32_t stacks, uint32_t slices) noexcept;
     void add_texture(texture_2d&& texture) noexcept;
 
-    const mesh& get_mesh() const noexcept;
-
 private:
     mesh::vertex _create_vertex(float theta, float phi, float tex_s, float tex_t) const noexcept;
 
 public:
+    mesh mesh;
     uint32_t stacks;
     uint32_t slices;
-
-private:
-    mesh m_mesh;
 };
