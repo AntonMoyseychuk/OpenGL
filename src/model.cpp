@@ -6,11 +6,11 @@
 
 std::unordered_map<std::string, std::vector<mesh>> model::preloaded_models;
 
-model::model(const std::string &filepath, const texture_config& config) {
+model::model(const std::string &filepath, const texture_load_config& config) {
     create(filepath, config);
 }
 
-void model::create(const std::string &filepath, const texture_config& config) noexcept {
+void model::create(const std::string &filepath, const texture_load_config& config) noexcept {
     _load_model(filepath, config);
 }
 
@@ -18,7 +18,7 @@ const std::vector<mesh> *model::get_meshes() const noexcept {
     return m_meshes;
 }
 
-void model::_load_model(const std::string& filepath, const texture_config& config) noexcept {
+void model::_load_model(const std::string& filepath, const texture_load_config& config) noexcept {
     m_directory = std::filesystem::path(filepath).parent_path().u8string();
     
     if (preloaded_models.find(filepath) != preloaded_models.cend()) {
@@ -35,7 +35,7 @@ void model::_load_model(const std::string& filepath, const texture_config& confi
     _process_node(config, scene->mRootNode, scene);
 }
 
-void model::_process_node(const texture_config& config, aiNode *ai_node, const aiScene *ai_scene) noexcept {
+void model::_process_node(const texture_load_config& config, aiNode *ai_node, const aiScene *ai_scene) noexcept {
     for (size_t i = 0; i < ai_node->mNumMeshes; ++i) {
         aiMesh* mesh = ai_scene->mMeshes[ai_node->mMeshes[i]];
         m_meshes->push_back(_process_mesh(config, mesh, ai_scene));
@@ -46,7 +46,7 @@ void model::_process_node(const texture_config& config, aiNode *ai_node, const a
     }
 }
 
-mesh model::_process_mesh(const texture_config& config, aiMesh *ai_mesh, const aiScene *ai_scene) const noexcept {
+mesh model::_process_mesh(const texture_load_config& config, aiMesh *ai_mesh, const aiScene *ai_scene) const noexcept {
     std::vector<mesh::vertex> vertices;
     vertices.reserve(ai_mesh->mNumVertices);
 
@@ -106,7 +106,7 @@ mesh model::_process_mesh(const texture_config& config, aiMesh *ai_mesh, const a
     return mesh;
 }
 
-std::unordered_map<std::string, texture_2d> model::_load_material_texture_configs(const texture_config& config, 
+std::unordered_map<std::string, texture_2d> model::_load_material_texture_configs(const texture_load_config& config, 
     texture_2d::variety variety, aiMaterial *ai_mat, aiTextureType ai_type
 ) const noexcept {
     std::unordered_map<std::string, texture_2d> textures;

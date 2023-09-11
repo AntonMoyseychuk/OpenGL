@@ -69,16 +69,14 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
     m_renderer.enable(GL_DEPTH_TEST);
     m_renderer.depth_func(GL_LEQUAL);
-
-    // m_renderer.enable(GL_STENCIL_TEST);
-    //
-    // m_renderer.enable(GL_BLEND);
-    // m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    m_renderer.enable(GL_BLEND);
+    m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     _imgui_init("#version 430 core");
 }
 
-void application::run() noexcept {    
+void application::run() noexcept {
     texture_2d albedo_map(RESOURCE_DIR "textures/wall_albedo_map.jpg", GL_TEXTURE_2D, 0, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, true);
     albedo_map.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
     albedo_map.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -97,8 +95,10 @@ void application::run() noexcept {
     height_map.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     height_map.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     height_map.generate_mipmap();
-    model cube(RESOURCE_DIR "models/cube/cube.obj", model::texture_config());
+    model cube(RESOURCE_DIR "models/cube/cube.obj", model::texture_load_config());
+    
     uv_sphere sphere(40, 40);
+    
     mesh plane(
         std::vector<mesh::vertex>{
             { {-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f} },
@@ -114,7 +114,7 @@ void application::run() noexcept {
     scene_shaders.emplace_back(RESOURCE_DIR "shaders/normal_paralax_mapping/normal_mapping.vert", RESOURCE_DIR "shaders/normal_paralax_mapping/normal_mapping.frag");
     shader light_source_shader(RESOURCE_DIR "shaders/normal_paralax_mapping/light_source.vert", RESOURCE_DIR "shaders/normal_paralax_mapping/light_source.frag");
 
-    glm::vec3 backpack_position(0.0f), light_position(0.0f, 0.0f, 4.0f);
+    glm::vec3 backpack_position(0.0f), light_position(0.0f, 0.0f, 2.0f);
     glm::vec3 light_color(1.0f);   
     float height_scale = 0.1f; 
 
@@ -124,19 +124,19 @@ void application::run() noexcept {
 
         m_camera.update_dt(io.DeltaTime);
         if (!m_camera.is_fixed) {
-            if (glfwGetKey(m_window, GLFW_KEY_SPACE)) {
+            if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS) {
                 m_camera.move(m_camera.get_up() * io.DeltaTime);
-            } else if (glfwGetKey(m_window, GLFW_KEY_LEFT_CONTROL)) {
+            } else if (glfwGetKey(m_window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
                 m_camera.move(-m_camera.get_up() * io.DeltaTime);
             }
-            if (glfwGetKey(m_window, GLFW_KEY_W)) {
+            if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS) {
                 m_camera.move(m_camera.get_forward() * io.DeltaTime);
-            } else if (glfwGetKey(m_window, GLFW_KEY_S)) {
+            } else if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS) {
                 m_camera.move(-m_camera.get_forward() * io.DeltaTime);
             }
-            if (glfwGetKey(m_window, GLFW_KEY_D)) {
+            if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS) {
                 m_camera.move(m_camera.get_right() * io.DeltaTime);
-            } else if (glfwGetKey(m_window, GLFW_KEY_A)) {
+            } else if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS) {
                 m_camera.move(-m_camera.get_right() * io.DeltaTime);
             }
         }
@@ -169,6 +169,7 @@ void application::run() noexcept {
         light_source_shader.uniform("u_color", light_color);
         m_renderer.render(GL_TRIANGLES, light_source_shader, sphere.mesh);
 
+    #if 1 //UI
         _imgui_frame_begin();
         ImGui::Begin("Information");
             ImGui::Text("OpenGL version: %s", glGetString(GL_VERSION)); ImGui::NewLine();
@@ -187,14 +188,16 @@ void application::run() noexcept {
                 m_renderer.set_clear_color(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f);
             }
 
-            ImGui::DragFloat3("light position", glm::value_ptr(light_position), 0.1f);
-            ImGui::ColorEdit3("light color", glm::value_ptr(light_color));
-            ImGui::DragFloat("height scale", &height_scale, 0.1f);
             ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::End();
 
-        // ImGui::Begin("GBuffer");
-        //     ImGui::Image((void*)(intptr_t)normal_map.get_id(), ImVec2(normal_map.get_width(), normal_map.get_height()), ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::Begin("Light");
+            ImGui::DragFloat3("position", glm::value_ptr(light_position), 0.1f);
+            ImGui::ColorEdit3("color", glm::value_ptr(light_color));
+        ImGui::End();
+
+        // ImGui::Begin("Texture");
+        //     ImGui::Image((void*)(intptr_t)color_buffer.get_id(), ImVec2(color_buffer.get_width(), color_buffer.get_height()), ImVec2(0, 1), ImVec2(1, 0));
         // ImGui::End();
 
         ImGui::Begin("Camera");
@@ -219,6 +222,7 @@ void application::run() noexcept {
             }
         ImGui::End();
         _imgui_frame_end();
+    #endif
 
         glfwSwapBuffers(m_window);
     }
