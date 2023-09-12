@@ -31,6 +31,10 @@ void framebuffer::unbind() const noexcept {
     OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
+void framebuffer::bind_default() noexcept {
+    OGL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+}
+
 uint32_t framebuffer::get_id() const noexcept {
     return m_id;
 }
