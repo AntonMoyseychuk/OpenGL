@@ -5,7 +5,7 @@
 
 class texture_2d {
 public:
-    enum class variety { NONE, DIFFUSE, SPECULAR, NORMAL, HEIGHT, EMISSION };
+    enum class variety { NONE, DIFFUSE, SPECULAR, NORMAL, EMISSION };
 
     texture_2d() = default;
     texture_2d(const std::string &filepath, int32_t target, int32_t level, 
@@ -23,6 +23,7 @@ public:
     void generate_mipmap() const noexcept;
     void set_tex_parameter(uint32_t pname, int32_t param) const noexcept;
     void set_tex_parameter(uint32_t pname, float param) const noexcept;
+    void set_tex_parameter(uint32_t pname, const float* params) const noexcept;
 
     void bind(int32_t unit = -1) const noexcept;
     void unbind() const noexcept;

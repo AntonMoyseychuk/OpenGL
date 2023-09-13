@@ -66,11 +66,11 @@ bool framebuffer::attach(uint32_t attachment, const renderbuffer &renderbuffer) 
 }
 
 void framebuffer::set_draw_buffer(uint32_t buffer) noexcept {
-    OGL_CALL(glDrawBuffer(buffer));
+    OGL_CALL(glNamedFramebufferDrawBuffer(m_id, buffer));
 }
 
 void framebuffer::set_read_buffer(uint32_t src) noexcept {
-    OGL_CALL(glReadBuffer(src));
+    OGL_CALL(glNamedFramebufferReadBuffer(m_id, src));
 }
 
 bool framebuffer::is_complete() const noexcept {

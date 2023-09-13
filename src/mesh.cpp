@@ -52,9 +52,6 @@ void mesh::bind(const shader &shader) const noexcept {
         case texture_2d::variety::NORMAL:
             shader.uniform(("u_material.normal" + std::to_string(normal_number++)).c_str(), i);
             break;
-        case texture_2d::variety::HEIGHT:
-            shader.uniform(("u_material.height" + std::to_string(normal_number++)).c_str(), i);
-            break;
         default:
             ASSERT(false, "mesh drawing error", "invalid texture type");
             break;

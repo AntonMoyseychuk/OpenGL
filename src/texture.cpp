@@ -89,6 +89,10 @@ void texture_2d::set_tex_parameter(uint32_t pname, float param) const noexcept {
     OGL_CALL(glTexParameterf(m_data.target, pname, param));
 }
 
+void texture_2d::set_tex_parameter(uint32_t pname, const float* params) const noexcept {
+    OGL_CALL(glTexParameterfv(m_data.target, pname, params));
+}
+
 void texture_2d::bind(int32_t unit) const noexcept {
 #ifdef _DEBUG
     int32_t max_units_count;

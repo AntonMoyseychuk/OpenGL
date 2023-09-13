@@ -87,10 +87,6 @@ mesh model::_process_mesh(const texture_load_config& config, aiMesh *ai_mesh, co
             textures.insert(std::move(t));
         }
 
-        for (auto& t : _load_material_texture_configs(config, texture_2d::variety::HEIGHT, material, aiTextureType_AMBIENT)) {
-            textures.insert(std::move(t));
-        }
-
         for (auto& t : _load_material_texture_configs(config, texture_2d::variety::NORMAL, material, aiTextureType_HEIGHT)) {
             textures.insert(std::move(t));
         }
