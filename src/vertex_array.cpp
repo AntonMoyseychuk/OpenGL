@@ -55,12 +55,16 @@ uint32_t vertex_array::get_id() const noexcept {
 vertex_array::vertex_array(vertex_array &&vao)
     : m_id(vao.m_id)
 {
-    vao.m_id = 0;
+    if (this != &vao) {
+        vao.m_id = 0;
+    }
 }
 
 vertex_array &vertex_array::operator=(vertex_array &&vao) noexcept {
-    m_id = vao.m_id;
-    vao.m_id = 0;
+    if (this != &vao) {
+        m_id = vao.m_id;
+        vao.m_id = 0;
+    }
 
     return *this;
 }

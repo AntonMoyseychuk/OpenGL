@@ -58,17 +58,21 @@ size_t buffer::get_element_count() const noexcept {
 buffer::buffer(buffer&& buffer) noexcept
     : size(buffer.size), element_size(buffer.element_size), target(buffer.target), usage(buffer.usage), id(buffer.id)
 {
-    memset(&buffer, 0, sizeof(buffer));
+    if (this != &buffer) {
+        memset(&buffer, 0, sizeof(buffer));
+    }
 }
 
 buffer& buffer::operator=(buffer&& buffer) noexcept {
-    size = buffer.size;
-    element_size = buffer.element_size;
-    target = buffer.target;
-    usage = buffer.usage;
-    id = buffer.id;
+    if (this != &buffer) {
+        size = buffer.size;
+        element_size = buffer.element_size;
+        target = buffer.target;
+        usage = buffer.usage;
+        id = buffer.id;
 
-    memset(&buffer, 0, sizeof(buffer));
+        memset(&buffer, 0, sizeof(buffer));
+    }
 
     return *this;
 }

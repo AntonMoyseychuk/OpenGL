@@ -19,9 +19,9 @@ public:
     void destroy() noexcept;
 
     void generate_mipmap() const noexcept;
-    void set_tex_parameter(uint32_t pname, int32_t param) const noexcept;
-    void set_tex_parameter(uint32_t pname, float param) const noexcept;
-    void set_tex_parameter(uint32_t pname, const float* params) const noexcept;
+    void set_parameter(uint32_t pname, int32_t param) const noexcept;
+    void set_parameter(uint32_t pname, float param) const noexcept;
+    void set_parameter(uint32_t pname, const float* params) const noexcept;
 
     void bind(int32_t unit = -1) const noexcept;
     void unbind() const noexcept;

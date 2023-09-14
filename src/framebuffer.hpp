@@ -18,12 +18,12 @@ public:
 
     uint32_t get_id() const noexcept;
 
-    bool attach(uint32_t attachment, uint32_t level, const texture_2d& texture) noexcept;
-    bool attach(uint32_t attachment, uint32_t level, const cubemap& cubemap) noexcept;
-    bool attach(uint32_t attachment, const renderbuffer& renderbuffer) noexcept;
+    bool attach(uint32_t attachment, uint32_t level, const texture_2d& texture) const noexcept;
+    bool attach(uint32_t attachment, uint32_t level, const cubemap& cubemap) const noexcept;
+    bool attach(uint32_t attachment, const renderbuffer& renderbuffer) const noexcept;
 
-    void set_draw_buffer(uint32_t buffer) noexcept;
-    void set_read_buffer(uint32_t src) noexcept;
+    void set_draw_buffer(uint32_t buffer) const noexcept;
+    void set_read_buffer(uint32_t src) const noexcept;
 
     bool is_complete() const noexcept;
 
@@ -36,5 +36,5 @@ public:
 
 private:
     uint32_t m_id = 0;
-    bool m_is_complete = false;
+    mutable bool m_is_complete = false;
 };

@@ -97,15 +97,15 @@ void cubemap::generate_mipmap() const noexcept {
     OGL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
 }
 
-void cubemap::set_tex_parameter(uint32_t pname, int32_t param) const noexcept {
+void cubemap::set_parameter(uint32_t pname, int32_t param) const noexcept {
     OGL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, pname, param));
 }
 
-void cubemap::set_tex_parameter(uint32_t pname, float param) const noexcept {
+void cubemap::set_parameter(uint32_t pname, float param) const noexcept {
     OGL_CALL(glTexParameterf(GL_TEXTURE_CUBE_MAP, pname, param));
 }
 
-void cubemap::set_tex_parameter(uint32_t pname, const float *params) const noexcept {
+void cubemap::set_parameter(uint32_t pname, const float *params) const noexcept {
     OGL_CALL(glTexParameterfv(GL_TEXTURE_CUBE_MAP, pname, params));
 }
 
@@ -128,12 +128,16 @@ uint32_t cubemap::get_height() const noexcept {
 cubemap::cubemap(cubemap &&cubemap)
     : m_data(cubemap.m_data)
 {
-    memset(&cubemap.m_data, 0, sizeof(cubemap.m_data));
+    if (this != &cubemap) {
+        memset(&cubemap.m_data, 0, sizeof(cubemap.m_data));
+    }
 }
 
 cubemap &cubemap::operator=(cubemap &&cubemap) noexcept {
-    m_data = cubemap.m_data;
-    memset(&cubemap.m_data, 0, sizeof(cubemap.m_data));
+    if (this != &cubemap) {
+        m_data = cubemap.m_data;
+        memset(&cubemap.m_data, 0, sizeof(cubemap.m_data));
+    }
     
     return *this;
 }

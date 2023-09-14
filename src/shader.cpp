@@ -144,16 +144,20 @@ void shader::uniform(const std::string& name, const glm::mat4& uniform) const no
 shader::shader(shader&& shader)
     : m_program_id(shader.m_program_id), m_uniform_locations(shader.m_uniform_locations)
 {
-    shader.m_program_id = 0;
-    std::swap(shader.m_uniform_locations, decltype(shader.m_uniform_locations)());
+    if (this != &shader) {
+        shader.m_program_id = 0;
+        std::swap(shader.m_uniform_locations, decltype(shader.m_uniform_locations)());
+    }
 }
 
 shader& shader::operator=(shader&& shader) noexcept {
-    m_program_id = shader.m_program_id;
-    m_uniform_locations = shader.m_uniform_locations;
+    if (this != &shader) {
+        m_program_id = shader.m_program_id;
+        m_uniform_locations = shader.m_uniform_locations;
 
-    shader.m_program_id = 0;
-    std::swap(shader.m_uniform_locations, decltype(shader.m_uniform_locations)());
+        shader.m_program_id = 0;
+        std::swap(shader.m_uniform_locations, decltype(shader.m_uniform_locations)());
+    }
 
     return *this;
 }

@@ -76,18 +76,22 @@ void texture_2d::destroy() noexcept {
 }
 
 void texture_2d::generate_mipmap() const noexcept {
+    bind();
     OGL_CALL(glGenerateMipmap(m_data.target));
 }
 
-void texture_2d::set_tex_parameter(uint32_t pname, int32_t param) const noexcept {
+void texture_2d::set_parameter(uint32_t pname, int32_t param) const noexcept {
+    bind();
     OGL_CALL(glTexParameteri(m_data.target, pname, param));
 }
 
-void texture_2d::set_tex_parameter(uint32_t pname, float param) const noexcept {
+void texture_2d::set_parameter(uint32_t pname, float param) const noexcept {
+    bind();
     OGL_CALL(glTexParameterf(m_data.target, pname, param));
 }
 
-void texture_2d::set_tex_parameter(uint32_t pname, const float* params) const noexcept {
+void texture_2d::set_parameter(uint32_t pname, const float* params) const noexcept {
+    bind();
     OGL_CALL(glTexParameterfv(m_data.target, pname, params));
 }
 
@@ -137,12 +141,16 @@ texture_2d::variety texture_2d::get_variety() const noexcept {
 texture_2d::texture_2d(texture_2d &&texture)
     : m_data(texture.m_data)
 {
-    memset(&texture, 0, sizeof(texture));
+    if (this != &texture) {
+        memset(&texture, 0, sizeof(texture));
+    }
 }
 
 texture_2d &texture_2d::operator=(texture_2d &&texture) noexcept {
-    m_data = texture.m_data;
-    memset(&texture, 0, sizeof(texture));
+    if (this != &texture) {
+        m_data = texture.m_data;
+        memset(&texture, 0, sizeof(texture));
+    }
 
     return *this;
 }

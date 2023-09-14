@@ -21,9 +21,9 @@ public:
     void unbind() const noexcept;
 
     void generate_mipmap() const noexcept;
-    void set_tex_parameter(uint32_t pname, int32_t param) const noexcept;
-    void set_tex_parameter(uint32_t pname, float param) const noexcept;
-    void set_tex_parameter(uint32_t pname, const float* params) const noexcept;
+    void set_parameter(uint32_t pname, int32_t param) const noexcept;
+    void set_parameter(uint32_t pname, float param) const noexcept;
+    void set_parameter(uint32_t pname, const float* params) const noexcept;
 
     uint32_t get_id() const noexcept;
     uint32_t get_unit() const noexcept;

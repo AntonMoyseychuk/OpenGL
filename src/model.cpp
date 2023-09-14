@@ -114,10 +114,10 @@ std::unordered_map<std::string, texture_2d> model::_load_material_texture_config
 
         const std::string filepath = m_directory + "/" + texture_name.C_Str();
         texture_2d texture(filepath, config.flip_on_load, config.use_gamma, variety);
-        texture.set_tex_parameter(GL_TEXTURE_WRAP_S, config.wrap_s);
-        texture.set_tex_parameter(GL_TEXTURE_WRAP_T, config.wrap_t);
-        texture.set_tex_parameter(GL_TEXTURE_MAG_FILTER, config.mag_filter);
-        texture.set_tex_parameter(GL_TEXTURE_MIN_FILTER, config.min_filter);
+        texture.set_parameter(GL_TEXTURE_WRAP_S, config.wrap_s);
+        texture.set_parameter(GL_TEXTURE_WRAP_T, config.wrap_t);
+        texture.set_parameter(GL_TEXTURE_MAG_FILTER, config.mag_filter);
+        texture.set_parameter(GL_TEXTURE_MIN_FILTER, config.min_filter);
         if (config.generate_mipmap) {
             texture.generate_mipmap();
         }
