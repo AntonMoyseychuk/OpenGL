@@ -10,10 +10,8 @@
 
 std::unordered_map<std::string, texture_2d::data> texture_2d::preloaded_textures;
 
-texture_2d::texture_2d(const std::string &filepath, int32_t target, int32_t level, 
-    int32_t internal_format, int32_t format, int32_t type, bool flip_on_load, variety variety
-) {
-    load(filepath, target, level, internal_format, format, type, flip_on_load, variety);
+texture_2d::texture_2d(const std::string &filepath, bool flip_on_load, bool use_gamma, variety variety) {
+    load(filepath, flip_on_load, use_gamma, variety);
 }
 
 texture_2d::texture_2d(uint32_t width, uint32_t height, int32_t target, int32_t level, 
@@ -26,9 +24,7 @@ texture_2d::~texture_2d() {
     destroy();
 }
 
-void texture_2d::load(const std::string &filepath, int32_t target, int32_t level, 
-    int32_t internal_format, int32_t format, int32_t type, bool flip_on_load, variety variety
-) noexcept {
+void texture_2d::load(const std::string &filepath, bool flip_on_load, bool use_gamma, variety variety) noexcept {
     if (m_data.id != 0) {
         LOG_WARN("texture warning", "texture reloading (prev id = " + std::to_string(m_data.id) + ")");
         destroy();
@@ -42,11 +38,13 @@ void texture_2d::load(const std::string &filepath, int32_t target, int32_t level
     stbi_set_flip_vertically_on_load(flip_on_load);
 
     int channel_count = 0;
-    uint8_t* texture_data = stbi_load(filepath.c_str(), (int*)&m_data.width, (int*)&m_data.height, &channel_count, 0);
-    
+    uint8_t* texture_data = stbi_load(filepath.c_str(), (int*)&m_data.width, (int*)&m_data.height, &channel_count, 0);  
     ASSERT(texture_data != nullptr, "texture error", "couldn't load texture \"" + filepath + "\"");
 
-    create(m_data.width, m_data.height, target, level, internal_format, format, type, texture_data, variety);
+    const int32_t format = _get_gl_format(channel_count, false);
+    const int32_t internal_format = _get_gl_format(channel_count, use_gamma);
+
+    create(m_data.width, m_data.height, GL_TEXTURE_2D, 0, internal_format, format, GL_UNSIGNED_BYTE, texture_data, variety);
     
     stbi_image_free(texture_data);
 
@@ -147,4 +145,21 @@ texture_2d &texture_2d::operator=(texture_2d &&texture) noexcept {
     memset(&texture, 0, sizeof(texture));
 
     return *this;
+}
+
+int32_t texture_2d::_get_gl_format(int32_t channel_count, bool use_gamma) const noexcept {
+    switch (channel_count) {
+    case 1:
+        return GL_RED;
+
+    case 3:
+        return use_gamma ? GL_SRGB : GL_RGB;
+
+    case 4:
+        return use_gamma ? GL_SRGB_ALPHA : GL_RGBA;
+    
+    default:
+        ASSERT(false, "texture_2d", "invalid channel count");
+        return 0;
+    }
 }

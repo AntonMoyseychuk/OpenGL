@@ -14,17 +14,13 @@
 class model  {
 public:
     struct texture_load_config {
-        int32_t target = 0;
-        int32_t level = 0;
-        int32_t internal_format = 0;
-        int32_t format = 0;
-        int32_t type = 0;
         int32_t min_filter = 0;
         int32_t mag_filter = 0;
         int32_t wrap_s = 0;
         int32_t wrap_t = 0;
         bool generate_mipmap = true;
         bool flip_on_load = true;
+        bool use_gamma = false;
     };
 
 public:

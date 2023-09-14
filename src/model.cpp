@@ -113,7 +113,7 @@ std::unordered_map<std::string, texture_2d> model::_load_material_texture_config
         ai_mat->GetTexture(ai_type, i, &texture_name);
 
         const std::string filepath = m_directory + "/" + texture_name.C_Str();
-        texture_2d texture(filepath, config.target, config.level, config.internal_format, config.format, config.type, config.flip_on_load, variety);
+        texture_2d texture(filepath, config.flip_on_load, config.use_gamma, variety);
         texture.set_tex_parameter(GL_TEXTURE_WRAP_S, config.wrap_s);
         texture.set_tex_parameter(GL_TEXTURE_WRAP_T, config.wrap_t);
         texture.set_tex_parameter(GL_TEXTURE_MAG_FILTER, config.mag_filter);

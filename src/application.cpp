@@ -99,14 +99,10 @@ void application::run() noexcept {
 
     model::texture_load_config config;
     config.flip_on_load = true;
-    config.format = GL_RGB;
+    config.use_gamma = false;
     config.generate_mipmap = true;
-    config.internal_format = GL_RGB;
-    config.level = 0;
     config.mag_filter = GL_LINEAR;
     config.min_filter = GL_LINEAR;
-    config.target = GL_TEXTURE_2D;
-    config.type = GL_UNSIGNED_BYTE;
     config.wrap_s = GL_REPEAT;
     config.wrap_t = GL_REPEAT;
     model backpack(RESOURCE_DIR "models/backpack/backpack.obj", config);
@@ -115,12 +111,12 @@ void application::run() noexcept {
     
     uv_sphere sphere(40, 40);
     
-    texture_2d wall_albedo(RESOURCE_DIR "textures/wall_albedo_map.jpg", GL_TEXTURE_2D, 0, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, true, texture_2d::variety::DIFFUSE);
+    texture_2d wall_albedo(RESOURCE_DIR "textures/wall_albedo_map.jpg", true, false, texture_2d::variety::DIFFUSE);
     wall_albedo.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
     wall_albedo.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
     wall_albedo.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     wall_albedo.set_tex_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    texture_2d wall_normal(RESOURCE_DIR "textures/wall_normal_map.jpg", GL_TEXTURE_2D, 0, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, true, texture_2d::variety::NORMAL);
+    texture_2d wall_normal(RESOURCE_DIR "textures/wall_normal_map.jpg", true, false, texture_2d::variety::NORMAL);
     wall_normal.set_tex_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
     wall_normal.set_tex_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
     wall_normal.set_tex_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
