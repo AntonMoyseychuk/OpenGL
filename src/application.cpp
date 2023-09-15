@@ -122,8 +122,8 @@ void application::run() noexcept {
     // shadowmap_fbo.set_read_buffer(GL_NONE);
 
     csm::shadowmap_config csm_config;
-    csm_config.width = 640;
-    csm_config.height = 640;
+    csm_config.width = 720;
+    csm_config.height = 720;
     csm_config.internal_format = GL_DEPTH_COMPONENT32F;
     csm_config.format = GL_DEPTH_COMPONENT;
     csm_config.type = GL_FLOAT;
