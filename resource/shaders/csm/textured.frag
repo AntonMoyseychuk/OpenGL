@@ -39,6 +39,15 @@ uniform DirectionalLight u_light;
 
 uniform vec3 u_camera_position;
 
+const vec4 debug_colors[] = {
+    vec4(1.0f, 0.5f, 0.5f, 0.1f),
+    vec4(0.5f, 1.0f, 0.5f, 0.1f),
+    vec4(0.5f, 0.5f, 1.0f, 0.1f)
+};
+
+uniform bool u_cascade_debug_mode = true;
+
+
 vec3 calc_normal(vec3 normal_from_map) {
     const vec3 normal = 2.0f * normal_from_map - vec3(1.0f);
     return normalize(fs_in.TBN * normal);
@@ -66,14 +75,6 @@ float calc_shadow(uint cascade_index, vec3 normal) {
 
     return shadow;
 }
-
-const vec4 debug_colors[] = {
-    vec4(1.0f, 0.0f, 0.0f, 0.1f),
-    vec4(0.0f, 1.0f, 0.0f, 0.1f),
-    vec4(0.0f, 0.0f, 1.0f, 0.1f)
-};
-
-uniform bool u_cascade_debug_mode = true;
 
 void main() {
     const vec4 albedo = vec4(texture(u_material.diffuse0, fs_in.texcoord).rgb, 1.0f);

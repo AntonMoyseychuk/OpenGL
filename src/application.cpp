@@ -155,7 +155,7 @@ void application::run() noexcept {
     glm::vec3 cube_position(10.0f, -3.0f, -10.0f);
     glm::vec3 backpack_position(4.0f, -3.0f, -2.0f);
 
-    float z_mult = 1.0f;
+    float z_mult = 2.1f;
 
     int32_t debug_cascade_index = 0;
     bool cascade_debug_mode = true;
@@ -201,6 +201,7 @@ void application::run() noexcept {
                 m_renderer.render(GL_TRIANGLES, *shadowmap_sh, cube);
             }
         } else {
+            textured_shader.uniform("u_cascade_debug_mode", false);
             textured_shader.uniform("u_light.direction", glm::normalize(light_direction));
             textured_shader.uniform("u_light.color", light_color);
             textured_shader.uniform("u_light.intensity", intensity);
@@ -215,6 +216,7 @@ void application::run() noexcept {
                 );
             }
             
+            textured_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
             textured_shader.uniform("u_material.shininess", 16.0f);
             textured_shader.uniform("u_camera_position", m_camera.position);
             textured_shader.uniform("u_projection", m_proj_settings.projection_mat);
@@ -226,10 +228,12 @@ void application::run() noexcept {
             );
             m_renderer.render(GL_TRIANGLES, textured_shader, plane);
 
+            textured_shader.uniform("u_cascade_debug_mode", false);
             textured_shader.uniform("u_material.shininess", 64.0f);
             textured_shader.uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(2.5f)));
             m_renderer.render(GL_TRIANGLES, textured_shader, backpack);
 
+            flat_color_shader.uniform("u_cascade_debug_mode", false);
             flat_color_shader.uniform("u_light.direction", glm::normalize(light_direction));
             flat_color_shader.uniform("u_light.color", light_color);
             flat_color_shader.uniform("u_light.intensity", intensity);
@@ -315,10 +319,7 @@ void application::run() noexcept {
             ImGui::ColorEdit3("color", glm::value_ptr(light_color));
             ImGui::DragFloat("intensity", &intensity, 0.1f);
             ImGui::DragFloat("z_mult", &z_mult, 0.1f);
-            if (ImGui::Checkbox("debug cascade", &cascade_debug_mode)) {
-                textured_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
-                flat_color_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
-            }
+            ImGui::Checkbox("debug cascade", &cascade_debug_mode);
         ImGui::End();
 
         ImGui::Begin("Depth Texture");

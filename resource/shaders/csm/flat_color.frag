@@ -50,9 +50,9 @@ float calc_shadow(uint cascade_index, vec3 normal) {
 }
 
 const vec4 debug_colors[] = {
-    vec4(1.0f, 0.0f, 0.0f, 0.1f),
-    vec4(0.0f, 1.0f, 0.0f, 0.1f),
-    vec4(0.0f, 0.0f, 1.0f, 0.1f)
+    vec4(1.0f, 0.5f, 0.5f, 0.1f),
+    vec4(0.5f, 1.0f, 0.5f, 0.1f),
+    vec4(0.5f, 0.5f, 1.0f, 0.1f)
 };
 
 uniform bool u_cascade_debug_mode = true;
