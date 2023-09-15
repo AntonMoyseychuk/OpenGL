@@ -66,7 +66,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
     m_proj_settings.x = m_proj_settings.y = 0;
     m_proj_settings.near = 0.1f;
-    m_proj_settings.far = 150.0f;
+    m_proj_settings.far = 200.0f;
     _window_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
 
@@ -77,28 +77,6 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     // m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     _imgui_init("#version 430 core");
-}
-
-std::vector<glm::vec4> get_frustum_corners_world_space(const glm::mat4& view, const glm::mat4& projection) noexcept {
-    std::vector<glm::vec4> corners;
-    corners.reserve(8);
-    
-    const glm::mat4 inv = glm::inverse(projection * view);
-
-    for (uint32_t x = 0; x < 2; ++x) {
-        for (uint32_t y = 0; y < 2; ++y) {
-            for (uint32_t z = 0; z < 2; ++z) {
-                const glm::vec4 corner = inv * glm::vec4(
-                    2.0f * x - 1.0f, 
-                    2.0f * y - 1.0f, 
-                    2.0f * z - 1.0f, 
-                    1.0f);
-                corners.emplace_back(corner / corner.w);
-            }
-        }
-    }
-    
-    return corners;
 }
 
 void application::run() noexcept {
@@ -176,73 +154,36 @@ void application::run() noexcept {
     glm::vec3 sphere_position(-10.0f, -3.0f, 10.0f);
     glm::vec3 cube_position(10.0f, -3.0f, -10.0f);
     glm::vec3 backpack_position(4.0f, -3.0f, -2.0f);
-    float shadow_far_plane = 45.0f;
-
-    int32_t cascade_index = 0;
-    bool cascade_debug_mode = true;
 
     float z_mult = 1.0f;
-    struct subfrusta {
-        glm::mat4 view;
-        glm::mat4 projection;
-    };
-    const auto get_subfrusta_lightspace_view_projection = [&](const glm::mat4& view, const glm::mat4& projection) -> subfrusta {
-        const auto frustum_corners = get_frustum_corners_world_space(view, projection);
-        glm::vec3 center(0.0f);
-        for (const auto& corner : frustum_corners) {
-            center += glm::vec3(corner);
-        }
-        center /= frustum_corners.size();
 
-        const glm::mat4 light_view = glm::lookAt(center + glm::normalize(-light_direction), center, glm::vec3(0.0f, 1.0f, 0.0f));
-
-        float minX = std::numeric_limits<float>::max();
-        float maxX = std::numeric_limits<float>::lowest();
-        float minY = std::numeric_limits<float>::max();
-        float maxY = std::numeric_limits<float>::lowest();
-        float minZ = std::numeric_limits<float>::max();
-        float maxZ = std::numeric_limits<float>::lowest();
-        for (const auto& corner : frustum_corners) {
-            const auto trf = light_view * corner;
-            minX = std::min(minX, trf.x);
-            maxX = std::max(maxX, trf.x);
-            minY = std::min(minY, trf.y);
-            maxY = std::max(maxY, trf.y);
-            minZ = std::min(minZ, trf.z);
-            maxZ = std::max(maxZ, trf.z);
-        }
-        
-        minZ *= minZ < 0 ? z_mult : (1.0f / z_mult);
-        maxZ *= maxZ < 0 ? (1.0f / z_mult) : z_mult;
-
-        const glm::mat4 light_projection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
-
-        return subfrusta{ light_view, light_projection };
-    };
+    int32_t debug_cascade_index = 0;
+    bool cascade_debug_mode = true;
 
     const auto render_scene = [&](const shader* shadowmap_sh = nullptr) -> void {
-        static std::vector<subfrusta> subfrusta_lightspace_view_projection(csm_shadowmap.shadowmaps.size());
+        csm_shadowmap.calculate_subfrustas(
+            glm::radians(m_camera.fov), 
+            m_proj_settings.aspect, 
+            m_proj_settings.near, 
+            m_proj_settings.far, 
+            m_camera.get_view(), 
+            glm::normalize(light_direction),
+            z_mult
+        );
 
-        for (size_t i = 0; i < subfrusta_lightspace_view_projection.size(); ++i) {
-            const float near = i == 0 ? m_proj_settings.near : m_proj_settings.far / subfrusta_lightspace_view_projection.size() * i;
-            const float far = m_proj_settings.far / subfrusta_lightspace_view_projection.size() * (i + 1);
-
-            const glm::mat4 subfrusta_projection = glm::perspective(glm::radians(m_camera.fov), m_proj_settings.aspect, near, far);
-
-            subfrusta_lightspace_view_projection[i] = get_subfrusta_lightspace_view_projection(m_camera.get_view(), subfrusta_projection);
-
-            textured_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", far);
-            flat_color_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", far);
+        for (size_t i = 0; i < csm_shadowmap.subfrustas.size(); ++i) {
+            textured_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
+            flat_color_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
         }
 
         if (shadowmap_sh != nullptr) {
-            for (size_t i = 0; i < subfrusta_lightspace_view_projection.size(); ++i) {
+            for (size_t i = 0; i < csm_shadowmap.subfrustas.size(); ++i) {
                 m_renderer.viewport(0, 0, csm_shadowmap.shadowmaps[i].get_width(), csm_shadowmap.shadowmaps[i].get_height());
 
                 csm_shadowmap.bind_for_writing(i);
                 m_renderer.clear(GL_DEPTH_BUFFER_BIT);
-                shadowmap_sh->uniform("u_projection", subfrusta_lightspace_view_projection[i].projection);
-                shadowmap_sh->uniform("u_view", subfrusta_lightspace_view_projection[i].view);
+                shadowmap_sh->uniform("u_projection", csm_shadowmap.subfrustas[i].lightspace_projection);
+                shadowmap_sh->uniform("u_view", csm_shadowmap.subfrustas[i].lightspace_view);
                 shadowmap_sh->uniform("u_model", 
                     glm::translate(glm::mat4(1.0f), floor_position) *
                     glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(-1.0f, 0.0f, 0.0f)) * 
@@ -270,7 +211,7 @@ void application::run() noexcept {
                 textured_shader.uniform("u_light.csm.shadowmap[" + std::to_string(i) + "]", int32_t(10 + i));
                 textured_shader.uniform(
                     "u_light_space[" + std::to_string(i) + "]", 
-                    subfrusta_lightspace_view_projection[i].projection * subfrusta_lightspace_view_projection[i].view
+                    csm_shadowmap.subfrustas[i].lightspace_projection * csm_shadowmap.subfrustas[i].lightspace_view
                 );
             }
             
@@ -299,7 +240,7 @@ void application::run() noexcept {
                 flat_color_shader.uniform("u_light.csm.shadowmap[" + std::to_string(i) + "]", int32_t(10 + i));
                 flat_color_shader.uniform(
                     "u_light_space[" + std::to_string(i) + "]", 
-                    subfrusta_lightspace_view_projection[i].projection * subfrusta_lightspace_view_projection[i].view
+                    csm_shadowmap.subfrustas[i].lightspace_projection * csm_shadowmap.subfrustas[i].lightspace_view
                 );
             }
 
@@ -381,11 +322,11 @@ void application::run() noexcept {
         ImGui::End();
 
         ImGui::Begin("Depth Texture");
-            ImGui::SliderInt("cascade index", &cascade_index, 0, csm_shadowmap.shadowmaps.size() - 1);
+            ImGui::SliderInt("cascade index", &debug_cascade_index, 0, csm_shadowmap.shadowmaps.size() - 1);
             ImGui::Image(
-                (void*)(intptr_t)csm_shadowmap.shadowmaps[cascade_index].get_id(), 
-                ImVec2(csm_shadowmap.shadowmaps[cascade_index].get_width(), 
-                csm_shadowmap.shadowmaps[cascade_index].get_height()), 
+                (void*)(intptr_t)csm_shadowmap.shadowmaps[debug_cascade_index].get_id(), 
+                ImVec2(csm_shadowmap.shadowmaps[debug_cascade_index].get_width(), 
+                csm_shadowmap.shadowmaps[debug_cascade_index].get_height()), 
                 ImVec2(0, 1), 
                 ImVec2(1, 0)
             );
