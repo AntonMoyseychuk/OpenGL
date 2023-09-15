@@ -4,11 +4,18 @@ out vec4 frag_color;
 
 #define MAX_CASCADES 8
 in VS_OUT {
-    vec3 frag_pos;
-    float clip_space_z;
-    vec4 light_space_frag_pos[MAX_CASCADES];
+    vec3 frag_pos_worldspace;
+    vec4 frag_pos_clipspace;
     vec3 normal;
+
+    vec4 frag_pos_light_clipspace[MAX_CASCADES];
 } fs_in;
+
+struct CascadedShadowmap {
+    sampler2D shadowmap[MAX_CASCADES];
+    float cascade_end_z[MAX_CASCADES];
+};
+uniform uint u_cascade_count;
 
 struct DirectionalLight {
     vec3 direction;
@@ -16,8 +23,7 @@ struct DirectionalLight {
 
     float intensity;
 
-    sampler2D shadowmap[MAX_CASCADES];
-    float cascade_end_z[MAX_CASCADES];
+    CascadedShadowmap csm;
 };
 uniform DirectionalLight u_light;
 
@@ -28,10 +34,9 @@ struct Material {
 uniform Material u_material;
 
 uniform vec3 u_camera_position;
-uniform uint u_cascade_count;
 
 float calc_shadow(uint cascade_index, vec3 normal) {
-    const vec3 proj_coord = 0.5f * fs_in.light_space_frag_pos[cascade_index].xyz / fs_in.light_space_frag_pos[cascade_index].w + 0.5f;
+    const vec3 proj_coord = 0.5f * fs_in.frag_pos_light_clipspace[cascade_index].xyz / fs_in.frag_pos_light_clipspace[cascade_index].w + 0.5f;
     const float depth = proj_coord.z;
 
     if (depth > 1.0f) {
@@ -40,31 +45,43 @@ float calc_shadow(uint cascade_index, vec3 normal) {
 
     float bias = max(0.05 * (1.0 - dot(normal, normalize(u_light.direction))), 0.005);
 
-    const float closest  = texture(u_light.shadowmap[cascade_index], proj_coord.xy).r;
+    const float closest  = texture(u_light.csm.shadowmap[cascade_index], proj_coord.xy).r;
     return (closest + bias < depth) ? 0.2f : 1.0f;
 }
 
+const vec4 debug_colors[] = {
+    vec4(1.0f, 0.0f, 0.0f, 0.1f),
+    vec4(0.0f, 1.0f, 0.0f, 0.1f),
+    vec4(0.0f, 0.0f, 1.0f, 0.1f)
+};
+
+uniform bool u_cascade_debug_mode = true;
+
 void main() {
+    const vec4 albedo = vec4(u_material.albedo_color, 1.0f);
+
     float shadow = 0.0f;
+    uint debug_color_index = 0;
     for (uint i = 0; i < u_cascade_count; ++i) {
-        if (fs_in.clip_space_z <= u_light.cascade_end_z[i]) {
+        if (fs_in.frag_pos_clipspace.z <= u_light.csm.cascade_end_z[i]) {
             shadow = calc_shadow(i, fs_in.normal);
+            debug_color_index = i;
             break;
         }
     }
 
-    const vec3 ambient = u_material.albedo_color * 0.1f;
+    const vec4 ambient = albedo * 0.1f;
 
     const vec3 light_direction = -normalize(u_light.direction);
 
     const float diff = max(dot(light_direction, fs_in.normal), 0.0f);
-    const vec3 diffuse = diff * u_material.albedo_color * u_light.color * u_light.intensity * shadow;
+    const vec4 diffuse = diff * albedo * vec4(u_light.color, 1.0f) * u_light.intensity * shadow;
 
-    const vec3 view_direction = normalize(u_camera_position - fs_in.frag_pos);
+    const vec3 view_direction = normalize(u_camera_position - fs_in.frag_pos_worldspace);
     const vec3 half_direction = normalize(light_direction + view_direction);
 
     const float spec = pow(max(dot(half_direction, fs_in.normal), 0.0f), u_material.shininess);
-    const vec3 specular = spec * u_material.albedo_color * u_light.color * u_light.intensity * shadow;
+    const vec4 specular = spec * albedo * vec4(u_light.color, 1.0f) * u_light.intensity * shadow;
 
-    frag_color = vec4(ambient + diffuse + specular, 1.0f);
+    frag_color = ambient + (diffuse + specular) * (u_cascade_debug_mode ? debug_colors[debug_color_index] : vec4(1.0f));
 }

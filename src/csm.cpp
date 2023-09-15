@@ -37,8 +37,8 @@ void csm::bind_for_writing(size_t cascade_index) const noexcept {
 }
 
 void csm::bind_for_reading(size_t first_slot) const noexcept {
-    for (const auto& shadowmap : shadowmaps) {
-        shadowmap.bind(first_slot);
+    for (size_t i = 0; i < shadowmaps.size(); ++i) {
+        shadowmaps[i].bind(int32_t(first_slot + i));
     }
 }
 

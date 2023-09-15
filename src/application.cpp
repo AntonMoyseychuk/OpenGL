@@ -66,14 +66,14 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
     m_proj_settings.x = m_proj_settings.y = 0;
     m_proj_settings.near = 0.1f;
-    m_proj_settings.far = 100.0f;
+    m_proj_settings.far = 150.0f;
     _window_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
 
     m_renderer.enable(GL_DEPTH_TEST);
     m_renderer.depth_func(GL_LEQUAL);
     
-    // m_renderer.enable(GL_BLEND);
+    m_renderer.enable(GL_BLEND);
     // m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     _imgui_init("#version 430 core");
@@ -171,7 +171,7 @@ void application::run() noexcept {
     plane.add_texture(std::move(wall_albedo));
     plane.add_texture(std::move(wall_normal));
     
-    glm::vec3 light_direction(1.0f, -1.0f, -1.0f); glm::vec3 light_color(1.0f); float intensity = 1.0f, dir_light_dist = 5.0f;
+    glm::vec3 light_direction(1.0f, -1.0f, -1.0f); glm::vec3 light_color(1.0f); float intensity = 1.0f;
     glm::vec3 floor_position(0.0f, -5.0f, 0.0f);
     glm::vec3 sphere_position(-10.0f, -3.0f, 10.0f);
     glm::vec3 cube_position(10.0f, -3.0f, -10.0f);
@@ -179,13 +179,14 @@ void application::run() noexcept {
     float shadow_far_plane = 45.0f;
 
     int32_t cascade_index = 0;
+    bool cascade_debug_mode = true;
 
-    float z_mult = 0.4f;
-    struct subfrusta_matrices {
+    float z_mult = 1.0f;
+    struct subfrusta {
         glm::mat4 view;
         glm::mat4 projection;
     };
-    const auto get_subfrusta_lightspace_view_projection = [&](const glm::mat4& view, const glm::mat4& projection) -> subfrusta_matrices {
+    const auto get_subfrusta_lightspace_view_projection = [&](const glm::mat4& view, const glm::mat4& projection) -> subfrusta {
         const auto frustum_corners = get_frustum_corners_world_space(view, projection);
         glm::vec3 center(0.0f);
         for (const auto& corner : frustum_corners) {
@@ -193,11 +194,7 @@ void application::run() noexcept {
         }
         center /= frustum_corners.size();
 
-        const glm::mat4 light_view = glm::lookAt(
-            center + glm::normalize(-light_direction) * dir_light_dist, 
-            center, 
-            glm::vec3(0.0f, 1.0f, 0.0f)
-        );
+        const glm::mat4 light_view = glm::lookAt(center + glm::normalize(-light_direction), center, glm::vec3(0.0f, 1.0f, 0.0f));
 
         float minX = std::numeric_limits<float>::max();
         float maxX = std::numeric_limits<float>::lowest();
@@ -220,32 +217,32 @@ void application::run() noexcept {
 
         const glm::mat4 light_projection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
 
-        return subfrusta_matrices{ light_view, light_projection };
+        return subfrusta{ light_view, light_projection };
     };
 
     const auto render_scene = [&](const shader* shadowmap_sh = nullptr) -> void {
-        static std::vector<subfrusta_matrices> subfrusta_view_projection(csm_shadowmap.shadowmaps.size());
+        static std::vector<subfrusta> subfrusta_lightspace_view_projection(csm_shadowmap.shadowmaps.size());
 
-        for (size_t i = 0; i < subfrusta_view_projection.size(); ++i) {
-            const float near = i == 0 ? m_proj_settings.near : m_proj_settings.far / subfrusta_view_projection.size() * i;
-            const float far = m_proj_settings.far / subfrusta_view_projection.size() * (i + 1);
-            
-            textured_shader.uniform("u_light.cascade_end_z[" + std::to_string(i) + "]", far);
-            flat_color_shader.uniform("u_light.cascade_end_z[" + std::to_string(i) + "]", far);
+        for (size_t i = 0; i < subfrusta_lightspace_view_projection.size(); ++i) {
+            const float near = i == 0 ? m_proj_settings.near : m_proj_settings.far / subfrusta_lightspace_view_projection.size() * i;
+            const float far = m_proj_settings.far / subfrusta_lightspace_view_projection.size() * (i + 1);
 
             const glm::mat4 subfrusta_projection = glm::perspective(glm::radians(m_camera.fov), m_proj_settings.aspect, near, far);
 
-            subfrusta_view_projection[i] = get_subfrusta_lightspace_view_projection(m_camera.get_view(), subfrusta_projection);
+            subfrusta_lightspace_view_projection[i] = get_subfrusta_lightspace_view_projection(m_camera.get_view(), subfrusta_projection);
+
+            textured_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", far);
+            flat_color_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", far);
         }
 
         if (shadowmap_sh != nullptr) {
-            for (size_t i = 0; i < subfrusta_view_projection.size(); ++i) {
+            for (size_t i = 0; i < subfrusta_lightspace_view_projection.size(); ++i) {
                 m_renderer.viewport(0, 0, csm_shadowmap.shadowmaps[i].get_width(), csm_shadowmap.shadowmaps[i].get_height());
 
                 csm_shadowmap.bind_for_writing(i);
                 m_renderer.clear(GL_DEPTH_BUFFER_BIT);
-                shadowmap_sh->uniform("u_projection", subfrusta_view_projection[i].projection);
-                shadowmap_sh->uniform("u_view", subfrusta_view_projection[i].view);
+                shadowmap_sh->uniform("u_projection", subfrusta_lightspace_view_projection[i].projection);
+                shadowmap_sh->uniform("u_view", subfrusta_lightspace_view_projection[i].view);
                 shadowmap_sh->uniform("u_model", 
                     glm::translate(glm::mat4(1.0f), floor_position) *
                     glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(-1.0f, 0.0f, 0.0f)) * 
@@ -253,7 +250,7 @@ void application::run() noexcept {
                 );
                 m_renderer.render(GL_TRIANGLES, *shadowmap_sh, plane);
 
-                shadowmap_sh->uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(2.0f)));
+                shadowmap_sh->uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(2.5f)));
                 m_renderer.render(GL_TRIANGLES, *shadowmap_sh, backpack);
 
                 shadowmap_sh->uniform("u_model", glm::translate(glm::mat4(1.0f), sphere_position));
@@ -270,9 +267,10 @@ void application::run() noexcept {
             csm_shadowmap.bind_for_reading(10);
             for (size_t i = 0; i < csm_shadowmap.shadowmaps.size(); ++i) {
                 textured_shader.uniform("u_cascade_count", csm_shadowmap.shadowmaps.size());
-                textured_shader.uniform("u_light.shadowmap[" + std::to_string(i) + "]", int32_t(10 + i));
+                textured_shader.uniform("u_light.csm.shadowmap[" + std::to_string(i) + "]", int32_t(10 + i));
                 textured_shader.uniform(
-                    "u_light_space[" + std::to_string(i) + "]", subfrusta_view_projection[i].projection * subfrusta_view_projection[i].view
+                    "u_light_space[" + std::to_string(i) + "]", 
+                    subfrusta_lightspace_view_projection[i].projection * subfrusta_lightspace_view_projection[i].view
                 );
             }
             
@@ -288,7 +286,7 @@ void application::run() noexcept {
             m_renderer.render(GL_TRIANGLES, textured_shader, plane);
 
             textured_shader.uniform("u_material.shininess", 64.0f);
-            textured_shader.uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(2.0f)));
+            textured_shader.uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(2.5f)));
             m_renderer.render(GL_TRIANGLES, textured_shader, backpack);
 
             flat_color_shader.uniform("u_light.direction", glm::normalize(light_direction));
@@ -298,9 +296,10 @@ void application::run() noexcept {
             csm_shadowmap.bind_for_reading(10);
             for (size_t i = 0; i < csm_shadowmap.shadowmaps.size(); ++i) {
                 flat_color_shader.uniform("u_cascade_count", csm_shadowmap.shadowmaps.size());
-                flat_color_shader.uniform("u_light.shadowmap[" + std::to_string(i) + "]", int32_t(10 + i));
+                flat_color_shader.uniform("u_light.csm.shadowmap[" + std::to_string(i) + "]", int32_t(10 + i));
                 flat_color_shader.uniform(
-                    "u_light_space[" + std::to_string(i) + "]", subfrusta_view_projection[i].projection * subfrusta_view_projection[i].view
+                    "u_light_space[" + std::to_string(i) + "]", 
+                    subfrusta_lightspace_view_projection[i].projection * subfrusta_lightspace_view_projection[i].view
                 );
             }
 
@@ -374,8 +373,11 @@ void application::run() noexcept {
             ImGui::DragFloat3("direction", glm::value_ptr(light_direction), 0.1f);
             ImGui::ColorEdit3("color", glm::value_ptr(light_color));
             ImGui::DragFloat("intensity", &intensity, 0.1f);
-            ImGui::DragFloat("distance", &dir_light_dist, 0.1f);
             ImGui::DragFloat("z_mult", &z_mult, 0.1f);
+            if (ImGui::Checkbox("debug cascade", &cascade_debug_mode)) {
+                textured_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
+                flat_color_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
+            }
         ImGui::End();
 
         ImGui::Begin("Depth Texture");
