@@ -17,7 +17,7 @@ uniform uint u_cascade_count;
 
 void main() {
     vs_out.frag_pos_worldspace = vec3(u_model * vec4(a_position, 1.0f));
-    vs_out.normal = transpose(inverse(mat3(u_model))) * a_normal;
+    vs_out.normal = normalize(transpose(inverse(mat3(u_model))) * normalize(a_normal));
 
     for (uint i = 0; i < u_cascade_count; ++i) {
         vs_out.frag_pos_light_clipspace[i] = u_light_space[i] * vec4(vs_out.frag_pos_worldspace, 1.0f);

@@ -65,13 +65,13 @@ float calc_shadow(uint cascade_index, vec3 normal) {
 
     const vec2 texel_size = 1.0f / textureSize(u_light.csm.shadowmap[cascade_index], 0);
     float shadow = 0.0f;
-    for(int x = -3; x <= 3; ++x) {
-        for(int y = -3; y <= 3; ++y) {
+    for(int x = -2; x <= 2; ++x) {
+        for(int y = -2; y <= 2; ++y) {
             const float closest  = texture(u_light.csm.shadowmap[cascade_index], proj_coord.xy + texel_size * vec2(x, y)).r;     
-            shadow += (closest + bias < depth) ? 0.2f : 1.0f;        
+            shadow += (closest + bias < depth) ? 0.1f : 1.0f;        
         }    
     }
-    shadow /= 49.0f;
+    shadow /= 25.0f;
 
     return shadow;
 }

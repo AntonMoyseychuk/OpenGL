@@ -16,10 +16,6 @@
 #include "framebuffer.hpp"
 #include "csm.hpp"
 
-#include "light/spot_light.hpp"
-#include "light/point_light.hpp"
-#include "light/directional_light.hpp"
-
 #include "uv_sphere.hpp"
 
 #include "random.hpp"
@@ -153,7 +149,7 @@ void application::run() noexcept {
     glm::vec3 floor_position(0.0f, -5.0f, 0.0f);
     glm::vec3 sphere_position(-10.0f, -3.0f, 10.0f);
     glm::vec3 cube_position(10.0f, -3.0f, -10.0f);
-    glm::vec3 backpack_position(4.0f, -3.0f, -2.0f);
+    glm::vec3 backpack_position(0.0f);
 
     float z_mult = 2.1f;
 
@@ -191,7 +187,7 @@ void application::run() noexcept {
                 );
                 m_renderer.render(GL_TRIANGLES, *shadowmap_sh, plane);
 
-                shadowmap_sh->uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(2.5f)));
+                shadowmap_sh->uniform("u_model", glm::translate(glm::mat4(1.0f), backpack_position) * glm::scale(glm::mat4(1.0f), glm::vec3(2.5f)));
                 m_renderer.render(GL_TRIANGLES, *shadowmap_sh, backpack);
 
                 shadowmap_sh->uniform("u_model", glm::translate(glm::mat4(1.0f), sphere_position));
@@ -230,7 +226,7 @@ void application::run() noexcept {
 
             textured_shader.uniform("u_cascade_debug_mode", false);
             textured_shader.uniform("u_material.shininess", 64.0f);
-            textured_shader.uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(2.5f)));
+            textured_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), backpack_position) * glm::scale(glm::mat4(1.0f), glm::vec3(2.5f)));
             m_renderer.render(GL_TRIANGLES, textured_shader, backpack);
 
             flat_color_shader.uniform("u_cascade_debug_mode", false);
