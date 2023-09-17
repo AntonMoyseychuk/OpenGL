@@ -23,6 +23,7 @@ public:
     bool attach(uint32_t attachment, const renderbuffer& renderbuffer) const noexcept;
 
     void set_draw_buffer(uint32_t buffer) const noexcept;
+    void set_draw_buffer(size_t count, const uint32_t* buffers) const noexcept;
     void set_read_buffer(uint32_t src) const noexcept;
 
     bool is_complete() const noexcept;

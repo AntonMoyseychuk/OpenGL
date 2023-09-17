@@ -43,10 +43,19 @@ float calc_shadow(uint cascade_index, vec3 normal) {
         return 1.0f;
     }
 
-    float bias = max(0.005f * (1.0f - dot(normal, normalize(u_light.direction))), 0.0005f);
+    const float bias = max(0.005f * (1.0f - dot(normal, normalize(u_light.direction))), 0.0005f);
 
-    const float closest  = texture(u_light.csm.shadowmap[cascade_index], proj_coord.xy).r;
-    return (closest + bias < depth) ? 0.1f : 1.0f;
+    const vec2 texel_size = 1.0f / textureSize(u_light.csm.shadowmap[cascade_index], 0);
+    float shadow = 0.0f;
+    for(int x = -1; x <= 1; ++x) {
+        for(int y = -1; y <= 1; ++y) {
+            const float closest  = texture(u_light.csm.shadowmap[cascade_index], proj_coord.xy + texel_size * vec2(x, y)).r;     
+            shadow += (closest + bias < depth) ? 0.1f : 1.0f;        
+        }    
+    }
+    shadow /= 9.0f;
+
+    return shadow;
 }
 
 const vec4 debug_colors[] = {

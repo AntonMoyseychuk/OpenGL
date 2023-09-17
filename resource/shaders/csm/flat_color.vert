@@ -12,7 +12,7 @@ out VS_OUT {
     vec4 frag_pos_light_clipspace[MAX_CASCADES];
 } vs_out;
 
-uniform mat4 u_model, u_view, u_projection, u_light_space;
+uniform mat4 u_model, u_view, u_projection, u_light_space[MAX_CASCADES];
 uniform uint u_cascade_count;
 
 void main() {

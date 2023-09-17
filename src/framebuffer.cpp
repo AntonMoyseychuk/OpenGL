@@ -69,6 +69,10 @@ void framebuffer::set_draw_buffer(uint32_t buffer) const noexcept {
     OGL_CALL(glNamedFramebufferDrawBuffer(m_id, buffer));
 }
 
+void framebuffer::set_draw_buffer(size_t count, const uint32_t *buffers) const noexcept {
+    OGL_CALL(glNamedFramebufferDrawBuffers(m_id, count, buffers));
+}
+
 void framebuffer::set_read_buffer(uint32_t src) const noexcept {
     OGL_CALL(glNamedFramebufferReadBuffer(m_id, src));
 }

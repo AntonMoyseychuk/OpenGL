@@ -96,8 +96,8 @@ void application::run() noexcept {
     // shadowmap_fbo.set_read_buffer(GL_NONE);
 
     csm::shadowmap_config csm_config;
-    csm_config.width = 720;
-    csm_config.height = 720;
+    csm_config.width = m_proj_settings.width;
+    csm_config.height = m_proj_settings.height;
     csm_config.internal_format = GL_DEPTH_COMPONENT32F;
     csm_config.format = GL_DEPTH_COMPONENT;
     csm_config.type = GL_FLOAT;
@@ -318,6 +318,27 @@ void application::run() noexcept {
             ImGui::Checkbox("debug cascade", &cascade_debug_mode);
         ImGui::End();
 
+        ImGui::Begin("Backpack");
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
+            if (ImGui::Button("X")) {
+                backpack_position.x = 0.0f;
+            }
+            ImGui::PushItemWidth(70);
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
+            ImGui::SameLine(); ImGui::DragFloat("##X", &backpack_position.x, 0.1f);
+            if ((ImGui::SameLine(), ImGui::Button("Y"))) {
+                backpack_position.y = 0.0f;
+            }
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.6f, 1.0f));
+            ImGui::SameLine(); ImGui::DragFloat("##Y", &backpack_position.y, 0.1f);
+            if ((ImGui::SameLine(), ImGui::Button("Z"))) {
+                backpack_position.z = 0.0f;
+            }
+            ImGui::SameLine(); ImGui::DragFloat("##Z", &backpack_position.z, 0.1f);
+            ImGui::PopStyleColor(3);
+            ImGui::PopItemWidth();
+        ImGui::End();
+
         ImGui::Begin("Depth Texture");
             ImGui::SliderInt("cascade index", &debug_cascade_index, 0, csm_shadowmap.shadowmaps.size() - 1);
             ImGui::Image(
@@ -406,16 +427,18 @@ void application::_window_resize_callback(GLFWwindow *window, int width, int hei
     application* app = static_cast<application*>(glfwGetWindowUserPointer(window));
     ASSERT(app != nullptr, "", "application instance is not set");
 
-    app->m_renderer.viewport(app->m_proj_settings.x, app->m_proj_settings.y, width, height);
+    if (width != 0 && height != 0) {
+        app->m_renderer.viewport(app->m_proj_settings.x, app->m_proj_settings.y, width, height);
 
-    app->m_proj_settings.width = width;
-    app->m_proj_settings.height = height;
-    
-    app->m_proj_settings.aspect = static_cast<float>(width) / height;
-    
-    const camera& active_camera = app->m_camera;
-
-    app->m_proj_settings.projection_mat = glm::perspective(glm::radians(active_camera.fov), app->m_proj_settings.aspect, app->m_proj_settings.near, app->m_proj_settings.far);
+        app->m_proj_settings.width = width;
+        app->m_proj_settings.height = height;
+        
+        app->m_proj_settings.aspect = static_cast<float>(width) / height;
+        
+        const camera& active_camera = app->m_camera;
+        
+        app->m_proj_settings.projection_mat = glm::perspective(glm::radians(active_camera.fov), app->m_proj_settings.aspect, app->m_proj_settings.near, app->m_proj_settings.far);
+    }
 }
 
 void application::_mouse_callback(GLFWwindow *window, double xpos, double ypos) noexcept {
