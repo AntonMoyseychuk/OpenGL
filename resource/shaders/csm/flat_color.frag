@@ -85,13 +85,13 @@ void main() {
     const vec3 light_direction = -normalize(u_light.direction);
 
     const float diff = max(dot(light_direction, normal), 0.0f);
-    const vec4 diffuse = diff * albedo * vec4(u_light.color, 1.0f) * u_light.intensity * shadow;
+    const vec4 diffuse = diff * albedo * vec4(u_light.color, 1.0f) * u_light.intensity;
 
     const vec3 view_direction = normalize(u_camera_position - fs_in.frag_pos_worldspace);
     const vec3 half_direction = normalize(light_direction + view_direction);
 
     const float spec = pow(max(dot(half_direction, normal), 0.0f), u_material.shininess);
-    const vec4 specular = spec * albedo * vec4(u_light.color, 1.0f) * u_light.intensity * shadow;
+    const vec4 specular = shadow > 0.99f ? spec * albedo * vec4(u_light.color, 1.0f) * u_light.intensity : vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
-    frag_color = ambient + (diffuse + specular) * (u_cascade_debug_mode ? debug_colors[debug_color_index] : vec4(1.0f));
+    frag_color = ambient + (diffuse + specular) * shadow * (u_cascade_debug_mode ? debug_colors[debug_color_index] : vec4(1.0f));
 }
