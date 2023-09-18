@@ -30,6 +30,7 @@ public:
     void uniform(const std::string& name, double           uniform) const noexcept;
     void uniform(const std::string& name, int32_t          uniform) const noexcept;
     void uniform(const std::string& name, uint32_t         uniform) const noexcept;
+    void uniform(const std::string& name, const glm::vec2& uniform) const noexcept;
     void uniform(const std::string& name, const glm::vec3& uniform) const noexcept;
     void uniform(const std::string& name, const glm::vec4& uniform) const noexcept;
     void uniform(const std::string& name, const glm::mat3& uniform) const noexcept;

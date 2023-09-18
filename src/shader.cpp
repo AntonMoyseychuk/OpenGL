@@ -125,6 +125,10 @@ void shader::uniform(const std::string& name, uint32_t uniform) const noexcept {
     _set_uniform(glUniform1ui, name, uniform);
 }
 
+void shader::uniform(const std::string &name, const glm::vec2 &uniform) const noexcept {
+    _set_uniform(glUniform2fv, name, 1, glm::value_ptr(uniform));
+}
+
 void shader::uniform(const std::string& name, const glm::vec3& uniform) const noexcept {
     _set_uniform(glUniform3fv, name, 1, glm::value_ptr(uniform));
 }

@@ -69,69 +69,93 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     m_renderer.enable(GL_DEPTH_TEST);
     m_renderer.depth_func(GL_LEQUAL);
     
-    m_renderer.enable(GL_BLEND);
+    // m_renderer.enable(GL_BLEND);
     // m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     _imgui_init("#version 430 core");
 }
 
+constexpr float lerp(float a, float b, float t) {
+    return a + (b - a) * t;
+}
+
 void application::run() noexcept {
-    shader textured_shader(RESOURCE_DIR "shaders/csm/textured.vert", RESOURCE_DIR "shaders/csm/textured.frag");
-    shader flat_color_shader(RESOURCE_DIR "shaders/csm/flat_color.vert", RESOURCE_DIR "shaders/csm/flat_color.frag");
-    shader shadowmap_shader(RESOURCE_DIR "shaders/csm/shadowmap.vert", RESOURCE_DIR "shaders/csm/shadowmap.frag");
+    shader gpass_shader(RESOURCE_DIR "shaders/ssao/gpass.vert", RESOURCE_DIR "shaders/ssao/gpass.frag");
+    shader ssao_shader(RESOURCE_DIR "shaders/ssao/ssao.vert", RESOURCE_DIR "shaders/ssao/ssao.frag");
+    shader blur_shader(RESOURCE_DIR "shaders/ssao/blur.vert", RESOURCE_DIR "shaders/ssao/blur.frag");
+    shader lightpass_shader(RESOURCE_DIR "shaders/ssao/lightpass.vert", RESOURCE_DIR "shaders/ssao/lightpass.frag");
 
-    // framebuffer shadowmap_fbo;
-    // shadowmap_fbo.create();
-    //
-    // texture_2d shadowmap(640, 640, GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT);
-    // shadowmap.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    // shadowmap.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    // shadowmap.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    // shadowmap.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    // glm::vec4 border_color(1.0f);
-    // shadowmap.set_parameter(GL_TEXTURE_BORDER_COLOR, glm::value_ptr(border_color));
-    // 
-    // shadowmap_fbo.attach(GL_DEPTH_ATTACHMENT, 0, shadowmap);
-    // shadowmap_fbo.set_draw_buffer(GL_NONE);
-    // shadowmap_fbo.set_read_buffer(GL_NONE);
+    framebuffer gpass_fbo;
+    gpass_fbo.create();
 
-    csm::shadowmap_config csm_config;
-    csm_config.width = m_proj_settings.width;
-    csm_config.height = m_proj_settings.height;
-    csm_config.internal_format = GL_DEPTH_COMPONENT32F;
-    csm_config.format = GL_DEPTH_COMPONENT;
-    csm_config.type = GL_FLOAT;
-    csm_config.mag_filter = GL_NEAREST;
-    csm_config.min_filter = GL_NEAREST;
-    csm_config.wrap_s = GL_CLAMP_TO_BORDER;
-    csm_config.wrap_t = GL_CLAMP_TO_BORDER;
-    csm_config.border_color = glm::vec4(1.0f);
-    csm csm_shadowmap(3, csm_config);
+    texture_2d position_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+    position_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    position_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    position_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    position_buffer.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    texture_2d normal_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+    normal_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    normal_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    normal_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    normal_buffer.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    texture_2d color_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+    color_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    color_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    color_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    color_buffer.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    model::texture_load_config config;
-    config.flip_on_load = true;
-    config.use_gamma = false;
-    config.generate_mipmap = true;
-    config.mag_filter = GL_LINEAR;
-    config.min_filter = GL_LINEAR;
-    config.wrap_s = GL_REPEAT;
-    config.wrap_t = GL_REPEAT;
-    model backpack(RESOURCE_DIR "models/backpack/backpack.obj", config);
-    
-    model cube(RESOURCE_DIR "models/cube/cube.obj", model::texture_load_config());
-    
-    uv_sphere sphere(40, 40);
-    
-    texture_2d wall_albedo(RESOURCE_DIR "textures/wall_albedo_map.jpg", true, false, texture_2d::variety::DIFFUSE);
-    wall_albedo.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    wall_albedo.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    wall_albedo.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    wall_albedo.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    texture_2d wall_normal(RESOURCE_DIR "textures/wall_normal_map.jpg", true, false, texture_2d::variety::NORMAL);
-    wall_normal.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    wall_normal.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    wall_normal.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    wall_normal.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    renderbuffer depth_buffer(m_proj_settings.width, m_proj_settings.height, GL_DEPTH_COMPONENT);
+
+    assert(gpass_fbo.attach(GL_COLOR_ATTACHMENT0, 0, position_buffer));
+    assert(gpass_fbo.attach(GL_COLOR_ATTACHMENT1, 0, normal_buffer));
+    assert(gpass_fbo.attach(GL_COLOR_ATTACHMENT2, 0, color_buffer));
+    assert(gpass_fbo.attach(GL_DEPTH_ATTACHMENT, depth_buffer));
+
+    uint32_t attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+    gpass_fbo.set_draw_buffer(3, attachments);
+
+
+    framebuffer ssao_fbo;
+    ssao_fbo.create();
+
+    texture_2d ssao_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RED, GL_RED, GL_FLOAT);
+    ssao_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    ssao_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    assert(ssao_fbo.attach(GL_COLOR_ATTACHMENT0, 0, ssao_buffer));
+
+    std::vector<glm::vec3> ssao_kernel(64);
+    for(size_t i = 0; i < ssao_kernel.size(); ++i) {
+        glm::vec3 sample = glm::normalize(glm::vec3(random(-1.0f, 1.0f), random(-1.0f, 1.0f), random(0.0f, 1.0f)));
+        sample *= random(0.0f, 1.0f);
+
+        float scale = static_cast<float>(i) / ssao_kernel.size();
+        scale = lerp(0.1f, 1.0f, scale * scale);
+
+        ssao_kernel[i] = sample * scale;
+        ssao_shader.uniform("u_kernel[" + std::to_string(i) + "]", ssao_kernel[i]);
+    }
+
+
+    framebuffer ssaoblur_fbo;
+    ssaoblur_fbo.create();
+
+    texture_2d ssaoblur_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RED, GL_RED, GL_FLOAT);
+    ssaoblur_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    ssaoblur_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    assert(ssaoblur_fbo.attach(GL_COLOR_ATTACHMENT0, 0, ssaoblur_buffer));
+
+    std::vector<glm::vec3> ssao_noise(16);
+    for (size_t i = 0; i < ssao_noise.size(); ++i) {
+        ssao_noise[i] = glm::vec3(random(-1.0f, 1.0f), random(-1.0f, 1.0f), 0.0f);
+    }
+
+    texture_2d ssao_noise_buffer(4, 4, GL_TEXTURE_2D, 0, GL_RGBA16F, GL_RGB, GL_FLOAT, ssao_noise.data());
+    ssao_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    ssao_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    ssao_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    ssao_buffer.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     mesh plane(
         std::vector<mesh::vertex>{
@@ -142,121 +166,24 @@ void application::run() noexcept {
         }, 
         { 0, 2, 1, 0, 3, 2 }
     );
-    plane.add_texture(std::move(wall_albedo));
-    plane.add_texture(std::move(wall_normal));
-    
-    glm::vec3 light_direction(1.0f, -1.0f, -1.0f); glm::vec3 light_color(1.0f); float intensity = 1.0f;
-    glm::vec3 floor_position(0.0f, -5.0f, 0.0f);
-    glm::vec3 sphere_position(-10.0f, -3.0f, 10.0f);
-    glm::vec3 cube_position(10.0f, -3.0f, -10.0f);
-    glm::vec3 backpack_position(0.0f);
 
-    float z_mult = 2.1f;
+    model cube(RESOURCE_DIR "models/cube/cube.obj", std::nullopt);
 
-    int32_t debug_cascade_index = 0;
-    bool cascade_debug_mode = true;
+    model::texture_load_config config;
+    config.mag_filter = GL_LINEAR;
+    config.min_filter = GL_LINEAR;
+    config.wrap_s = GL_CLAMP_TO_EDGE;
+    config.wrap_t = GL_CLAMP_TO_EDGE;
+    config.use_gamma = false;
+    config.generate_mipmap = true;
+    config.flip_on_load = true;
+    model backpack(RESOURCE_DIR "models/backpack/backpack.obj", config);
 
-    const auto render_scene = [&](const shader* shadowmap_sh = nullptr) -> void {
-        csm_shadowmap.calculate_subfrustas(
-            glm::radians(m_camera.fov), 
-            m_proj_settings.aspect, 
-            m_proj_settings.near, 
-            m_proj_settings.far, 
-            m_camera.get_view(), 
-            glm::normalize(light_direction),
-            z_mult
-        );
+    glm::vec3 light_position(2.0f), light_color(1.0f);
+    float intensity = 1.0f;
 
-        for (size_t i = 0; i < csm_shadowmap.subfrustas.size(); ++i) {
-            textured_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
-            flat_color_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
-        }
-
-        if (shadowmap_sh != nullptr) {
-            for (size_t i = 0; i < csm_shadowmap.subfrustas.size(); ++i) {
-                m_renderer.viewport(0, 0, csm_shadowmap.shadowmaps[i].get_width(), csm_shadowmap.shadowmaps[i].get_height());
-
-                csm_shadowmap.bind_for_writing(i);
-                m_renderer.clear(GL_DEPTH_BUFFER_BIT);
-                shadowmap_sh->uniform("u_projection", csm_shadowmap.subfrustas[i].lightspace_projection);
-                shadowmap_sh->uniform("u_view", csm_shadowmap.subfrustas[i].lightspace_view);
-                shadowmap_sh->uniform("u_model", 
-                    glm::translate(glm::mat4(1.0f), floor_position) *
-                    glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(-1.0f, 0.0f, 0.0f)) * 
-                    glm::scale(glm::mat4(1.0f), glm::vec3(30.0f))
-                );
-                m_renderer.render(GL_TRIANGLES, *shadowmap_sh, plane);
-
-                shadowmap_sh->uniform("u_model", glm::translate(glm::mat4(1.0f), backpack_position) * glm::scale(glm::mat4(1.0f), glm::vec3(2.5f)));
-                m_renderer.render(GL_TRIANGLES, *shadowmap_sh, backpack);
-
-                shadowmap_sh->uniform("u_model", glm::translate(glm::mat4(1.0f), sphere_position));
-                m_renderer.render(GL_TRIANGLES, *shadowmap_sh, sphere.mesh);
-
-                shadowmap_sh->uniform("u_model", glm::translate(glm::mat4(1.0f), cube_position));
-                m_renderer.render(GL_TRIANGLES, *shadowmap_sh, cube);
-            }
-        } else {
-            textured_shader.uniform("u_cascade_debug_mode", false);
-            textured_shader.uniform("u_light.direction", glm::normalize(light_direction));
-            textured_shader.uniform("u_light.color", light_color);
-            textured_shader.uniform("u_light.intensity", intensity);
-            
-            csm_shadowmap.bind_for_reading(10);
-            for (size_t i = 0; i < csm_shadowmap.shadowmaps.size(); ++i) {
-                textured_shader.uniform("u_cascade_count", csm_shadowmap.shadowmaps.size());
-                textured_shader.uniform("u_light.csm.shadowmap[" + std::to_string(i) + "]", int32_t(10 + i));
-                textured_shader.uniform(
-                    "u_light_space[" + std::to_string(i) + "]", 
-                    csm_shadowmap.subfrustas[i].lightspace_projection * csm_shadowmap.subfrustas[i].lightspace_view
-                );
-            }
-            
-            textured_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
-            textured_shader.uniform("u_material.shininess", 16.0f);
-            textured_shader.uniform("u_camera_position", m_camera.position);
-            textured_shader.uniform("u_projection", m_proj_settings.projection_mat);
-            textured_shader.uniform("u_view", m_camera.get_view());
-            textured_shader.uniform("u_model", 
-                glm::translate(glm::mat4(1.0f), floor_position) *
-                glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(-1.0f, 0.0f, 0.0f)) * 
-                glm::scale(glm::mat4(1.0f), glm::vec3(30.0f))
-            );
-            m_renderer.render(GL_TRIANGLES, textured_shader, plane);
-
-            textured_shader.uniform("u_cascade_debug_mode", false);
-            textured_shader.uniform("u_material.shininess", 64.0f);
-            textured_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), backpack_position) * glm::scale(glm::mat4(1.0f), glm::vec3(2.5f)));
-            m_renderer.render(GL_TRIANGLES, textured_shader, backpack);
-
-            flat_color_shader.uniform("u_cascade_debug_mode", false);
-            flat_color_shader.uniform("u_light.direction", glm::normalize(light_direction));
-            flat_color_shader.uniform("u_light.color", light_color);
-            flat_color_shader.uniform("u_light.intensity", intensity);
-            
-            csm_shadowmap.bind_for_reading(10);
-            for (size_t i = 0; i < csm_shadowmap.shadowmaps.size(); ++i) {
-                flat_color_shader.uniform("u_cascade_count", csm_shadowmap.shadowmaps.size());
-                flat_color_shader.uniform("u_light.csm.shadowmap[" + std::to_string(i) + "]", int32_t(10 + i));
-                flat_color_shader.uniform(
-                    "u_light_space[" + std::to_string(i) + "]", 
-                    csm_shadowmap.subfrustas[i].lightspace_projection * csm_shadowmap.subfrustas[i].lightspace_view
-                );
-            }
-
-            flat_color_shader.uniform("u_material.shininess", 64.0f);
-            flat_color_shader.uniform("u_material.albedo_color", glm::vec3(1.0f));
-            flat_color_shader.uniform("u_camera_position", m_camera.position);
-            flat_color_shader.uniform("u_projection", m_proj_settings.projection_mat);
-            flat_color_shader.uniform("u_view", m_camera.get_view());
-
-            flat_color_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), sphere_position));
-            m_renderer.render(GL_TRIANGLES, flat_color_shader, sphere.mesh);
-
-            flat_color_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), cube_position));
-            m_renderer.render(GL_TRIANGLES, flat_color_shader, cube);
-        }
-    };
+    int32_t buffer_number = 0;
+    bool use_ssao = true;
 
     ImGuiIO& io = ImGui::GetIO();
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
@@ -281,14 +208,67 @@ void application::run() noexcept {
             }
         }
 
-        
-        render_scene(&shadowmap_shader);
+        gpass_fbo.bind();
+        m_renderer.set_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
+        m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        gpass_shader.uniform("u_projection", m_proj_settings.projection_mat);
+        gpass_shader.uniform("u_view", m_camera.get_view());
+        gpass_shader.uniform("u_reverse_normals", true);
+        gpass_shader.uniform("u_use_flat_color", true);
+        gpass_shader.uniform("u_color", glm::vec3(1.0f));
+        gpass_shader.uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(30.0f)));
+        m_renderer.render(GL_TRIANGLES, gpass_shader, cube);
+        gpass_shader.uniform("u_model", glm::translate(glm::mat4(1.0f), light_position) * glm::scale(glm::mat4(1.0f), glm::vec3(0.2f)));
+        gpass_shader.uniform("u_color", light_color);
+        m_renderer.render(GL_TRIANGLES, gpass_shader, cube);
+        gpass_shader.uniform("u_reverse_normals", false);
+        gpass_shader.uniform("u_use_flat_color", false);
+        gpass_shader.uniform("u_model", glm::mat4(1.0f));
+        m_renderer.render(GL_TRIANGLES, gpass_shader, backpack);
+
+
+        ssao_fbo.bind();
+        m_renderer.set_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
+        m_renderer.clear(GL_COLOR_BUFFER_BIT);
+        ssao_shader.uniform("u_screen_size", glm::vec2(m_proj_settings.width, m_proj_settings.height));
+        ssao_shader.uniform("u_gbuffer.position", 0);
+        position_buffer.bind(0);
+        ssao_shader.uniform("u_gbuffer.normal", 1);
+        normal_buffer.bind(1);
+        ssao_shader.uniform("u_noise_buffer", 2);
+        ssao_noise_buffer.bind(2);
+        ssao_shader.uniform("u_noise_scale", 4.0f);
+        ssao_shader.uniform("u_projection", m_proj_settings.projection_mat);
+        m_renderer.render(GL_TRIANGLES, ssao_shader, plane);
+
+
+        ssaoblur_fbo.bind();
+        m_renderer.set_clear_color(0.0f, 0.0f, 0.0f, 1.0f);
+        m_renderer.clear(GL_COLOR_BUFFER_BIT);
+        blur_shader.uniform("u_ssao_buffer", 0);
+        ssao_buffer.bind(0);
+        m_renderer.render(GL_TRIANGLES, blur_shader, plane);
+
 
         framebuffer::bind_default();
-        m_renderer.viewport(0, 0, m_proj_settings.width, m_proj_settings.height);
+        m_renderer.set_clear_color(m_clear_color);
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        render_scene();
-        
+        lightpass_shader.uniform("u_ssaoblur_buffer", 0);
+        ssaoblur_buffer.bind(0);
+        lightpass_shader.uniform("u_gbuffer.position", 1);
+        position_buffer.bind(1);
+        lightpass_shader.uniform("u_gbuffer.normal", 2);
+        normal_buffer.bind(2);
+        lightpass_shader.uniform("u_gbuffer.albedo", 3);
+        color_buffer.bind(3);
+        lightpass_shader.uniform("u_light.position_viewspace", glm::vec3(m_camera.get_view() * glm::vec4(light_position, 1.0f)));
+        lightpass_shader.uniform("u_light.color", light_color);
+        lightpass_shader.uniform("u_light.intensity", intensity);
+        lightpass_shader.uniform("u_light.constant", 1.0f);
+        lightpass_shader.uniform("u_light.linear", 0.09f);
+        lightpass_shader.uniform("u_light.quadratic", 0.032f);
+        lightpass_shader.uniform("u_material.shininess", 64.0f);
+        m_renderer.render(GL_TRIANGLES, lightpass_shader, plane);
 
     #if 1 //UI
         _imgui_frame_begin();
@@ -303,52 +283,72 @@ void application::run() noexcept {
                 m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
             }
                 
-            if (ImGui::NewLine(), ImGui::ColorEdit3("background color", glm::value_ptr(m_clear_color))) {
-                m_renderer.set_clear_color(m_clear_color.r, m_clear_color.g, m_clear_color.b, 1.0f);
+            if (ImGui::NewLine(), ImGui::ColorEdit4("background color", glm::value_ptr(m_clear_color))) {
+                m_renderer.set_clear_color(m_clear_color);
+            }
+
+            if(ImGui::Checkbox("use SSAO", &use_ssao)) {
+                lightpass_shader.uniform("u_use_ssao", use_ssao);
             }
 
             ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::End();
 
         ImGui::Begin("Light");
-            ImGui::DragFloat3("direction", glm::value_ptr(light_direction), 0.1f);
-            ImGui::ColorEdit3("color", glm::value_ptr(light_color));
-            ImGui::DragFloat("intensity", &intensity, 0.1f);
-            ImGui::DragFloat("z_mult", &z_mult, 0.1f);
-            ImGui::Checkbox("debug cascade", &cascade_debug_mode);
-        ImGui::End();
-
-        ImGui::Begin("Backpack");
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
             if (ImGui::Button("X")) {
-                backpack_position.x = 0.0f;
+                light_position.x = 0.0f;
             }
             ImGui::PushItemWidth(70);
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
-            ImGui::SameLine(); ImGui::DragFloat("##X", &backpack_position.x, 0.1f);
+            ImGui::SameLine(); ImGui::DragFloat("##X", &light_position.x, 0.1f);
             if ((ImGui::SameLine(), ImGui::Button("Y"))) {
-                backpack_position.y = 0.0f;
+                light_position.y = 0.0f;
             }
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.6f, 1.0f));
-            ImGui::SameLine(); ImGui::DragFloat("##Y", &backpack_position.y, 0.1f);
+            ImGui::SameLine(); ImGui::DragFloat("##Y", &light_position.y, 0.1f);
             if ((ImGui::SameLine(), ImGui::Button("Z"))) {
-                backpack_position.z = 0.0f;
+                light_position.z = 0.0f;
             }
-            ImGui::SameLine(); ImGui::DragFloat("##Z", &backpack_position.z, 0.1f);
+            ImGui::SameLine(); ImGui::DragFloat("##Z", &light_position.z, 0.1f);
             ImGui::PopStyleColor(3);
             ImGui::PopItemWidth();
+            ImGui::ColorEdit3("color", glm::value_ptr(light_color));
+            ImGui::DragFloat("intensity", &intensity, 0.1f);
         ImGui::End();
 
-        ImGui::Begin("Depth Texture");
-            ImGui::SliderInt("cascade index", &debug_cascade_index, 0, csm_shadowmap.shadowmaps.size() - 1);
-            ImGui::Image(
-                (void*)(intptr_t)csm_shadowmap.shadowmaps[debug_cascade_index].get_id(), 
-                ImVec2(csm_shadowmap.shadowmaps[debug_cascade_index].get_width(), 
-                csm_shadowmap.shadowmaps[debug_cascade_index].get_height()), 
-                ImVec2(0, 1), 
-                ImVec2(1, 0)
-            );
-        ImGui::End();
+        // ImGui::Begin("Backpack");
+        //     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
+        //     if (ImGui::Button("X")) {
+        //         backpack_position.x = 0.0f;
+        //     }
+        //     ImGui::PushItemWidth(70);
+        //     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
+        //     ImGui::SameLine(); ImGui::DragFloat("##X", &backpack_position.x, 0.1f);
+        //     if ((ImGui::SameLine(), ImGui::Button("Y"))) {
+        //         backpack_position.y = 0.0f;
+        //     }
+        //     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.6f, 1.0f));
+        //     ImGui::SameLine(); ImGui::DragFloat("##Y", &backpack_position.y, 0.1f);
+        //     if ((ImGui::SameLine(), ImGui::Button("Z"))) {
+        //         backpack_position.z = 0.0f;
+        //     }
+        //     ImGui::SameLine(); ImGui::DragFloat("##Z", &backpack_position.z, 0.1f);
+        //     ImGui::PopStyleColor(3);
+        //     ImGui::PopItemWidth();
+        // ImGui::End();
+
+        // ImGui::Begin("Texture");
+        //     const uint32_t buffers[] = { position_buffer.get_id(), color_buffer.get_id(), normal_buffer.get_id(), ssao_buffer.get_id(), ssaoblur_buffer.get_id() };
+            
+        //     ImGui::SliderInt("buffer number", &buffer_number, 0, sizeof(buffers) / sizeof(buffers[0]) - 1);
+        //     ImGui::Image(
+        //         (void*)(intptr_t)buffers[buffer_number], 
+        //         ImVec2(position_buffer.get_width(), position_buffer.get_height()), 
+        //         ImVec2(0, 1), 
+        //         ImVec2(1, 0)
+        //     );
+        // ImGui::End();
 
         ImGui::Begin("Camera");
             ImGui::DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f);
@@ -396,7 +396,7 @@ void application::_imgui_init(const char *glsl_version) const noexcept {
     ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-    ImGui_ImplOpenGL3_Init("#version 430 core");
+    ImGui_ImplOpenGL3_Init("#version 460 core");
 }
 
 void application::_imgui_shutdown() const noexcept {

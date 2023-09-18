@@ -7,6 +7,7 @@ public:
     renderer() = default;
     
     void set_clear_color(float r, float g, float b, float a) const noexcept;
+    void set_clear_color(const glm::vec4& color) const noexcept;
     void clear(uint32_t mask) const noexcept;
     
     void polygon_mode(uint32_t face, uint32_t mode) const noexcept;

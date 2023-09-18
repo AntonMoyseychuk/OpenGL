@@ -25,17 +25,17 @@ public:
 
 public:
     model() = default;
-    model(const std::string& filepath, const texture_load_config& config);
+    model(const std::string& filepath, std::optional<texture_load_config> config);
     
-    void create(const std::string& filepath, const texture_load_config& config) noexcept;
+    void create(const std::string& filepath, std::optional<texture_load_config> config) noexcept;
     const std::vector<mesh>* get_meshes() const noexcept;
 
 private:
-    void _load_model(const std::string& filepath, const texture_load_config& config) noexcept;
+    void _load_model(const std::string& filepath, std::optional<texture_load_config> config) noexcept;
     
-    void _process_node(const texture_load_config& config, aiNode *ai_node, const aiScene *ai_scene) noexcept;
+    void _process_node(std::optional<texture_load_config> config, aiNode *ai_node, const aiScene *ai_scene) noexcept;
     
-    mesh _process_mesh(const texture_load_config& config, aiMesh *ai_mesh, const aiScene *ai_scene) const noexcept;
+    mesh _process_mesh(std::optional<texture_load_config> config, aiMesh *ai_mesh, const aiScene *ai_scene) const noexcept;
     
     std::unordered_map<std::string, texture_2d> _load_material_texture_configs(const texture_load_config& config, 
         texture_2d::variety variety, aiMaterial *ai_mat, aiTextureType ai_type) const noexcept;

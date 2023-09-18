@@ -24,6 +24,10 @@ void renderer::set_clear_color(float r, float g, float b, float a) const noexcep
     OGL_CALL(glClearColor(r, g, b, a));
 }
 
+void renderer::set_clear_color(const glm::vec4 &color) const noexcept {
+    set_clear_color(color.r, color.g, color.b, color.a);
+}
+
 void renderer::enable(uint32_t flag) const noexcept {
     OGL_CALL(glEnable(flag));
 }

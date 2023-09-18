@@ -59,7 +59,7 @@ private:
     camera m_camera;
     renderer m_renderer;
 
-    glm::vec3 m_clear_color = glm::vec3(0.0f);
+    glm::vec4 m_clear_color = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
     bool m_wireframed = false;
     bool m_cull_face = false;
