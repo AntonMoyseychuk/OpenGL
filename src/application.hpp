@@ -44,13 +44,6 @@ private:
     };
 
 private:
-    struct glfw_deinitializer {
-        void operator()(bool* is_glfw_initialized) noexcept;
-    };
-
-    static std::unique_ptr<bool, glfw_deinitializer> is_glfw_initialized;
-
-private:
     std::string m_title;
     GLFWwindow* m_window = nullptr;
 
