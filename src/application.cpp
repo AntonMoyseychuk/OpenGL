@@ -88,12 +88,12 @@ void application::run() noexcept {
     framebuffer gpass_fbo;
     gpass_fbo.create();
 
-    texture_2d position_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+    texture_2d position_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
     position_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     position_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     position_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     position_buffer.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    texture_2d normal_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+    texture_2d normal_buffer(m_proj_settings.width, m_proj_settings.height, GL_TEXTURE_2D, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT);
     normal_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     normal_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     normal_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -181,6 +181,8 @@ void application::run() noexcept {
 
     glm::vec3 light_position(2.0f), light_color(1.0f);
     float intensity = 1.0f;
+
+    float ssao_radius = 0.5f, ssao_bias = 0.025f;
 
     int32_t buffer_number = 0;
     bool use_ssao = true;
@@ -287,11 +289,19 @@ void application::run() noexcept {
                 m_renderer.set_clear_color(m_clear_color);
             }
 
+            ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+        ImGui::End();
+
+        ImGui::Begin("SSAO");
             if(ImGui::Checkbox("use SSAO", &use_ssao)) {
                 lightpass_shader.uniform("u_use_ssao", use_ssao);
             }
-
-            ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            if (ImGui::DragFloat("radius", &ssao_radius, 0.01f)) {
+                ssao_shader.uniform("u_radius", ssao_radius);
+            }
+            if (ImGui::DragFloat("bias", &ssao_bias, 0.001f)) {
+                ssao_shader.uniform("u_bias", ssao_bias);
+            }
         ImGui::End();
 
         ImGui::Begin("Light");
@@ -338,17 +348,17 @@ void application::run() noexcept {
         //     ImGui::PopItemWidth();
         // ImGui::End();
 
-        // ImGui::Begin("Texture");
-        //     const uint32_t buffers[] = { position_buffer.get_id(), color_buffer.get_id(), normal_buffer.get_id(), ssao_buffer.get_id(), ssaoblur_buffer.get_id() };
+        ImGui::Begin("Texture");
+            const uint32_t buffers[] = { position_buffer.get_id(), color_buffer.get_id(), normal_buffer.get_id(), ssao_buffer.get_id(), ssaoblur_buffer.get_id() };
             
-        //     ImGui::SliderInt("buffer number", &buffer_number, 0, sizeof(buffers) / sizeof(buffers[0]) - 1);
-        //     ImGui::Image(
-        //         (void*)(intptr_t)buffers[buffer_number], 
-        //         ImVec2(position_buffer.get_width(), position_buffer.get_height()), 
-        //         ImVec2(0, 1), 
-        //         ImVec2(1, 0)
-        //     );
-        // ImGui::End();
+            ImGui::SliderInt("buffer number", &buffer_number, 0, sizeof(buffers) / sizeof(buffers[0]) - 1);
+            ImGui::Image(
+                (void*)(intptr_t)buffers[buffer_number], 
+                ImVec2(position_buffer.get_width(), position_buffer.get_height()), 
+                ImVec2(0, 1), 
+                ImVec2(1, 0)
+            );
+        ImGui::End();
 
         ImGui::Begin("Camera");
             ImGui::DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f);
