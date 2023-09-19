@@ -2,9 +2,9 @@
 #include <cstdint>
 #include <string>
 
+#include "nocopyable.hpp"
 
-struct buffer {
-public:
+struct buffer : public nocopyable {
     buffer() = default;
     buffer(int32_t target, size_t size, size_t element_size, int32_t usage, const void* data);
 
@@ -22,9 +22,6 @@ public:
 
     buffer(buffer&& buffer) noexcept;
     buffer& operator=(buffer&& buffer) noexcept;
-
-    buffer(const buffer& buffer) = delete;
-    buffer& operator=(const buffer& buffer) = delete;
 
 private:
     static const std::string& _target_to_string(uint32_t target) noexcept;

@@ -3,7 +3,9 @@
 #include "cubemap.hpp"
 #include "renderbuffer.hpp"
 
-class framebuffer {
+#include "nocopyable.hpp"
+
+class framebuffer : public nocopyable {
 public:
     framebuffer() = default;
     ~framebuffer();
@@ -31,9 +33,6 @@ public:
 
     framebuffer(framebuffer&& framebuffer);
     framebuffer& operator=(framebuffer&& framebuffer) noexcept;
-
-    framebuffer(const framebuffer& framebuffer) = delete;
-    framebuffer& operator=(const framebuffer& framebuffer) = delete;
 
 private:
     uint32_t m_id = 0;

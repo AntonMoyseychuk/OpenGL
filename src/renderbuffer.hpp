@@ -1,7 +1,9 @@
 #pragma once
 #include <cstdint>
 
-class renderbuffer {
+#include "nocopyable.hpp"
+
+class renderbuffer : public nocopyable {
 public:
     renderbuffer() = default;
     renderbuffer(uint32_t width, uint32_t height, uint32_t internal_format);
@@ -21,9 +23,6 @@ public:
 
     renderbuffer(renderbuffer&& renderbuffer);
     renderbuffer& operator=(renderbuffer&& renderbuffer) noexcept;
-
-    renderbuffer(const renderbuffer& renderbuffer) = delete;
-    renderbuffer& operator=(const renderbuffer& renderbuffer) = delete;
 
 private:
     uint32_t m_id = 0;

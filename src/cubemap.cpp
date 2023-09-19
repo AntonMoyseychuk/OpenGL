@@ -13,19 +13,15 @@ cubemap::cubemap(uint32_t width, uint32_t height, uint32_t level, uint32_t inter
     create(width, height, level, internal_format, format, type, pixels);
 }
 
-cubemap::cubemap(const std::array<std::string, 6> &faces, 
-    uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load
-) {
-    load(faces, level, internal_format, format, type, flip_on_load);
+cubemap::cubemap(const std::array<std::string, 6>& faces, bool flip_on_load, bool use_gamma) {
+    load(faces, flip_on_load, use_gamma);
 }
 
 cubemap::~cubemap() {
     destroy();
 }
 
-void cubemap::load(const std::array<std::string, 6> &faces, 
-    uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, bool flip_on_load
-) noexcept {
+void cubemap::load(const std::array<std::string, 6>& faces, bool flip_on_load, bool use_gamma) noexcept {
     stbi_set_flip_vertically_on_load(flip_on_load);
 
     std::array<uint8_t*, 6> pixels;
@@ -48,12 +44,15 @@ void cubemap::load(const std::array<std::string, 6> &faces,
     }
 #endif
 
-    create(face_widths[0], face_heights[0], level, internal_format, format, type, pixels);
+    const uint32_t internal_format = _get_gl_format(channel_count, use_gamma);
+    const uint32_t format = _get_gl_format(channel_count, false);
+
+    create(face_widths[0], face_heights[0], 0, internal_format, format, GL_UNSIGNED_BYTE, pixels);
 }
 
-void cubemap::create(uint32_t width, uint32_t height, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, 
-    const std::array<uint8_t*, 6> &pixels
-) noexcept {
+void cubemap::create(uint32_t width, uint32_t height, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type,
+                     const std::array<uint8_t *, 6> &pixels) noexcept
+{
     if (m_data.id != 0) {
         LOG_WARN("cubemap warning", "cubemap recreation (prev id = " + std::to_string(m_data.id) + ")");
         destroy();
@@ -140,4 +139,21 @@ cubemap &cubemap::operator=(cubemap &&cubemap) noexcept {
     }
     
     return *this;
+}
+
+int32_t cubemap::_get_gl_format(int32_t channel_count, bool use_gamma) const noexcept {
+    switch (channel_count) {
+    case 1:
+        return GL_RED;
+
+    case 3:
+        return use_gamma ? GL_SRGB : GL_RGB;
+
+    case 4:
+        return use_gamma ? GL_SRGB_ALPHA : GL_RGBA;
+    
+    default:
+        ASSERT(false, "texture_2d", "invalid channel count");
+        return 0;
+    }
 }

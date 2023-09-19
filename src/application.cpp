@@ -23,6 +23,8 @@
 #include <algorithm>
 #include <map>
 
+#include <stb/stb_image.h>
+
 application::application(const std::string_view &title, uint32_t width, uint32_t height)
     : m_title(title), m_camera(glm::vec3(0.0f, 1.0f, 10.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 18.0f, 10.0f)
 {
@@ -71,7 +73,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
     m_proj_settings.x = m_proj_settings.y = 0;
     m_proj_settings.near = 0.1f;
-    m_proj_settings.far = 200.0f;
+    m_proj_settings.far = 400.0f;
     _window_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
 
@@ -81,11 +83,77 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     // m_renderer.enable(GL_BLEND);
     // m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    _imgui_init("#version 430 core");
+    _imgui_init("#version 460 core");
+}
+
+std::optional<mesh> generate_terrain(uint32_t width, uint32_t depth, float height_scale, const std::string_view height_map_path) noexcept {
+    if (width == 0 || depth == 0) {
+        return std::nullopt;
+    }
+
+    int w, h, channel_count;
+    uint8_t* height_map = stbi_load(height_map_path.data(), &w, &h, &channel_count, 0);
+
+    std::vector<mesh::vertex> vertices(width * depth);
+    std::vector<uint32_t> indices;
+
+    const float dx = 1.0f / width;
+    const float dz = 1.0f / depth;
+
+    for (uint32_t z = 0; z < depth; ++z) {
+        for (uint32_t x = 0; x < width; ++x) {
+            const float height = (height_map[size_t(z * dz * w * channel_count + x * dx * h * channel_count)]) * height_scale;
+
+            mesh::vertex& vertex = vertices[z * width + x];
+            vertex.position = glm::vec3(x * dx, height, z * dz);
+            vertex.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+            vertex.tangent = glm::vec3(1.0f, 0.0f, 0.0f);
+            vertex.texcoord = glm::vec2(x * dx, z * dz);
+        }
+    }
+
+    for (uint32_t z = 0; z < depth - 1; ++z) {
+        for (uint32_t x = 0; x < width - 1; ++x) {
+            indices.push_back(z * width + x);
+            indices.push_back((z + 1) * width + x);
+            indices.push_back(z * width + (x + 1));
+
+            indices.push_back(z * width + (x + 1));
+            indices.push_back((z + 1) * width + x);
+            indices.push_back((z + 1) * width + (x + 1));
+        }
+    }
+
+    stbi_image_free(height_map);
+
+    return std::move(mesh(vertices, indices));
 }
 
 void application::run() noexcept {
-    
+    shader skybox_shader(RESOURCE_DIR "shaders/terrain/skybox.vert", RESOURCE_DIR "shaders/terrain/skybox.frag");
+    shader simple_shader(RESOURCE_DIR "shaders/terrain/simple.vert", RESOURCE_DIR "shaders/terrain/simple.frag");
+
+    cubemap skybox(std::array<std::string, 6>{
+            RESOURCE_DIR "textures/terrain/skybox/right.png",
+            RESOURCE_DIR "textures/terrain/skybox/left.png",
+            RESOURCE_DIR "textures/terrain/skybox/top.png",
+            RESOURCE_DIR "textures/terrain/skybox/bottom.png",
+            RESOURCE_DIR "textures/terrain/skybox/front.png",
+            RESOURCE_DIR "textures/terrain/skybox/back.png"
+        }, false, false
+    );
+    skybox.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    skybox.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    skybox.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    skybox.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    model cube(RESOURCE_DIR "models/cube/cube.obj", std::nullopt);
+
+
+    glm::ivec2 plane_size(10);
+    float height_scale = 0.01f;
+    mesh plane = std::move(generate_terrain(plane_size.x, plane_size.y, height_scale, RESOURCE_DIR "textures/noise.png").value_or(mesh()));
+
 
     ImGuiIO& io = ImGui::GetIO();
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
@@ -111,10 +179,18 @@ void application::run() noexcept {
         }
 
 
-
         framebuffer::bind_default();
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
+        skybox_shader.uniform("u_projection", m_proj_settings.projection_mat);
+        skybox_shader.uniform("u_view", glm::mat4(glm::mat3(m_camera.get_view())));
+        skybox_shader.uniform("u_skybox", 0);
+        skybox.bind(0);
+        m_renderer.render(GL_TRIANGLES, skybox_shader, cube);
+
+        simple_shader.uniform("u_projection", m_proj_settings.projection_mat);
+        simple_shader.uniform("u_view", m_camera.get_view());
+        simple_shader.uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(200.0f, 1.0f, 200.0f)));
+        m_renderer.render(GL_TRIANGLES, simple_shader, plane);
 
     #if 1 //UI
         _imgui_frame_begin();
@@ -134,6 +210,14 @@ void application::run() noexcept {
             }
 
             ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+        ImGui::End();
+
+        ImGui::Begin("Plane");
+            if (ImGui::DragInt2("size", glm::value_ptr(plane_size), 1.0f) || ImGui::DragFloat("scale", &height_scale, 0.001f)) {
+                plane_size = glm::clamp(plane_size, glm::ivec2(2), glm::ivec2(INT32_MAX));
+                height_scale = glm::clamp(height_scale, 0.001f, FLT_MAX);
+                plane = std::move(generate_terrain(plane_size.x, plane_size.y, height_scale, RESOURCE_DIR "textures/noise.png").value_or(mesh()));
+            }
         ImGui::End();
 
         // ImGui::Begin("Light");

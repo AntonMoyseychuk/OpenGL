@@ -45,7 +45,10 @@ void renderer::render(uint32_t mode, const shader &shader, const mesh &mesh) con
 
     const size_t index_count = mesh.ibo.get_element_count();
     if (index_count == 0) {
-        OGL_CALL(glDrawArrays(mode, 0, mesh.vbo.get_element_count()));
+        const size_t vertex_count = mesh.vbo.get_element_count();
+        if (vertex_count > 0) {
+            OGL_CALL(glDrawArrays(mode, 0, vertex_count));
+        }
     } else {
         OGL_CALL(glDrawElements(mode, index_count, GL_UNSIGNED_INT, nullptr));
     }

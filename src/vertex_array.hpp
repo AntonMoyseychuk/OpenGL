@@ -1,7 +1,9 @@
 #pragma once
 #include "buffer.hpp"
 
-class vertex_array {
+#include "nocopyable.hpp"
+
+class vertex_array : public nocopyable {
 public:
     vertex_array() = default;
     ~vertex_array();
@@ -20,9 +22,6 @@ public:
 
     vertex_array(vertex_array&& vao);
     vertex_array& operator=(vertex_array&& vao) noexcept;
-
-    vertex_array(const vertex_array& vao) = delete;
-    vertex_array& operator=(const vertex_array& vao) = delete;
 
 private:
     uint32_t m_id = 0;

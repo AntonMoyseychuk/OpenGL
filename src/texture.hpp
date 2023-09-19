@@ -3,7 +3,9 @@
 #include <cstdint>
 #include <unordered_map>
 
-class texture_2d {
+#include "nocopyable.hpp"
+
+class texture_2d : public nocopyable {
 public:
     enum class variety { NONE, DIFFUSE, SPECULAR, NORMAL, EMISSION };
 
@@ -35,9 +37,6 @@ public:
 
     texture_2d(texture_2d&& texture);
     texture_2d& operator=(texture_2d&& texture) noexcept;
-
-    texture_2d(const texture_2d& texture) = delete;
-    texture_2d& operator=(const texture_2d& texture) = delete;
     
 private:
     int32_t _get_gl_format(int32_t channel_count, bool use_gamma) const noexcept;

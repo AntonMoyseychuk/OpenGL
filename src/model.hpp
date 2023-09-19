@@ -11,7 +11,9 @@
 #include <string>
 #include <unordered_map>
 
-class model  {
+#include "nocopyable.hpp"
+
+class model : public nocopyable {
 public:
     struct texture_load_config {
         int32_t min_filter = 0;

@@ -9,7 +9,9 @@
 
 #include <vector>
 
-struct mesh {
+#include "nocopyable.hpp"
+
+struct mesh : public nocopyable {
     struct vertex {
         glm::vec3 position;
         glm::vec3 normal;
@@ -25,7 +27,6 @@ struct mesh {
     void bind(const shader& shader) const noexcept;
 
     void add_texture(texture_2d&& texture) noexcept;
-
 
     std::vector<texture_2d> textures;
     buffer vbo;
