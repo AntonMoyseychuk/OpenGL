@@ -125,13 +125,29 @@ std::optional<mesh> generate_terrain(float height_scale, const std::string_view 
         }
     }
 
+    struct vertex_normals_sum {
+        glm::vec3 sum = glm::vec3(0.0f);
+        uint32_t count = 0;
+    };
+
+    std::vector<vertex_normals_sum> averaged_normals(vertices.size());
+
     for (size_t i = 0; i < indices.size(); i += 3) {
         const glm::vec3 e0 = glm::normalize(vertices[indices[i + 0]].position - vertices[indices[i + 1]].position);
         const glm::vec3 e1 = glm::normalize(vertices[indices[i + 2]].position - vertices[indices[i + 1]].position);
         
         const glm::vec3 normal = glm::cross(e1, e0);
 
-        vertices[indices[i + 0]].normal = vertices[indices[i + 1]].normal = vertices[indices[i + 2]].normal = normal;
+        averaged_normals[indices[i + 0]].sum += normal;
+        averaged_normals[indices[i + 1]].sum += normal;
+        averaged_normals[indices[i + 2]].sum += normal;
+        ++averaged_normals[indices[i + 0]].count;
+        ++averaged_normals[indices[i + 1]].count;
+        ++averaged_normals[indices[i + 2]].count;
+    }
+
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        vertices[i].normal = averaged_normals[i].sum / static_cast<float>(averaged_normals[i].count);
     }
 
     stbi_image_free(height_map);
@@ -206,8 +222,8 @@ void application::run() noexcept {
         terrain_shader.uniform("u_view", m_camera.get_view());
         terrain_shader.uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(2.0f)));
         terrain_shader.uniform("u_camera_position", m_camera.position);
-        const glm::vec3 curr_direction(M * glm::vec4(light_direction, 0.0f));
-        terrain_shader.uniform("u_light.direction", glm::normalize(curr_direction));
+        const glm::vec3 curr_light_direction(M * glm::vec4(light_direction, 0.0f));
+        terrain_shader.uniform("u_light.direction", glm::normalize(curr_light_direction));
         terrain_shader.uniform("u_light.color", light_color);
         terrain_shader.uniform("u_material.color", glm::vec3(1.0f));
         terrain_shader.uniform("u_material.shininess", 32.0f);
