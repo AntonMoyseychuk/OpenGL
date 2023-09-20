@@ -1,4 +1,4 @@
 # opengl
 A place for OpenGL experiments
 
-![png](https://github.com/AntonMoyseychuk/opengl/assets/108875469/76e6ece4-99da-4b5d-af86-16a7cbada85d)
+[Terrain.webm](https://github.com/AntonMoyseychuk/opengl/assets/108875469/b2eb498b-9b5e-41bb-b692-09f896d95fbc)
