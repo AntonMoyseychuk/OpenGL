@@ -26,7 +26,7 @@
 #include <stb/stb_image.h>
 
 application::application(const std::string_view &title, uint32_t width, uint32_t height)
-    : m_title(title), m_camera(glm::vec3(0.0f, 1.0f, 10.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 18.0f, 10.0f)
+    : m_title(title), m_camera(glm::vec3(-25.0f, 335.0f, 55.0f), glm::vec3(-25.0f, 335.0f, 55.0f) + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 100.0f, 10.0f)
 {
     if (glfwInit() != GLFW_TRUE) {
         const char* glfw_error_msg = nullptr;
@@ -73,7 +73,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
     m_proj_settings.x = m_proj_settings.y = 0;
     m_proj_settings.near = 0.1f;
-    m_proj_settings.far = 400.0f;
+    m_proj_settings.far = 1500.0f;
     _window_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
 
@@ -86,42 +86,52 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     _imgui_init("#version 460 core");
 }
 
-std::optional<mesh> generate_terrain(uint32_t width, uint32_t depth, float height_scale, const std::string_view height_map_path) noexcept {
+std::optional<mesh> generate_terrain(float height_scale, const std::string_view height_map_path) noexcept {
+    int32_t width, depth, channel_count;
+    uint8_t* height_map = stbi_load(height_map_path.data(), &width, &depth, &channel_count, 0);
+
     if (width == 0 || depth == 0) {
+        stbi_image_free(height_map);
         return std::nullopt;
     }
 
-    int w, h, channel_count;
-    uint8_t* height_map = stbi_load(height_map_path.data(), &w, &h, &channel_count, 0);
+    const float du = 1.0f / width;
+    const float dv = 1.0f / depth;
 
     std::vector<mesh::vertex> vertices(width * depth);
-    std::vector<uint32_t> indices;
-
-    const float dx = 1.0f / width;
-    const float dz = 1.0f / depth;
-
     for (uint32_t z = 0; z < depth; ++z) {
         for (uint32_t x = 0; x < width; ++x) {
-            const float height = (height_map[size_t(z * dz * w * channel_count + x * dx * h * channel_count)]) * height_scale;
+            const size_t index = z * width * channel_count + x * channel_count;
+            const float height = (height_map[index]) * height_scale;
 
             mesh::vertex& vertex = vertices[z * width + x];
-            vertex.position = glm::vec3(x * dx, height, z * dz);
-            vertex.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+            vertex.position = glm::vec3(x, height, z);
             vertex.tangent = glm::vec3(1.0f, 0.0f, 0.0f);
-            vertex.texcoord = glm::vec2(x * dx, z * dz);
+            vertex.texcoord = glm::vec2(x * du, z * dv);
         }
     }
 
+    std::vector<uint32_t> indices;
+    indices.reserve((width - 1) * (depth - 1) * 6);
     for (uint32_t z = 0; z < depth - 1; ++z) {
         for (uint32_t x = 0; x < width - 1; ++x) {
-            indices.push_back(z * width + x);
-            indices.push_back((z + 1) * width + x);
-            indices.push_back(z * width + (x + 1));
+            indices.emplace_back(z * width + x);
+            indices.emplace_back((z + 1) * width + x);
+            indices.emplace_back(z * width + (x + 1));
 
-            indices.push_back(z * width + (x + 1));
-            indices.push_back((z + 1) * width + x);
-            indices.push_back((z + 1) * width + (x + 1));
+            indices.emplace_back(z * width + (x + 1));
+            indices.emplace_back((z + 1) * width + x);
+            indices.emplace_back((z + 1) * width + (x + 1));
         }
+    }
+
+    for (size_t i = 0; i < indices.size(); i += 3) {
+        const glm::vec3 e0 = glm::normalize(vertices[indices[i + 0]].position - vertices[indices[i + 1]].position);
+        const glm::vec3 e1 = glm::normalize(vertices[indices[i + 2]].position - vertices[indices[i + 1]].position);
+        
+        const glm::vec3 normal = glm::cross(e1, e0);
+
+        vertices[indices[i + 0]].normal = vertices[indices[i + 1]].normal = vertices[indices[i + 2]].normal = normal;
     }
 
     stbi_image_free(height_map);
@@ -131,7 +141,7 @@ std::optional<mesh> generate_terrain(uint32_t width, uint32_t depth, float heigh
 
 void application::run() noexcept {
     shader skybox_shader(RESOURCE_DIR "shaders/terrain/skybox.vert", RESOURCE_DIR "shaders/terrain/skybox.frag");
-    shader simple_shader(RESOURCE_DIR "shaders/terrain/simple.vert", RESOURCE_DIR "shaders/terrain/simple.frag");
+    shader terrain_shader(RESOURCE_DIR "shaders/terrain/terrain.vert", RESOURCE_DIR "shaders/terrain/terrain.frag");
 
     cubemap skybox(std::array<std::string, 6>{
             RESOURCE_DIR "textures/terrain/skybox/right.png",
@@ -149,11 +159,13 @@ void application::run() noexcept {
 
     model cube(RESOURCE_DIR "models/cube/cube.obj", std::nullopt);
 
+    float skybox_speed = 0.01f;
 
-    glm::ivec2 plane_size(10);
-    float height_scale = 0.01f;
-    mesh plane = std::move(generate_terrain(plane_size.x, plane_size.y, height_scale, RESOURCE_DIR "textures/noise.png").value_or(mesh()));
+    float height_scale = 0.7f;
+    mesh plane = std::move(generate_terrain(height_scale, RESOURCE_DIR "textures/terrain/height_map.png").value_or(mesh()));
 
+    glm::vec3 light_direction = glm::normalize(glm::vec3(-1.0f, -1.0f, 1.0f));
+    glm::vec3 light_color(1.0f);
 
     ImGuiIO& io = ImGui::GetIO();
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
@@ -183,14 +195,23 @@ void application::run() noexcept {
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         skybox_shader.uniform("u_projection", m_proj_settings.projection_mat);
         skybox_shader.uniform("u_view", glm::mat4(glm::mat3(m_camera.get_view())));
-        skybox_shader.uniform("u_skybox", 0);
-        skybox.bind(0);
+        const glm::mat4 M = glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * skybox_speed, glm::vec3(0.0f, 1.0f, 0.0f));
+        skybox_shader.uniform("u_model", M);
+        skybox_shader.uniform("u_skybox", skybox, 0);
+        m_renderer.disable(GL_CULL_FACE);
         m_renderer.render(GL_TRIANGLES, skybox_shader, cube);
+        m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
 
-        simple_shader.uniform("u_projection", m_proj_settings.projection_mat);
-        simple_shader.uniform("u_view", m_camera.get_view());
-        simple_shader.uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(200.0f, 1.0f, 200.0f)));
-        m_renderer.render(GL_TRIANGLES, simple_shader, plane);
+        terrain_shader.uniform("u_projection", m_proj_settings.projection_mat);
+        terrain_shader.uniform("u_view", m_camera.get_view());
+        terrain_shader.uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(2.0f)));
+        terrain_shader.uniform("u_camera_position", m_camera.position);
+        const glm::vec3 curr_direction(M * glm::vec4(light_direction, 0.0f));
+        terrain_shader.uniform("u_light.direction", glm::normalize(curr_direction));
+        terrain_shader.uniform("u_light.color", light_color);
+        terrain_shader.uniform("u_material.color", glm::vec3(1.0f));
+        terrain_shader.uniform("u_material.shininess", 32.0f);
+        m_renderer.render(GL_TRIANGLES, terrain_shader, plane);
 
     #if 1 //UI
         _imgui_frame_begin();
@@ -212,11 +233,16 @@ void application::run() noexcept {
             ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::End();
 
-        ImGui::Begin("Plane");
-            if (ImGui::DragInt2("size", glm::value_ptr(plane_size), 1.0f) || ImGui::DragFloat("scale", &height_scale, 0.001f)) {
-                plane_size = glm::clamp(plane_size, glm::ivec2(2), glm::ivec2(INT32_MAX));
+        ImGui::Begin("Terrain");
+            if (ImGui::DragFloat("scale", &height_scale, 0.001f)) {
                 height_scale = glm::clamp(height_scale, 0.001f, FLT_MAX);
-                plane = std::move(generate_terrain(plane_size.x, plane_size.y, height_scale, RESOURCE_DIR "textures/noise.png").value_or(mesh()));
+                plane = std::move(generate_terrain(height_scale, RESOURCE_DIR "textures/terrain/height_map.png").value_or(mesh()));
+            }
+        ImGui::End();
+
+        ImGui::Begin("Skybox");
+            if (ImGui::DragFloat("speed", &skybox_speed, 0.001f)) {
+                skybox_speed = glm::clamp(skybox_speed, 0.0f, FLT_MAX);
             }
         ImGui::End();
 
@@ -310,8 +336,9 @@ application::~application() {
 }
 
 void application::_destroy() noexcept {
-    glfwDestroyWindow(m_window);
-    glfwTerminate();
+    // NOTE: causes invalid end of program since it't called before all OpenGL objects are deleted
+    // glfwDestroyWindow(m_window);
+    // glfwTerminate();
 }
 
 void application::_imgui_init(const char *glsl_version) const noexcept {
