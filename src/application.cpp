@@ -26,7 +26,7 @@
 #include <stb/stb_image.h>
 
 application::application(const std::string_view &title, uint32_t width, uint32_t height)
-    : m_title(title), m_camera(glm::vec3(-25.0f, 335.0f, 55.0f), glm::vec3(-25.0f, 335.0f, 55.0f) + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 100.0f, 10.0f)
+    : m_title(title)
 {
     if (glfwInit() != GLFW_TRUE) {
         const char* glfw_error_msg = nullptr;
@@ -71,22 +71,24 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     glfwSetCursorPosCallback(m_window, &application::_mouse_callback);
     glfwSetScrollCallback(m_window, &application::_mouse_wheel_scroll_callback);
 
-    m_proj_settings.x = m_proj_settings.y = 0;
-    m_proj_settings.near = 0.1f;
-    m_proj_settings.far = 1500.0f;
-    _window_resize_callback(m_window, width, height);
-    glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
+    _imgui_init("#version 460 core");
 
     m_renderer.enable(GL_DEPTH_TEST);
     m_renderer.depth_func(GL_LEQUAL);
     
-    // m_renderer.enable(GL_BLEND);
-    // m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    m_renderer.enable(GL_BLEND);
 
-    _imgui_init("#version 460 core");
+    const glm::vec3 camera_position(-25.0f, 500.0f, 55.0f);
+    m_camera.create(camera_position, camera_position + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 300.0f, 10.0f);
+
+    m_proj_settings.x = m_proj_settings.y = 0;
+    m_proj_settings.near = 0.1f;
+    m_proj_settings.far = 2000.0f;
+    _window_resize_callback(m_window, width, height);
+    glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
 }
 
-std::optional<mesh> generate_terrain(float height_scale, const std::string_view height_map_path) noexcept {
+std::optional<mesh> generate_terrain(float world_scale, float height_scale, const std::string_view height_map_path) noexcept {
     int32_t width, depth, channel_count;
     uint8_t* height_map = stbi_load(height_map_path.data(), &width, &depth, &channel_count, 0);
 
@@ -95,9 +97,6 @@ std::optional<mesh> generate_terrain(float height_scale, const std::string_view 
         return std::nullopt;
     }
 
-    const float du = 1.0f / width;
-    const float dv = 1.0f / depth;
-
     std::vector<mesh::vertex> vertices(width * depth);
     for (uint32_t z = 0; z < depth; ++z) {
         for (uint32_t x = 0; x < width; ++x) {
@@ -105,9 +104,8 @@ std::optional<mesh> generate_terrain(float height_scale, const std::string_view 
             const float height = (height_map[index]) * height_scale;
 
             mesh::vertex& vertex = vertices[z * width + x];
-            vertex.position = glm::vec3(x, height, z);
-            vertex.tangent = glm::vec3(1.0f, 0.0f, 0.0f);
-            vertex.texcoord = glm::vec2(x * du, z * dv);
+            vertex.position = glm::vec3(x * world_scale, height, z * world_scale);
+            vertex.texcoord = glm::vec2(x, depth - 1 - z);
         }
     }
 
@@ -157,7 +155,22 @@ std::optional<mesh> generate_terrain(float height_scale, const std::string_view 
 
 void application::run() noexcept {
     shader skybox_shader(RESOURCE_DIR "shaders/terrain/skybox.vert", RESOURCE_DIR "shaders/terrain/skybox.frag");
+    shader shadow_shader(RESOURCE_DIR "shaders/terrain/shadowmap.vert", RESOURCE_DIR "shaders/terrain/shadowmap.frag");
     shader terrain_shader(RESOURCE_DIR "shaders/terrain/terrain.vert", RESOURCE_DIR "shaders/terrain/terrain.frag");
+
+    csm::shadowmap_config csm_config;
+    csm_config.width = m_proj_settings.width;
+    csm_config.height = m_proj_settings.height;
+    csm_config.internal_format = GL_DEPTH_COMPONENT32F;
+    csm_config.format = GL_DEPTH_COMPONENT;
+    csm_config.type = GL_FLOAT;
+    csm_config.mag_filter = GL_NEAREST;
+    csm_config.min_filter = GL_NEAREST;
+    csm_config.wrap_s = GL_CLAMP_TO_BORDER;
+    csm_config.wrap_t = GL_CLAMP_TO_BORDER;
+    csm_config.border_color = glm::vec4(1.0f);
+    csm csm_shadowmap(3, csm_config);
+
 
     cubemap skybox(std::array<std::string, 6>{
             RESOURCE_DIR "textures/terrain/skybox/right.png",
@@ -175,13 +188,95 @@ void application::run() noexcept {
 
     model cube(RESOURCE_DIR "models/cube/cube.obj", std::nullopt);
 
+    float height_scale = 3.0f;
+    float world_scale = 10.0f;
+    mesh terrain = std::move(generate_terrain(world_scale, height_scale, RESOURCE_DIR "textures/terrain/height_map.png").value_or(mesh()));
+    texture_2d terrain_surface(RESOURCE_DIR "textures/terrain/terrain_surface.png", true, false, texture_2d::variety::DIFFUSE);
+    terrain_surface.generate_mipmap();
+    terrain_surface.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    terrain_surface.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    terrain_surface.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    terrain_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    terrain.add_texture(std::move(terrain_surface));
+    
+    glm::vec3 light_direction = glm::normalize(glm::vec3(-1.0f, -1.0f, 1.0f));
+    glm::vec3 light_color(0.74f, 0.6f, 0.055f);
+
+    glm::vec3 fog_color(0.74f, 0.396f, 0.055f);
+    float fog_density = 0.0013f, fog_gradient = 4.5f;
+    
     float skybox_speed = 0.01f;
 
-    float height_scale = 0.7f;
-    mesh plane = std::move(generate_terrain(height_scale, RESOURCE_DIR "textures/terrain/height_map.png").value_or(mesh()));
+    int32_t debug_cascade_index = 0;
+    bool cascade_debug_mode = true;
 
-    glm::vec3 light_direction = glm::normalize(glm::vec3(-1.0f, -1.0f, 1.0f));
-    glm::vec3 light_color(1.0f);
+    auto render_scene = [&](const shader* shadow_shader = nullptr) {
+        const glm::mat4 skybox_model_matrix = glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * skybox_speed, glm::vec3(0.0f, 1.0f, 0.0f));
+        const glm::vec3 curr_light_direction = glm::normalize(glm::vec3(skybox_model_matrix * glm::vec4(light_direction, 0.0f)));
+
+        const float z_mult = 2.1f;
+        csm_shadowmap.calculate_subfrustas(
+            glm::radians(m_camera.fov), 
+            m_proj_settings.aspect, 
+            m_proj_settings.near, 
+            m_proj_settings.far, 
+            m_camera.get_view(), 
+            curr_light_direction,
+            z_mult
+        );
+
+        for (size_t i = 0; i < csm_shadowmap.subfrustas.size(); ++i) {
+            terrain_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
+        }
+
+        const glm::mat4 terrain_model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -40.0f, 0.0f));
+
+        if (shadow_shader != nullptr) {
+            for (size_t i = 0; i < csm_shadowmap.subfrustas.size(); ++i) {
+                m_renderer.viewport(0, 0, csm_shadowmap.shadowmaps[i].get_width(), csm_shadowmap.shadowmaps[i].get_height());
+
+                csm_shadowmap.bind_for_writing(i);
+                m_renderer.clear(GL_DEPTH_BUFFER_BIT);
+                shadow_shader->uniform("u_projection", csm_shadowmap.subfrustas[i].lightspace_projection);
+                shadow_shader->uniform("u_view", csm_shadowmap.subfrustas[i].lightspace_view);
+                shadow_shader->uniform("u_model", terrain_model_matrix);
+                m_renderer.render(GL_TRIANGLES, *shadow_shader, terrain);
+            }
+        } else {
+            m_renderer.viewport(0, 0, m_proj_settings.width, m_proj_settings.height);
+            
+            skybox_shader.uniform("u_projection", m_proj_settings.projection_mat);
+            skybox_shader.uniform("u_view", glm::mat4(glm::mat3(m_camera.get_view())));
+            skybox_shader.uniform("u_model", skybox_model_matrix);
+            skybox_shader.uniform("u_skybox", skybox, 0);
+            m_renderer.disable(GL_CULL_FACE);
+            m_renderer.render(GL_TRIANGLES, skybox_shader, cube);
+            m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
+
+            terrain_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
+            terrain_shader.uniform("u_projection", m_proj_settings.projection_mat);
+            terrain_shader.uniform("u_view", m_camera.get_view());
+            terrain_shader.uniform("u_model", terrain_model_matrix);
+
+            csm_shadowmap.bind_for_reading(10);
+            for (size_t i = 0; i < csm_shadowmap.shadowmaps.size(); ++i) {
+                terrain_shader.uniform("u_light.csm.shadowmap[" + std::to_string(i) + "]", int32_t(10 + i));
+                terrain_shader.uniform(
+                    "u_light_space[" + std::to_string(i) + "]", 
+                    csm_shadowmap.subfrustas[i].lightspace_projection * csm_shadowmap.subfrustas[i].lightspace_view
+                );
+            }
+
+            terrain_shader.uniform("u_light.direction", curr_light_direction);
+            terrain_shader.uniform("u_light.color", light_color);
+
+            terrain_shader.uniform("u_fog.color", fog_color);
+            terrain_shader.uniform("u_fog.density", fog_density);
+            terrain_shader.uniform("u_fog.gradient", fog_gradient);
+
+            m_renderer.render(GL_TRIANGLES, terrain_shader, terrain);
+        }
+    };
 
     ImGuiIO& io = ImGui::GetIO();
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
@@ -206,28 +301,11 @@ void application::run() noexcept {
             }
         }
 
+        render_scene(&shadow_shader);
 
         framebuffer::bind_default();
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        skybox_shader.uniform("u_projection", m_proj_settings.projection_mat);
-        skybox_shader.uniform("u_view", glm::mat4(glm::mat3(m_camera.get_view())));
-        const glm::mat4 M = glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * skybox_speed, glm::vec3(0.0f, 1.0f, 0.0f));
-        skybox_shader.uniform("u_model", M);
-        skybox_shader.uniform("u_skybox", skybox, 0);
-        m_renderer.disable(GL_CULL_FACE);
-        m_renderer.render(GL_TRIANGLES, skybox_shader, cube);
-        m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
-
-        terrain_shader.uniform("u_projection", m_proj_settings.projection_mat);
-        terrain_shader.uniform("u_view", m_camera.get_view());
-        terrain_shader.uniform("u_model", glm::scale(glm::mat4(1.0f), glm::vec3(2.0f)));
-        terrain_shader.uniform("u_camera_position", m_camera.position);
-        const glm::vec3 curr_light_direction(M * glm::vec4(light_direction, 0.0f));
-        terrain_shader.uniform("u_light.direction", glm::normalize(curr_light_direction));
-        terrain_shader.uniform("u_light.color", light_color);
-        terrain_shader.uniform("u_material.color", glm::vec3(1.0f));
-        terrain_shader.uniform("u_material.shininess", 32.0f);
-        m_renderer.render(GL_TRIANGLES, terrain_shader, plane);
+        render_scene();
 
     #if 1 //UI
         _imgui_frame_begin();
@@ -250,9 +328,14 @@ void application::run() noexcept {
         ImGui::End();
 
         ImGui::Begin("Terrain");
-            if (ImGui::DragFloat("scale", &height_scale, 0.001f)) {
-                height_scale = glm::clamp(height_scale, 0.001f, FLT_MAX);
-                plane = std::move(generate_terrain(height_scale, RESOURCE_DIR "textures/terrain/height_map.png").value_or(mesh()));
+            ImGui::DragFloat("height scale", &height_scale, 0.001f, 0.01f, std::numeric_limits<float>::max());
+            ImGui::DragFloat("world scale", &world_scale, 0.1f, 0.1f, std::numeric_limits<float>::max());
+
+            if (ImGui::Button("regenerate")) {
+                terrain = std::move(generate_terrain(world_scale, height_scale, RESOURCE_DIR "textures/terrain/height_map.png").value_or(mesh()));
+
+                texture_2d surface(RESOURCE_DIR "textures/terrain/terrain_surface.png");
+                terrain.add_texture(std::move(surface));
             }
         ImGui::End();
 
@@ -262,70 +345,33 @@ void application::run() noexcept {
             }
         ImGui::End();
 
-        // ImGui::Begin("Light");
-        //     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
-        //     if (ImGui::Button("X")) {
-        //         light_position.x = 0.0f;
-        //     }
-        //     ImGui::PushItemWidth(70);
-        //     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
-        //     ImGui::SameLine(); ImGui::DragFloat("##X", &light_position.x, 0.1f);
-        //     if ((ImGui::SameLine(), ImGui::Button("Y"))) {
-        //         light_position.y = 0.0f;
-        //     }
-        //     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.6f, 1.0f));
-        //     ImGui::SameLine(); ImGui::DragFloat("##Y", &light_position.y, 0.1f);
-        //     if ((ImGui::SameLine(), ImGui::Button("Z"))) {
-        //         light_position.z = 0.0f;
-        //     }
-        //     ImGui::SameLine(); ImGui::DragFloat("##Z", &light_position.z, 0.1f);
-        //     ImGui::PopStyleColor(3);
-        //     ImGui::PopItemWidth();
-        //     ImGui::ColorEdit3("color", glm::value_ptr(light_color));
-        //     ImGui::DragFloat("intensity", &intensity, 0.1f);
-        // ImGui::End();
+        ImGui::Begin("Light");
+            ImGui::ColorEdit3("color", glm::value_ptr(light_color));
+            ImGui::Checkbox("debug cascade", &cascade_debug_mode);
+        ImGui::End();
 
-        // ImGui::Begin("Backpack");
-        //     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
-        //     if (ImGui::Button("X")) {
-        //         backpack_position.x = 0.0f;
-        //     }
-        //     ImGui::PushItemWidth(70);
-        //     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
-        //     ImGui::SameLine(); ImGui::DragFloat("##X", &backpack_position.x, 0.1f);
-        //     if ((ImGui::SameLine(), ImGui::Button("Y"))) {
-        //         backpack_position.y = 0.0f;
-        //     }
-        //     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.6f, 1.0f));
-        //     ImGui::SameLine(); ImGui::DragFloat("##Y", &backpack_position.y, 0.1f);
-        //     if ((ImGui::SameLine(), ImGui::Button("Z"))) {
-        //         backpack_position.z = 0.0f;
-        //     }
-        //     ImGui::SameLine(); ImGui::DragFloat("##Z", &backpack_position.z, 0.1f);
-        //     ImGui::PopStyleColor(3);
-        //     ImGui::PopItemWidth();
-        // ImGui::End();
+        ImGui::Begin("Depth Texture");
+            ImGui::SliderInt("cascade index", &debug_cascade_index, 0, csm_shadowmap.shadowmaps.size() - 1);
+            ImGui::Image(
+                (void*)(intptr_t)csm_shadowmap.shadowmaps[debug_cascade_index].get_id(), 
+                ImVec2(csm_shadowmap.shadowmaps[debug_cascade_index].get_width(), 
+                csm_shadowmap.shadowmaps[debug_cascade_index].get_height()), 
+                ImVec2(0, 1), 
+                ImVec2(1, 0)
+            );
+        ImGui::End();
 
-        // ImGui::Begin("Texture");
-        //     const uint32_t buffers[] = { position_buffer.get_id(), color_buffer.get_id(), normal_buffer.get_id(), ssao_buffer.get_id(), ssaoblur_buffer.get_id() };
-            
-        //     ImGui::SliderInt("buffer number", &buffer_number, 0, sizeof(buffers) / sizeof(buffers[0]) - 1);
-        //     ImGui::Image(
-        //         (void*)(intptr_t)buffers[buffer_number], 
-        //         ImVec2(position_buffer.get_width(), position_buffer.get_height()), 
-        //         ImVec2(0, 1), 
-        //         ImVec2(1, 0)
-        //     );
-        // ImGui::End();
+        ImGui::Begin("Fog");
+            ImGui::ColorEdit3("color", glm::value_ptr(fog_color));
+            ImGui::DragFloat("density", &fog_density, 0.0001f, 0.0f, std::numeric_limits<float>::max(), "%.5f");
+            ImGui::DragFloat("gradient", &fog_gradient, 0.01f, 0.0f, std::numeric_limits<float>::max());
+        ImGui::End();
 
         ImGui::Begin("Camera");
             ImGui::DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f);
-            if (ImGui::DragFloat("speed", &m_camera.speed, 0.1f) || 
-                ImGui::DragFloat("sensitivity", &m_camera.sensitivity, 0.1f)
-            ) {
-                m_camera.speed = std::clamp(m_camera.speed, 1.0f, std::numeric_limits<float>::max());
-                m_camera.sensitivity = std::clamp(m_camera.sensitivity, 0.1f, std::numeric_limits<float>::max());
-            }
+            ImGui::DragFloat("speed", &m_camera.speed, 0.1f, 1.0f, std::numeric_limits<float>::max());
+            ImGui::DragFloat("sensitivity", &m_camera.sensitivity, 0.1f, 0.1f, std::numeric_limits<float>::max());
+
             if (ImGui::SliderFloat("field of view", &m_camera.fov, 1.0f, 179.0f)) {
                 _window_resize_callback(m_window, m_proj_settings.width, m_proj_settings.height);
             }

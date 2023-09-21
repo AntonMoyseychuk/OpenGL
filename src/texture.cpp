@@ -21,7 +21,9 @@ texture_2d::texture_2d(uint32_t width, uint32_t height, int32_t target, int32_t 
 }
 
 texture_2d::~texture_2d() {
-    destroy();
+    // NOTE: I realized that I need something like texture manager because mesh contains textures and deletes them in destructor
+    // but they still remains in preloaded_textures 'cache'. And if I for example recreate terain mesh, it gets invalid texture data from 'cache'.
+    // destroy();
 }
 
 void texture_2d::load(const std::string &filepath, bool flip_on_load, bool use_gamma, variety variety) noexcept {
