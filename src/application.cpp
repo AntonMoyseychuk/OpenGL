@@ -208,7 +208,7 @@ void application::run() noexcept {
     float skybox_speed = 0.01f;
 
     int32_t debug_cascade_index = 0;
-    bool cascade_debug_mode = true;
+    bool cascade_debug_mode = false;
 
     auto render_scene = [&](const shader* shadow_shader = nullptr) {
         const glm::mat4 skybox_model_matrix = glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * skybox_speed, glm::vec3(0.0f, 1.0f, 0.0f));

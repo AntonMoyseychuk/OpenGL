@@ -45,7 +45,7 @@ const vec4 debug_colors[] = {
     vec4(0.5f, 0.5f, 1.0f, 0.2f)
 };
 
-uniform bool u_cascade_debug_mode = true;
+uniform bool u_cascade_debug_mode = false;
 
 float calc_shadow(uint cascade_index, vec3 normal) {
     const vec3 proj_coord = 0.5f * fs_in.frag_pos_light_clipspace[cascade_index].xyz / fs_in.frag_pos_light_clipspace[cascade_index].w + 0.5f;
