@@ -84,12 +84,12 @@ void main() {
         }
     }
 
-    const vec3 color = texture(u_material.diffuse0, fs_in.texcoord).rgb;
+    const vec4 color = texture(u_material.diffuse0, fs_in.texcoord);
 
-    const vec3 ambient = 0.1f * color;
+    const vec4 ambient = 0.1f * color;
 
     const float diff = max(dot(light_direction, normal), 0.0f) * shadow;
 
-    frag_color = vec4(ambient + diff * u_light.color * color, 1.0f) * (u_cascade_debug_mode ? debug_colors[debug_color_index] : vec4(1.0f));
+    frag_color = (ambient + diff * vec4(u_light.color, 1.0f) * color) * (u_cascade_debug_mode ? debug_colors[debug_color_index] : vec4(1.0f));
     frag_color = mix(vec4(u_fog.color, 1.0f), frag_color, fs_in.visibility);
 }

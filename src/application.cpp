@@ -14,16 +14,15 @@
 #include "cubemap.hpp"
 #include "model.hpp"
 #include "framebuffer.hpp"
-#include "csm.hpp"
 
+#include "csm.hpp"
 #include "uv_sphere.hpp"
+#include "terrain.hpp"
 
 #include "random.hpp"
 
 #include <algorithm>
 #include <map>
-
-#include <stb/stb_image.h>
 
 application::application(const std::string_view &title, uint32_t width, uint32_t height)
     : m_title(title)
@@ -75,8 +74,6 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
     m_renderer.enable(GL_DEPTH_TEST);
     m_renderer.depth_func(GL_LEQUAL);
-    
-    m_renderer.enable(GL_BLEND);
 
     const glm::vec3 camera_position(-25.0f, 500.0f, 55.0f);
     m_camera.create(camera_position, camera_position + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 300.0f, 10.0f);
@@ -86,71 +83,6 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     m_proj_settings.far = 2000.0f;
     _window_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
-}
-
-std::optional<mesh> generate_terrain(float world_scale, float height_scale, const std::string_view height_map_path) noexcept {
-    int32_t width, depth, channel_count;
-    uint8_t* height_map = stbi_load(height_map_path.data(), &width, &depth, &channel_count, 0);
-
-    if (width == 0 || depth == 0) {
-        stbi_image_free(height_map);
-        return std::nullopt;
-    }
-
-    std::vector<mesh::vertex> vertices(width * depth);
-    for (uint32_t z = 0; z < depth; ++z) {
-        for (uint32_t x = 0; x < width; ++x) {
-            const size_t index = z * width * channel_count + x * channel_count;
-            const float height = (height_map[index]) * height_scale;
-
-            mesh::vertex& vertex = vertices[z * width + x];
-            vertex.position = glm::vec3(x * world_scale, height, z * world_scale);
-            vertex.texcoord = glm::vec2(x, depth - 1 - z);
-        }
-    }
-
-    std::vector<uint32_t> indices;
-    indices.reserve((width - 1) * (depth - 1) * 6);
-    for (uint32_t z = 0; z < depth - 1; ++z) {
-        for (uint32_t x = 0; x < width - 1; ++x) {
-            indices.emplace_back(z * width + x);
-            indices.emplace_back((z + 1) * width + x);
-            indices.emplace_back(z * width + (x + 1));
-
-            indices.emplace_back(z * width + (x + 1));
-            indices.emplace_back((z + 1) * width + x);
-            indices.emplace_back((z + 1) * width + (x + 1));
-        }
-    }
-
-    struct vertex_normals_sum {
-        glm::vec3 sum = glm::vec3(0.0f);
-        uint32_t count = 0;
-    };
-
-    std::vector<vertex_normals_sum> averaged_normals(vertices.size());
-
-    for (size_t i = 0; i < indices.size(); i += 3) {
-        const glm::vec3 e0 = glm::normalize(vertices[indices[i + 0]].position - vertices[indices[i + 1]].position);
-        const glm::vec3 e1 = glm::normalize(vertices[indices[i + 2]].position - vertices[indices[i + 1]].position);
-        
-        const glm::vec3 normal = glm::cross(e1, e0);
-
-        averaged_normals[indices[i + 0]].sum += normal;
-        averaged_normals[indices[i + 1]].sum += normal;
-        averaged_normals[indices[i + 2]].sum += normal;
-        ++averaged_normals[indices[i + 0]].count;
-        ++averaged_normals[indices[i + 1]].count;
-        ++averaged_normals[indices[i + 2]].count;
-    }
-
-    for (size_t i = 0; i < vertices.size(); ++i) {
-        vertices[i].normal = averaged_normals[i].sum / static_cast<float>(averaged_normals[i].count);
-    }
-
-    stbi_image_free(height_map);
-
-    return std::move(mesh(vertices, indices));
 }
 
 void application::run() noexcept {
@@ -172,6 +104,53 @@ void application::run() noexcept {
     csm csm_shadowmap(3, csm_config);
 
 
+    terrain terrain(RESOURCE_DIR "textures/terrain/height_map.png", 10.0f, 3.0f);
+    texture_2d terrain_surface(RESOURCE_DIR "textures/terrain/terrain_surface.png", true, false, texture_2d::variety::DIFFUSE);
+    terrain_surface.generate_mipmap();
+    terrain_surface.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    terrain_surface.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    terrain_surface.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    terrain_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    terrain.mesh.add_texture(std::move(terrain_surface));
+
+    const glm::mat4 terrain_model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -40.0f, 0.0f));
+
+
+    model tree(RESOURCE_DIR "models/lowPolyTree.obj", std::nullopt);
+    texture_2d tree_surface(RESOURCE_DIR "textures/terrain/lowPolyTree.png");
+    tree_surface.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    tree_surface.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    tree_surface.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    tree_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    tree_surface.generate_mipmap();
+
+    model fern(RESOURCE_DIR "models/fern.obj", std::nullopt);
+    texture_2d fern_surface(RESOURCE_DIR "textures/terrain/fern.png");
+    fern_surface.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    fern_surface.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    fern_surface.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    fern_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    fern_surface.generate_mipmap();
+
+    std::vector<glm::mat4> tree_transforms(500);
+    for (size_t i = 0; i < tree_transforms.size(); ++i) {
+        const float x = random<float>(5, terrain.width - 5);
+        const float z = random<float>(5, terrain.depth - 5);
+        const float y = terrain.heights[size_t(z) * terrain.width + size_t(x)];
+
+        tree_transforms[i] = glm::translate(glm::mat4(1.0f), glm::vec3(x * terrain.world_scale, y, z * terrain.world_scale)) * terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(1.2f));
+    }
+    std::vector<glm::mat4> fern_transforms(500);
+    for (size_t i = 0; i < fern_transforms.size(); ++i) {
+        const float x = random<float>(5, terrain.width - 5);
+        const float z = random<float>(5, terrain.depth - 5);
+        const float y = terrain.heights[size_t(z) * terrain.width + size_t(x)];
+
+        fern_transforms[i] = glm::translate(glm::mat4(1.0f), glm::vec3(x * terrain.world_scale, y, z * terrain.world_scale)) * terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(2.0f));
+    }
+
+
+    model cube(RESOURCE_DIR "models/cube/cube.obj", std::nullopt);
     cubemap skybox(std::array<std::string, 6>{
             RESOURCE_DIR "textures/terrain/skybox/right.png",
             RESOURCE_DIR "textures/terrain/skybox/left.png",
@@ -186,18 +165,6 @@ void application::run() noexcept {
     skybox.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     skybox.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    model cube(RESOURCE_DIR "models/cube/cube.obj", std::nullopt);
-
-    float height_scale = 3.0f;
-    float world_scale = 10.0f;
-    mesh terrain = std::move(generate_terrain(world_scale, height_scale, RESOURCE_DIR "textures/terrain/height_map.png").value_or(mesh()));
-    texture_2d terrain_surface(RESOURCE_DIR "textures/terrain/terrain_surface.png", true, false, texture_2d::variety::DIFFUSE);
-    terrain_surface.generate_mipmap();
-    terrain_surface.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    terrain_surface.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    terrain_surface.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    terrain_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    terrain.add_texture(std::move(terrain_surface));
     
     glm::vec3 light_direction = glm::normalize(glm::vec3(-1.0f, -1.0f, 1.0f));
     glm::vec3 light_color(0.74f, 0.6f, 0.055f);
@@ -229,8 +196,6 @@ void application::run() noexcept {
             terrain_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
         }
 
-        const glm::mat4 terrain_model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -40.0f, 0.0f));
-
         if (shadow_shader != nullptr) {
             for (size_t i = 0; i < csm_shadowmap.subfrustas.size(); ++i) {
                 m_renderer.viewport(0, 0, csm_shadowmap.shadowmaps[i].get_width(), csm_shadowmap.shadowmaps[i].get_height());
@@ -240,7 +205,16 @@ void application::run() noexcept {
                 shadow_shader->uniform("u_projection", csm_shadowmap.subfrustas[i].lightspace_projection);
                 shadow_shader->uniform("u_view", csm_shadowmap.subfrustas[i].lightspace_view);
                 shadow_shader->uniform("u_model", terrain_model_matrix);
-                m_renderer.render(GL_TRIANGLES, *shadow_shader, terrain);
+                m_renderer.render(GL_TRIANGLES, *shadow_shader, terrain.mesh);
+
+                for (size_t i = 0; i < tree_transforms.size(); ++i) {
+                    shadow_shader->uniform("u_model", tree_transforms[i]);
+                    m_renderer.render(GL_TRIANGLES, *shadow_shader, tree);
+                }
+                for (size_t i = 0; i < fern_transforms.size(); ++i) {
+                    shadow_shader->uniform("u_model", fern_transforms[i]);
+                    m_renderer.render(GL_TRIANGLES, *shadow_shader, fern);
+                }
             }
         } else {
             m_renderer.viewport(0, 0, m_proj_settings.width, m_proj_settings.height);
@@ -274,7 +248,22 @@ void application::run() noexcept {
             terrain_shader.uniform("u_fog.density", fog_density);
             terrain_shader.uniform("u_fog.gradient", fog_gradient);
 
-            m_renderer.render(GL_TRIANGLES, terrain_shader, terrain);
+            m_renderer.render(GL_TRIANGLES, terrain_shader, terrain.mesh);
+
+            terrain_shader.uniform("u_material.diffuse0", tree_surface, 0);
+            for (size_t i = 0; i < tree_transforms.size(); ++i) {
+                terrain_shader.uniform("u_model", tree_transforms[i]);
+                m_renderer.render(GL_TRIANGLES, terrain_shader, tree);
+            }
+
+            m_renderer.enable(GL_BLEND);
+            m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            terrain_shader.uniform("u_material.diffuse0", fern_surface, 0);
+            for (size_t i = 0; i < fern_transforms.size(); ++i) {
+                terrain_shader.uniform("u_model", fern_transforms[i]);
+                m_renderer.render(GL_TRIANGLES, terrain_shader, fern);
+            }
+            m_renderer.disable(GL_BLEND);
         }
     };
 
@@ -328,14 +317,14 @@ void application::run() noexcept {
         ImGui::End();
 
         ImGui::Begin("Terrain");
-            ImGui::DragFloat("height scale", &height_scale, 0.001f, 0.01f, std::numeric_limits<float>::max());
-            ImGui::DragFloat("world scale", &world_scale, 0.1f, 0.1f, std::numeric_limits<float>::max());
+            ImGui::DragFloat("height scale", &terrain.height_scale, 0.001f, 0.01f, std::numeric_limits<float>::max());
+            ImGui::DragFloat("world scale", &terrain.world_scale, 0.1f, 0.1f, std::numeric_limits<float>::max());
 
             if (ImGui::Button("regenerate")) {
-                terrain = std::move(generate_terrain(world_scale, height_scale, RESOURCE_DIR "textures/terrain/height_map.png").value_or(mesh()));
+                terrain.create(RESOURCE_DIR "textures/terrain/height_map.png", terrain.world_scale, terrain.height_scale);
 
                 texture_2d surface(RESOURCE_DIR "textures/terrain/terrain_surface.png");
-                terrain.add_texture(std::move(surface));
+                terrain.mesh.add_texture(std::move(surface));
             }
         ImGui::End();
 
