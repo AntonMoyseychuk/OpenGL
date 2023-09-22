@@ -37,6 +37,11 @@ void buffer::subdata(uint32_t offset, size_t size, const void* data) const noexc
     OGL_CALL(glBufferSubData(target, offset, size, data));
 }
 
+void buffer::bind_base(size_t index) const noexcept {
+    bind();
+    OGL_CALL(glBindBufferBase(target, index, id));
+}
+
 void buffer::bind() const noexcept {
     OGL_CALL(glBindBuffer(target, id));
 }

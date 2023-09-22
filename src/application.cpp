@@ -80,7 +80,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
     m_proj_settings.x = m_proj_settings.y = 0;
     m_proj_settings.near = 0.1f;
-    m_proj_settings.far = 2000.0f;
+    m_proj_settings.far = 1500.0f;
     _window_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
 }
@@ -88,7 +88,9 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 void application::run() noexcept {
     shader skybox_shader(RESOURCE_DIR "shaders/terrain/skybox.vert", RESOURCE_DIR "shaders/terrain/skybox.frag");
     shader shadow_shader(RESOURCE_DIR "shaders/terrain/shadowmap.vert", RESOURCE_DIR "shaders/terrain/shadowmap.frag");
+    shader instanced_shadow_shader(RESOURCE_DIR "shaders/terrain/instacned_shadowmap.vert", RESOURCE_DIR "shaders/terrain/shadowmap.frag");
     shader terrain_shader(RESOURCE_DIR "shaders/terrain/terrain.vert", RESOURCE_DIR "shaders/terrain/terrain.frag");
+    shader plants_shader(RESOURCE_DIR "shaders/terrain/plants.vert", RESOURCE_DIR "shaders/terrain/plants.frag");
 
     csm::shadowmap_config csm_config;
     csm_config.width = m_proj_settings.width;
@@ -132,22 +134,27 @@ void application::run() noexcept {
     fern_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     fern_surface.generate_mipmap();
 
-    std::vector<glm::mat4> tree_transforms(500);
+    std::vector<glm::mat4> tree_transforms(700);
     for (size_t i = 0; i < tree_transforms.size(); ++i) {
         const float x = random<float>(5, terrain.width - 5);
         const float z = random<float>(5, terrain.depth - 5);
         const float y = terrain.heights[size_t(z) * terrain.width + size_t(x)];
 
-        tree_transforms[i] = glm::translate(glm::mat4(1.0f), glm::vec3(x * terrain.world_scale, y, z * terrain.world_scale)) * terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(1.2f));
+        tree_transforms[i] = glm::translate(glm::mat4(1.0f), glm::vec3(x * terrain.world_scale, y, z * terrain.world_scale)) 
+            * terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(1.2f));
     }
-    std::vector<glm::mat4> fern_transforms(500);
+    buffer tree_transforms_buffer(GL_SHADER_STORAGE_BUFFER, tree_transforms.size() * sizeof(glm::mat4), sizeof(glm::mat4), GL_STATIC_DRAW, tree_transforms.data());
+
+    std::vector<glm::mat4> fern_transforms(4500);
     for (size_t i = 0; i < fern_transforms.size(); ++i) {
-        const float x = random<float>(5, terrain.width - 5);
-        const float z = random<float>(5, terrain.depth - 5);
+        const float x = random<float>(2, terrain.width - 2);
+        const float z = random<float>(2, terrain.depth - 2);
         const float y = terrain.heights[size_t(z) * terrain.width + size_t(x)];
 
-        fern_transforms[i] = glm::translate(glm::mat4(1.0f), glm::vec3(x * terrain.world_scale, y, z * terrain.world_scale)) * terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(2.0f));
+        fern_transforms[i] = glm::translate(glm::mat4(1.0f), glm::vec3(x * terrain.world_scale, y, z * terrain.world_scale)) 
+            * terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(2.0f));
     }
+    buffer fern_transforms_buffer(GL_SHADER_STORAGE_BUFFER, fern_transforms.size() * sizeof(glm::mat4), sizeof(glm::mat4), GL_STATIC_DRAW, fern_transforms.data());
 
 
     model cube(RESOURCE_DIR "models/cube/cube.obj", std::nullopt);
@@ -177,11 +184,12 @@ void application::run() noexcept {
     int32_t debug_cascade_index = 0;
     bool cascade_debug_mode = false;
 
-    auto render_scene = [&](const shader* shadow_shader = nullptr) {
+    float z_mult = 2.1f;
+
+    auto render_scene = [&](bool shadow_pass = false) {
         const glm::mat4 skybox_model_matrix = glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * skybox_speed, glm::vec3(0.0f, 1.0f, 0.0f));
         const glm::vec3 curr_light_direction = glm::normalize(glm::vec3(skybox_model_matrix * glm::vec4(light_direction, 0.0f)));
 
-        const float z_mult = 2.1f;
         csm_shadowmap.calculate_subfrustas(
             glm::radians(m_camera.fov), 
             m_proj_settings.aspect, 
@@ -194,31 +202,45 @@ void application::run() noexcept {
 
         for (size_t i = 0; i < csm_shadowmap.subfrustas.size(); ++i) {
             terrain_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
+            plants_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
         }
 
-        if (shadow_shader != nullptr) {
+        if (shadow_pass) {
             for (size_t i = 0; i < csm_shadowmap.subfrustas.size(); ++i) {
                 m_renderer.viewport(0, 0, csm_shadowmap.shadowmaps[i].get_width(), csm_shadowmap.shadowmaps[i].get_height());
 
                 csm_shadowmap.bind_for_writing(i);
                 m_renderer.clear(GL_DEPTH_BUFFER_BIT);
-                shadow_shader->uniform("u_projection", csm_shadowmap.subfrustas[i].lightspace_projection);
-                shadow_shader->uniform("u_view", csm_shadowmap.subfrustas[i].lightspace_view);
-                shadow_shader->uniform("u_model", terrain_model_matrix);
-                m_renderer.render(GL_TRIANGLES, *shadow_shader, terrain.mesh);
+                shadow_shader.uniform("u_projection", csm_shadowmap.subfrustas[i].lightspace_projection);
+                shadow_shader.uniform("u_view", csm_shadowmap.subfrustas[i].lightspace_view);
+                shadow_shader.uniform("u_model", terrain_model_matrix);
+                m_renderer.render(GL_TRIANGLES, shadow_shader, terrain.mesh);
 
-                for (size_t i = 0; i < tree_transforms.size(); ++i) {
-                    shadow_shader->uniform("u_model", tree_transforms[i]);
-                    m_renderer.render(GL_TRIANGLES, *shadow_shader, tree);
-                }
-                for (size_t i = 0; i < fern_transforms.size(); ++i) {
-                    shadow_shader->uniform("u_model", fern_transforms[i]);
-                    m_renderer.render(GL_TRIANGLES, *shadow_shader, fern);
-                }
+                instanced_shadow_shader.uniform("u_projection", csm_shadowmap.subfrustas[i].lightspace_projection);
+                instanced_shadow_shader.uniform("u_view", csm_shadowmap.subfrustas[i].lightspace_view);
+                tree_transforms_buffer.bind_base(0);
+                m_renderer.render_instanced(GL_TRIANGLES, instanced_shadow_shader, tree, tree_transforms.size());
+                fern_transforms_buffer.bind_base(0);
+                m_renderer.render_instanced(GL_TRIANGLES, instanced_shadow_shader, fern, fern_transforms.size());
             }
         } else {
+            framebuffer::bind_default();
+            m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             m_renderer.viewport(0, 0, m_proj_settings.width, m_proj_settings.height);
             
+            csm_shadowmap.bind_for_reading(10);
+            for (size_t i = 0; i < csm_shadowmap.shadowmaps.size(); ++i) {
+                const std::string csm_uniform = "u_light.csm.shadowmap[" + std::to_string(i) + "]";
+                const std::string matrix_uniform = "u_light_space[" + std::to_string(i) + "]";
+                const glm::mat4 light_space_matrix = csm_shadowmap.subfrustas[i].lightspace_projection * csm_shadowmap.subfrustas[i].lightspace_view;
+                
+                terrain_shader.uniform(csm_uniform, int32_t(10 + i));
+                terrain_shader.uniform(matrix_uniform, light_space_matrix);
+
+                plants_shader.uniform(csm_uniform, int32_t(10 + i));
+                plants_shader.uniform(matrix_uniform, light_space_matrix);
+            }
+
             skybox_shader.uniform("u_projection", m_proj_settings.projection_mat);
             skybox_shader.uniform("u_view", glm::mat4(glm::mat3(m_camera.get_view())));
             skybox_shader.uniform("u_model", skybox_model_matrix);
@@ -232,15 +254,6 @@ void application::run() noexcept {
             terrain_shader.uniform("u_view", m_camera.get_view());
             terrain_shader.uniform("u_model", terrain_model_matrix);
 
-            csm_shadowmap.bind_for_reading(10);
-            for (size_t i = 0; i < csm_shadowmap.shadowmaps.size(); ++i) {
-                terrain_shader.uniform("u_light.csm.shadowmap[" + std::to_string(i) + "]", int32_t(10 + i));
-                terrain_shader.uniform(
-                    "u_light_space[" + std::to_string(i) + "]", 
-                    csm_shadowmap.subfrustas[i].lightspace_projection * csm_shadowmap.subfrustas[i].lightspace_view
-                );
-            }
-
             terrain_shader.uniform("u_light.direction", curr_light_direction);
             terrain_shader.uniform("u_light.color", light_color);
 
@@ -250,19 +263,26 @@ void application::run() noexcept {
 
             m_renderer.render(GL_TRIANGLES, terrain_shader, terrain.mesh);
 
-            terrain_shader.uniform("u_material.diffuse0", tree_surface, 0);
-            for (size_t i = 0; i < tree_transforms.size(); ++i) {
-                terrain_shader.uniform("u_model", tree_transforms[i]);
-                m_renderer.render(GL_TRIANGLES, terrain_shader, tree);
-            }
+            plants_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
+            plants_shader.uniform("u_projection", m_proj_settings.projection_mat);
+            plants_shader.uniform("u_view", m_camera.get_view());
 
+            plants_shader.uniform("u_light.direction", curr_light_direction);
+            plants_shader.uniform("u_light.color", light_color);
+
+            plants_shader.uniform("u_fog.color", fog_color);
+            plants_shader.uniform("u_fog.density", fog_density);
+            plants_shader.uniform("u_fog.gradient", fog_gradient);
+
+            plants_shader.uniform("u_material.diffuse0", tree_surface, 0);
+            tree_transforms_buffer.bind_base(0);
+            m_renderer.render_instanced(GL_TRIANGLES, plants_shader, tree, tree_transforms.size());
+            
+            plants_shader.uniform("u_material.diffuse0", fern_surface, 0);
+            fern_transforms_buffer.bind_base(0);
             m_renderer.enable(GL_BLEND);
             m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            terrain_shader.uniform("u_material.diffuse0", fern_surface, 0);
-            for (size_t i = 0; i < fern_transforms.size(); ++i) {
-                terrain_shader.uniform("u_model", fern_transforms[i]);
-                m_renderer.render(GL_TRIANGLES, terrain_shader, fern);
-            }
+            m_renderer.render_instanced(GL_TRIANGLES, plants_shader, fern, fern_transforms.size());
             m_renderer.disable(GL_BLEND);
         }
     };
@@ -290,10 +310,7 @@ void application::run() noexcept {
             }
         }
 
-        render_scene(&shadow_shader);
-
-        framebuffer::bind_default();
-        m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        render_scene(true);
         render_scene();
 
     #if 1 //UI
@@ -329,13 +346,12 @@ void application::run() noexcept {
         ImGui::End();
 
         ImGui::Begin("Skybox");
-            if (ImGui::DragFloat("speed", &skybox_speed, 0.001f)) {
-                skybox_speed = glm::clamp(skybox_speed, 0.0f, FLT_MAX);
-            }
+            ImGui::DragFloat("speed", &skybox_speed, 0.001f, 0.0f, std::numeric_limits<float>::max());
         ImGui::End();
 
         ImGui::Begin("Light");
             ImGui::ColorEdit3("color", glm::value_ptr(light_color));
+            ImGui::DragFloat("z_mult", &z_mult, 0.01f, 0.0f, std::numeric_limits<float>::max());
             ImGui::Checkbox("debug cascade", &cascade_debug_mode);
         ImGui::End();
 

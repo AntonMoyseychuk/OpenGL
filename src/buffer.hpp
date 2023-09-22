@@ -14,6 +14,7 @@ struct buffer : public nocopyable {
     void destroy() noexcept;
 
     void subdata(uint32_t offset, size_t size, const void* data) const noexcept;
+    void bind_base(size_t index) const noexcept;
 
     void bind() const noexcept;
     void unbind() const noexcept;
