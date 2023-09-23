@@ -184,12 +184,13 @@ void application::run() noexcept {
     int32_t debug_cascade_index = 0;
     bool cascade_debug_mode = false;
 
-    float z_mult = 2.1f;
 
     auto render_scene = [&](bool shadow_pass = false) {
         const glm::mat4 skybox_model_matrix = glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * skybox_speed, glm::vec3(0.0f, 1.0f, 0.0f));
         const glm::vec3 curr_light_direction = glm::normalize(glm::vec3(skybox_model_matrix * glm::vec4(light_direction, 0.0f)));
 
+        const float z_mult = 2.1f;
+        
         csm_shadowmap.calculate_subfrustas(
             glm::radians(m_camera.fov), 
             m_proj_settings.aspect, 
@@ -351,7 +352,6 @@ void application::run() noexcept {
 
         ImGui::Begin("Light");
             ImGui::ColorEdit3("color", glm::value_ptr(light_color));
-            ImGui::DragFloat("z_mult", &z_mult, 0.01f, 0.0f, std::numeric_limits<float>::max());
             ImGui::Checkbox("debug cascade", &cascade_debug_mode);
         ImGui::End();
 
