@@ -23,7 +23,7 @@ void terrain::create(const std::string_view height_map_path, float world_scale, 
     this->world_scale = world_scale;
     this->height_scale = height_scale;
 
-    const float du = 1.0f / (world_scale * width), dv = 1.0f / (world_scale * depth);
+    const float du = 1.0f / (world_scale), dv = 1.0f / (world_scale);
 
     std::vector<mesh::vertex> vertices(width * depth);
     this->heights.resize(vertices.size());
@@ -86,6 +86,23 @@ float terrain::get_interpolated_height(float x, float z) const noexcept {
     const float final_height = (interpolated_height_x + interpolated_height_z) / 2.0f;
 
     return final_height;
+}
+
+void terrain::calculate_tile_regions() noexcept {
+    const float height_range = max_height - min_height;
+
+    const float tile_range = height_range / tiles.size();
+    const float remainder = height_range - tile_range * tiles.size();
+
+    ASSERT(remainder >= 0.0, "terrain", "negative remainder");
+
+    float last_height = min_height - 1.0f;
+    for (size_t i = 0; i < tiles.size(); ++i) {
+        tiles[i].low = last_height + 1;
+        last_height += tile_range;
+        tiles[i].optimal = last_height;
+        tiles[i].high = tiles[i].optimal + tile_range;
+    }
 }
 
 void terrain::_calculate_normals_from_verices_and_indices(std::vector<mesh::vertex> &vertices, const std::vector<std::uint32_t> &indices) noexcept {

@@ -3,7 +3,10 @@
 out vec4 frag_color;
 
 const uint CASCADE_COUNT = 3;
+const uint TILES_COUNT = 4;
+
 in VS_OUT {
+    vec3 frag_pos_localspace;
     vec3 frag_pos_worldspace;
     vec4 frag_pos_clipspace;
     vec3 normal;
@@ -26,9 +29,17 @@ uniform struct DirectionalLight {
     CascadedShadowmap csm;
 } u_light;
 
-uniform struct Material {
-    sampler2D diffuse0;
-} u_material;
+struct Tile {
+    sampler2D texture;
+    float low;
+    float optimal;
+    float high;
+};
+uniform struct Terrain {
+    Tile tiles[TILES_COUNT];
+    float max_height;
+    float min_height;
+} u_terrain;
 
 uniform struct Fog {
     vec3 color;
@@ -68,6 +79,33 @@ float calc_shadow(uint cascade_index, vec3 normal) {
     return shadow;
 }
 
+int get_tile(float height) {
+    for (int i = 0; i < TILES_COUNT; ++i) {
+        if (height > u_terrain.tiles[i].low && height < u_terrain.tiles[i].high) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+float region_percent(int tile) {
+    const float height = fs_in.frag_pos_localspace.y;
+
+    float percent = -1.0f;
+    if (height < u_terrain.tiles[tile].optimal) {
+        const float nom = height - u_terrain.tiles[tile].low;
+        const float denom = u_terrain.tiles[tile].optimal - u_terrain.tiles[tile].low;
+        percent = nom / denom;
+    } else if (height >= u_terrain.tiles[tile].optimal) {
+        const float nom = u_terrain.tiles[tile].high - height;
+        const float denom = u_terrain.tiles[tile].high - u_terrain.tiles[tile].optimal;
+        percent = nom / denom;
+    }
+
+    return percent;
+}
+
 void main() {
     const vec3 normal = normalize(fs_in.normal);
     const vec3 light_direction = normalize(-u_light.direction);
@@ -82,7 +120,22 @@ void main() {
         }
     }
 
-    const vec4 color = texture(u_material.diffuse0, fs_in.texcoord);
+    vec4 tile_colors[TILES_COUNT];
+    for (int i = 0; i < TILES_COUNT; ++i) {
+        tile_colors[i] = vec4(texture(u_terrain.tiles[i].texture, fs_in.texcoord).rgb, 1.0f);
+    }
+
+    const int tile = get_tile(fs_in.frag_pos_localspace.y);
+    if (tile < 0) {
+        discard;
+    }
+    
+    vec4 color = vec4(1.0f);
+    if (tile == TILES_COUNT - 1) {
+        color = tile_colors[TILES_COUNT - 1];
+    } else {
+        color = mix(tile_colors[tile], tile_colors[tile + 1], 1.0f - region_percent(tile));
+    }
 
     const vec4 ambient = 0.1f * color;
 

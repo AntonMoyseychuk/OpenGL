@@ -7,6 +7,7 @@ layout(location = 2) in vec2 a_texcoord;
 
 const uint CASCADE_COUNT = 3;
 out VS_OUT {
+    vec3 frag_pos_localspace;
     vec3 frag_pos_worldspace;
     vec4 frag_pos_clipspace;
     vec3 normal;
@@ -30,6 +31,7 @@ uniform struct Fog {
 void main() {
     const mat3 normal_matrix = transpose(inverse(mat3(u_model)));
 
+    vs_out.frag_pos_localspace = a_position;
     vs_out.frag_pos_worldspace = vec3(u_model * vec4(a_position, 1.0f));
     vs_out.normal = normalize(normal_matrix * a_normal);
     vs_out.texcoord = a_texcoord;

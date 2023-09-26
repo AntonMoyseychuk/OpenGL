@@ -80,7 +80,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
     m_proj_settings.x = m_proj_settings.y = 0;
     m_proj_settings.near = 0.1f;
-    m_proj_settings.far = 2000.0f;
+    m_proj_settings.far = 2500.0f;
     _window_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
 }
@@ -106,16 +106,25 @@ void application::run() noexcept {
     csm csm_shadowmap(3, csm_config);
 
 
-    terrain terrain(RESOURCE_DIR "textures/terrain/height_map.png", 10.0f, 3.0f);
-    texture_2d terrain_surface(RESOURCE_DIR "textures/terrain/terrain_surface.png", true, false, texture_2d::variety::DIFFUSE);
-    terrain_surface.generate_mipmap();
-    terrain_surface.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    terrain_surface.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    terrain_surface.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    terrain_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    terrain.mesh.add_texture(std::move(terrain_surface));
+    terrain terrain(RESOURCE_DIR "textures/terrain/height_map.png", 10.0f, 7.0f);
+    const std::vector<std::string> tile_textures = {
+        RESOURCE_DIR "textures/terrain/sand_tile.jpg",
+        RESOURCE_DIR "textures/terrain/grass_tile.png",
+        RESOURCE_DIR "textures/terrain/rock_tile.jpg",
+        RESOURCE_DIR "textures/terrain/snow_tile.png"
+    };
+    terrain.tiles.resize(tile_textures.size());
+    for (size_t i = 0; i < tile_textures.size(); ++i) {
+        terrain.tiles[i].texture.load(tile_textures[i], true, false, texture_2d::variety::NONE);
+        terrain.tiles[i].texture.generate_mipmap();
+        terrain.tiles[i].texture.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        terrain.tiles[i].texture.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        terrain.tiles[i].texture.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+        terrain.tiles[i].texture.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    }
+    terrain.calculate_tile_regions();
 
-    const glm::mat4 terrain_model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -40.0f, 0.0f));
+    const glm::mat4 terrain_model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -500.0f, 0.0f));
 
 
     model tree(RESOURCE_DIR "models/terrain/low_poly_tree.obj", std::nullopt);
@@ -126,11 +135,14 @@ void application::run() noexcept {
     tree_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     tree_surface.generate_mipmap();
 
-    std::vector<glm::mat4> tree_transforms(700);
+    std::vector<glm::mat4> tree_transforms(250);
     for (size_t i = 0; i < tree_transforms.size(); ++i) {
-        const float x = random<float>(5 * terrain.world_scale, (terrain.width - 5) * terrain.world_scale);
-        const float z = random<float>(5 * terrain.world_scale, (terrain.depth - 5) * terrain.world_scale);
-        const float y = terrain.get_interpolated_height(x, z);
+        float x = std::numeric_limits<float>::lowest(), y = std::numeric_limits<float>::lowest(), z = std::numeric_limits<float>::lowest();
+        while(glm::abs(terrain.tiles[1].optimal - y) >= 20.0f) {
+            x = random<float>(5 * terrain.world_scale, (terrain.width - 5) * terrain.world_scale);
+            z = random<float>(5 * terrain.world_scale, (terrain.depth - 5) * terrain.world_scale);
+            y = terrain.get_interpolated_height(x, z);
+        }
 
         tree_transforms[i] = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z)) 
             * terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(1.2f));
@@ -164,6 +176,8 @@ void application::run() noexcept {
 
     int32_t debug_cascade_index = 0;
     bool cascade_debug_mode = false;
+
+    int32_t debug_terrain_tile_index = 0;
 
 
     auto render_scene = [&](bool shadow_pass = false) {
@@ -240,6 +254,15 @@ void application::run() noexcept {
             terrain_shader.uniform("u_fog.color", fog_color);
             terrain_shader.uniform("u_fog.density", fog_density);
             terrain_shader.uniform("u_fog.gradient", fog_gradient);
+
+            terrain_shader.uniform("u_terrain.min_height", terrain.min_height);
+            terrain_shader.uniform("u_terrain.max_height", terrain.max_height);
+            for (size_t i = 0; i < terrain.tiles.size(); ++i) {
+                terrain_shader.uniform("u_terrain.tiles[" + std::to_string(i) + "].texture", terrain.tiles[i].texture, 25 + i);
+                terrain_shader.uniform("u_terrain.tiles[" + std::to_string(i) + "].low", terrain.tiles[i].low);
+                terrain_shader.uniform("u_terrain.tiles[" + std::to_string(i) + "].optimal", terrain.tiles[i].optimal);
+                terrain_shader.uniform("u_terrain.tiles[" + std::to_string(i) + "].high", terrain.tiles[i].high);
+            }
 
             m_renderer.render(GL_TRIANGLES, terrain_shader, terrain.mesh);
 
@@ -329,11 +352,11 @@ void application::run() noexcept {
 
         ImGui::Begin("Depth Texture");
             ImGui::SliderInt("cascade index", &debug_cascade_index, 0, csm_shadowmap.shadowmaps.size() - 1);
-            const uint32_t w = csm_shadowmap.shadowmaps[debug_cascade_index].get_width();
-            const uint32_t h = csm_shadowmap.shadowmaps[debug_cascade_index].get_height();
-            ImGui::Text("Resolution [%d X %d]", w, h);
+            const uint32_t csm_width = csm_shadowmap.shadowmaps[debug_cascade_index].get_width();
+            const uint32_t csm_height = csm_shadowmap.shadowmaps[debug_cascade_index].get_height();
+            ImGui::Text("Resolution [%d X %d]", csm_width, csm_height);
             ImGui::Image((void*)(intptr_t)csm_shadowmap.shadowmaps[debug_cascade_index].get_id(), 
-                ImVec2(w, h), ImVec2(0, 1), ImVec2(1, 0));
+                ImVec2(csm_width, csm_height), ImVec2(0, 1), ImVec2(1, 0));
         ImGui::End();
 
         ImGui::Begin("Fog");
