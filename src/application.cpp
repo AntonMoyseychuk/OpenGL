@@ -80,7 +80,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 
     m_proj_settings.x = m_proj_settings.y = 0;
     m_proj_settings.near = 0.1f;
-    m_proj_settings.far = 1500.0f;
+    m_proj_settings.far = 2000.0f;
     _window_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
 }
@@ -118,44 +118,25 @@ void application::run() noexcept {
     const glm::mat4 terrain_model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -40.0f, 0.0f));
 
 
-    model tree(RESOURCE_DIR "models/lowPolyTree.obj", std::nullopt);
-    texture_2d tree_surface(RESOURCE_DIR "textures/terrain/lowPolyTree.png");
+    model tree(RESOURCE_DIR "models/terrain/low_poly_tree.obj", std::nullopt);
+    texture_2d tree_surface(RESOURCE_DIR "textures/terrain/low_poly_tree.png");
     tree_surface.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     tree_surface.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     tree_surface.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     tree_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     tree_surface.generate_mipmap();
 
-    model fern(RESOURCE_DIR "models/fern.obj", std::nullopt);
-    texture_2d fern_surface(RESOURCE_DIR "textures/terrain/fern.png");
-    fern_surface.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    fern_surface.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    fern_surface.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    fern_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    fern_surface.generate_mipmap();
-
     std::vector<glm::mat4> tree_transforms(700);
     for (size_t i = 0; i < tree_transforms.size(); ++i) {
-        const float x = random<float>(5, terrain.width - 5);
-        const float z = random<float>(5, terrain.depth - 5);
-        const float y = terrain.heights[size_t(z) * terrain.width + size_t(x)];
+        const float x = random<float>(5 * terrain.world_scale, (terrain.width - 5) * terrain.world_scale);
+        const float z = random<float>(5 * terrain.world_scale, (terrain.depth - 5) * terrain.world_scale);
+        const float y = terrain.get_interpolated_height(x, z);
 
-        tree_transforms[i] = glm::translate(glm::mat4(1.0f), glm::vec3(x * terrain.world_scale, y, z * terrain.world_scale)) 
+        tree_transforms[i] = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z)) 
             * terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(1.2f));
     }
-    buffer tree_transforms_buffer(GL_SHADER_STORAGE_BUFFER, tree_transforms.size() * sizeof(glm::mat4), sizeof(glm::mat4), GL_STATIC_DRAW, tree_transforms.data());
-
-    std::vector<glm::mat4> fern_transforms(4500);
-    for (size_t i = 0; i < fern_transforms.size(); ++i) {
-        const float x = random<float>(2, terrain.width - 2);
-        const float z = random<float>(2, terrain.depth - 2);
-        const float y = terrain.heights[size_t(z) * terrain.width + size_t(x)];
-
-        fern_transforms[i] = glm::translate(glm::mat4(1.0f), glm::vec3(x * terrain.world_scale, y, z * terrain.world_scale)) 
-            * terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(2.0f));
-    }
-    buffer fern_transforms_buffer(GL_SHADER_STORAGE_BUFFER, fern_transforms.size() * sizeof(glm::mat4), sizeof(glm::mat4), GL_STATIC_DRAW, fern_transforms.data());
-
+    buffer tree_transforms_buffer(
+        GL_SHADER_STORAGE_BUFFER, tree_transforms.size() * sizeof(glm::mat4), sizeof(glm::mat4), GL_STATIC_DRAW, tree_transforms.data());
 
     model cube(RESOURCE_DIR "models/cube/cube.obj", std::nullopt);
     cubemap skybox(std::array<std::string, 6>{
@@ -174,10 +155,10 @@ void application::run() noexcept {
 
     
     glm::vec3 light_direction = glm::normalize(glm::vec3(-1.0f, -1.0f, 1.0f));
-    glm::vec3 light_color(0.74f, 0.6f, 0.055f);
+    glm::vec3 light_color(0.74f, 0.396f, 0.055f);
 
-    glm::vec3 fog_color(0.74f, 0.396f, 0.055f);
-    float fog_density = 0.0013f, fog_gradient = 4.5f;
+    glm::vec3 fog_color = light_color;
+    float fog_density = 0.001f, fog_gradient = 4.5f;
     
     float skybox_speed = 0.01f;
 
@@ -221,8 +202,6 @@ void application::run() noexcept {
                 instanced_shadow_shader.uniform("u_view", csm_shadowmap.subfrustas[i].lightspace_view);
                 tree_transforms_buffer.bind_base(0);
                 m_renderer.render_instanced(GL_TRIANGLES, instanced_shadow_shader, tree, tree_transforms.size());
-                fern_transforms_buffer.bind_base(0);
-                m_renderer.render_instanced(GL_TRIANGLES, instanced_shadow_shader, fern, fern_transforms.size());
             }
         } else {
             framebuffer::bind_default();
@@ -278,13 +257,6 @@ void application::run() noexcept {
             plants_shader.uniform("u_material.diffuse0", tree_surface, 0);
             tree_transforms_buffer.bind_base(0);
             m_renderer.render_instanced(GL_TRIANGLES, plants_shader, tree, tree_transforms.size());
-            
-            plants_shader.uniform("u_material.diffuse0", fern_surface, 0);
-            fern_transforms_buffer.bind_base(0);
-            m_renderer.enable(GL_BLEND);
-            m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            m_renderer.render_instanced(GL_TRIANGLES, plants_shader, fern, fern_transforms.size());
-            m_renderer.disable(GL_BLEND);
         }
     };
 
@@ -357,13 +329,11 @@ void application::run() noexcept {
 
         ImGui::Begin("Depth Texture");
             ImGui::SliderInt("cascade index", &debug_cascade_index, 0, csm_shadowmap.shadowmaps.size() - 1);
-            ImGui::Image(
-                (void*)(intptr_t)csm_shadowmap.shadowmaps[debug_cascade_index].get_id(), 
-                ImVec2(csm_shadowmap.shadowmaps[debug_cascade_index].get_width(), 
-                csm_shadowmap.shadowmaps[debug_cascade_index].get_height()), 
-                ImVec2(0, 1), 
-                ImVec2(1, 0)
-            );
+            const uint32_t w = csm_shadowmap.shadowmaps[debug_cascade_index].get_width();
+            const uint32_t h = csm_shadowmap.shadowmaps[debug_cascade_index].get_height();
+            ImGui::Text("Resolution [%d X %d]", w, h);
+            ImGui::Image((void*)(intptr_t)csm_shadowmap.shadowmaps[debug_cascade_index].get_id(), 
+                ImVec2(w, h), ImVec2(0, 1), ImVec2(1, 0));
         ImGui::End();
 
         ImGui::Begin("Fog");
