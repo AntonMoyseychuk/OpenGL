@@ -20,7 +20,7 @@ void csm::create(size_t cascade_count, const shadowmap_config& config) noexcept 
     shadowmaps.resize(cascade_count);
     subfrustas.resize(cascade_count);
     for (size_t i = 0; i < cascade_count; ++i) {
-        texture_2d shadowmap(data.width, data.height, GL_TEXTURE_2D, 0, config.internal_format, config.format, config.type);
+        texture_2d shadowmap(data.width, data.height, 0, config.internal_format, config.format, config.type);
         shadowmap.set_parameter(GL_TEXTURE_WRAP_S, config.wrap_s);
         shadowmap.set_parameter(GL_TEXTURE_WRAP_T, config.wrap_t);
         shadowmap.set_parameter(GL_TEXTURE_MAG_FILTER, config.mag_filter);

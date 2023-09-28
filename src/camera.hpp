@@ -12,7 +12,7 @@ class camera {
 
         void create(const glm::vec3& position, const glm::vec3& look_at, const glm::vec3& up, float fov, float speed, float sensitivity, bool is_fixed = true) noexcept;
 
-        void rotate(float angle_degrees, const glm::vec2& axis) noexcept;
+        void rotate(float angle_degrees, const glm::vec3& axis) noexcept;
         void move(const glm::vec3& offset) noexcept;
 
         const glm::vec3& get_forward() const noexcept;
@@ -20,6 +20,8 @@ class camera {
         const glm::vec3& get_up() const noexcept;
 
         glm::mat4 get_view() const noexcept;
+
+        void invert_pitch() noexcept;
 
     public:
         static void update_dt(float dt) noexcept;
@@ -29,7 +31,7 @@ class camera {
         void wheel_scroll_callback(double yoffset) noexcept;
         
     private:
-        void _recalculate_rotation(float delta_pitch, float delta_yaw) noexcept;
+        void _recalculate_rotation() noexcept;
 
 
     public:

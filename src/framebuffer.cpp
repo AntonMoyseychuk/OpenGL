@@ -42,7 +42,7 @@ uint32_t framebuffer::get_id() const noexcept {
 bool framebuffer::attach(uint32_t attachment, uint32_t level, const texture_2d &texture) const noexcept {
     bind();
 
-    OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, texture.get_target(), texture.get_id(), level));
+    OGL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texture.get_id(), level));
     OGL_CALL(m_is_complete = (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE));
 
     return m_is_complete;

@@ -60,7 +60,7 @@ void terrain::create(const std::string_view height_map_path, float world_scale, 
 
     _calculate_normals_from_verices_and_indices(vertices, indices);
 
-    this->mesh.create(vertices, indices);
+    this->ground_mesh.create(vertices, indices);
 }
 
 float terrain::get_height(float x, float z) const noexcept {

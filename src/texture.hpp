@@ -11,12 +11,12 @@ public:
 
     texture_2d() = default;
     texture_2d(const std::string &filepath, bool flip_on_load = true, bool use_gamma = false, variety variety = variety::NONE);
-    texture_2d(uint32_t width, uint32_t height, int32_t target, int32_t level, 
+    texture_2d(uint32_t width, uint32_t height, int32_t level, 
         int32_t internal_format, int32_t format, int32_t type, void* pixels = nullptr, variety variety = variety::NONE);
     ~texture_2d();
 
     void load(const std::string &filepath, bool flip_on_load, bool use_gamma, variety variety) noexcept;
-    void create(uint32_t width, uint32_t height, int32_t target, int32_t level, 
+    void create(uint32_t width, uint32_t height, int32_t level, 
         int32_t internal_format, int32_t format, int32_t type, void* pixels = nullptr, variety variety = variety::NONE) noexcept;
     void destroy() noexcept;
 
@@ -30,7 +30,6 @@ public:
 
     uint32_t get_id() const noexcept;
     uint32_t get_unit() const noexcept;
-    uint32_t get_target() const noexcept;
     uint32_t get_width() const noexcept;
     uint32_t get_height() const noexcept;
     variety get_variety() const noexcept;
@@ -45,7 +44,6 @@ private:
     struct data {
         uint32_t id = 0;
         
-        uint32_t target = 0;
         uint32_t width = 0;
         uint32_t height = 0;
         

@@ -28,6 +28,8 @@ uniform struct Fog {
     float gradient;
 } u_fog;
 
+uniform vec4 u_water_clip_plane = vec4(0.0f, 1.0f, 0.0f, 0.0f);
+
 void main() {
     const mat3 normal_matrix = transpose(inverse(mat3(u_model)));
 
@@ -41,6 +43,8 @@ void main() {
     }
     
     const vec4 frag_pos_view_space = u_view * vec4(vs_out.frag_pos_worldspace, 1.0f);
+
+    // gl_ClipDistance[0] = dot(u_water_clip_plane, vec4(vs_out.frag_pos_localspace, 1.0f));
 
     float distance = length(frag_pos_view_space.xyz);
     vs_out.visibility = exp(-pow(distance * u_fog.density, u_fog.gradient));

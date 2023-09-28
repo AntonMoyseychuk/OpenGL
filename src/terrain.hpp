@@ -25,7 +25,7 @@ public:
         float high = 0.0f;
     };
 
-    mesh mesh;
+    mesh ground_mesh;
     std::vector<float> heights;
     std::vector<tile> tiles;
 
