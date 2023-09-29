@@ -200,8 +200,14 @@ void application::run() noexcept {
     glm::vec4 refract_clip_plane(0.0f, -1.0f, 0.0f, water_height);
     glm::vec4 reflect_clip_plane(0.0f,  1.0f, 0.0f, -water_height);
 
-    mesh water_mesh = generate_water_mesh(256, 256, water_height);
-    const glm::mat4 water_model_matrix = terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 1.0f, 10.0f));
+    mesh water_mesh = generate_water_mesh(512, 512, water_height);
+    const glm::mat4 water_model_matrix = terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(5.0f, 1.0f, 5.0f));
+    texture_2d dudv_map(RESOURCE_DIR "textures/terrain/dudv.png");
+    dudv_map.generate_mipmap();
+    dudv_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    dudv_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    dudv_map.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    dudv_map.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 
     // model tree(RESOURCE_DIR "models/terrain/low_poly_tree.obj", std::nullopt);
@@ -232,9 +238,13 @@ void application::run() noexcept {
     glm::vec3 light_color(0.74f, 0.396f, 0.055f);
 
     glm::vec3 fog_color = light_color;
-    float fog_density = 0.001f, fog_gradient = 4.5f;
+    float fog_density = 0.00055f, fog_gradient = 4.5f;
     
     float skybox_speed = 0.01f;
+
+    float water_wave_strength = 0.01f;
+    float move_factor = 0.0f;
+    float wave_speed = 0.06f;
 
     int32_t debug_cascade_index = 0;
     bool cascade_debug_mode = false;
@@ -242,6 +252,7 @@ void application::run() noexcept {
     int32_t debug_terrain_tile_index = 0;
     int32_t debug_water_fbos_index = 0;
 
+    ImGuiIO& io = ImGui::GetIO();
 
     auto render_scene = [&](bool shadow_pass = false) {
         const glm::mat4 skybox_model_matrix = glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * skybox_speed, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -377,6 +388,13 @@ void application::run() noexcept {
             water_shader.uniform("u_model", water_model_matrix);
             water_shader.uniform("u_reflection_map", reflect_color_buffer, 0);
             water_shader.uniform("u_refraction_map", refract_color_buffer, 1);
+            water_shader.uniform("u_dudv_map", dudv_map, 2);
+            water_shader.uniform("u_wave_strength", water_wave_strength);
+            move_factor += wave_speed * io.DeltaTime;
+            if (move_factor >= 1.0f) {
+                move_factor -= 1.0f;
+            }
+            water_shader.uniform("u_move_factor", move_factor);
             m_renderer.render(GL_TRIANGLES, water_shader, water_mesh);
 
             // plants_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
@@ -396,7 +414,6 @@ void application::run() noexcept {
         }
     };
 
-    ImGuiIO& io = ImGui::GetIO();
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
 
@@ -463,6 +480,11 @@ void application::run() noexcept {
             }
         ImGui::End();
     #endif
+
+        ImGui::Begin("Water");
+            ImGui::DragFloat("wave strength", &water_wave_strength, 0.001f, 0.001f, std::numeric_limits<float>::max());
+            ImGui::DragFloat("wave speed", &wave_speed, 0.001f, 0.001f, std::numeric_limits<float>::max());
+        ImGui::End();
 
         ImGui::Begin("Skybox");
             ImGui::DragFloat("speed", &skybox_speed, 0.001f, 0.0f, std::numeric_limits<float>::max());
