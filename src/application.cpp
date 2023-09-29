@@ -203,11 +203,15 @@ void application::run() noexcept {
     mesh water_mesh = generate_water_mesh(512, 512, water_height);
     const glm::mat4 water_model_matrix = terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(5.0f, 1.0f, 5.0f));
     texture_2d dudv_map(RESOURCE_DIR "textures/terrain/dudv.png");
-    dudv_map.generate_mipmap();
-    dudv_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    dudv_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    dudv_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    dudv_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     dudv_map.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
     dudv_map.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    texture_2d normal_map(RESOURCE_DIR "textures/terrain/water_normal_map.png");
+    normal_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    normal_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    normal_map.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    normal_map.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 
     // model tree(RESOURCE_DIR "models/terrain/low_poly_tree.obj", std::nullopt);
@@ -242,9 +246,11 @@ void application::run() noexcept {
     
     float skybox_speed = 0.01f;
 
-    float water_wave_strength = 0.01f;
+    float wave_strength = 0.01f;
     float move_factor = 0.0f;
-    float wave_speed = 0.06f;
+    float wave_speed = 0.02f;
+    float water_shininess = 20.0f;
+    float water_specular_strength = 0.5f;
 
     int32_t debug_cascade_index = 0;
     bool cascade_debug_mode = false;
@@ -256,7 +262,7 @@ void application::run() noexcept {
 
     auto render_scene = [&](bool shadow_pass = false) {
         const glm::mat4 skybox_model_matrix = glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * skybox_speed, glm::vec3(0.0f, 1.0f, 0.0f));
-        const glm::vec3 curr_light_direction = glm::normalize(glm::vec3(skybox_model_matrix * glm::vec4(light_direction, 0.0f)));
+        const glm::vec3 curr_light_direction = glm::normalize(glm::vec3(glm::transpose(glm::inverse(skybox_model_matrix)) * glm::vec4(light_direction, 0.0f)));
 
         const float z_mult = 2.1f;
         
@@ -389,16 +395,21 @@ void application::run() noexcept {
             water_shader.uniform("u_reflection_map", reflect_color_buffer, 0);
             water_shader.uniform("u_refraction_map", refract_color_buffer, 1);
             water_shader.uniform("u_dudv_map", dudv_map, 2);
+            water_shader.uniform("u_normal_map", normal_map, 3);
             water_shader.uniform("u_fog.color", fog_color);
             water_shader.uniform("u_fog.density", fog_density);
             water_shader.uniform("u_fog.gradient", fog_gradient);
+            water_shader.uniform("u_light.direction", curr_light_direction);
+            water_shader.uniform("u_light.color", light_color);
             water_shader.uniform("u_camera_position", m_camera.position);
-            water_shader.uniform("u_wave_strength", water_wave_strength);
+            water_shader.uniform("u_wave_move_factor", move_factor);
+            water_shader.uniform("u_wave_shininess", water_shininess);
+            water_shader.uniform("u_specular_strength", water_specular_strength);
+            water_shader.uniform("u_wave_strength", wave_strength);
             move_factor += wave_speed * io.DeltaTime;
             if (move_factor >= 1.0f) {
                 move_factor -= 1.0f;
             }
-            water_shader.uniform("u_move_factor", move_factor);
             m_renderer.render(GL_TRIANGLES, water_shader, water_mesh);
 
             // plants_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
@@ -486,8 +497,10 @@ void application::run() noexcept {
     #endif
 
         ImGui::Begin("Water");
-            ImGui::DragFloat("wave strength", &water_wave_strength, 0.001f, 0.001f, std::numeric_limits<float>::max());
+            ImGui::DragFloat("wave strength", &wave_strength, 0.001f, 0.001f, std::numeric_limits<float>::max());
             ImGui::DragFloat("wave speed", &wave_speed, 0.001f, 0.001f, std::numeric_limits<float>::max());
+            ImGui::DragFloat("shininess", &water_shininess, 0.1f, 0.1f, std::numeric_limits<float>::max());
+            ImGui::DragFloat("specular strength", &water_specular_strength, 0.1f, 0.1f, std::numeric_limits<float>::max());
         ImGui::End();
 
         ImGui::Begin("Skybox");
