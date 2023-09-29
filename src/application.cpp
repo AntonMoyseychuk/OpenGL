@@ -87,29 +87,64 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     m_renderer.enable(GL_CLIP_DISTANCE0);
 }
 
+mesh generate_water_mesh(uint32_t width, uint32_t depth, float height) noexcept {
+    std::vector<mesh::vertex> vertices(width * depth);
+    
+    for (uint32_t z = 0; z < depth; ++z) {
+        for (uint32_t x = 0; x < width; ++x) {
+            mesh::vertex& vertex = vertices[z * width + x];
+            vertex.position = glm::vec3(x, height, z);
+            vertex.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+            vertex.texcoord = glm::vec2(x / static_cast<float>(width - 1), (depth - 1 - z) / static_cast<float>(depth - 1));
+        }
+    }
+
+    std::vector<uint32_t> indices;
+    indices.reserve((width - 1) * (depth - 1) * 6);
+    for (uint32_t z = 0; z < depth - 1; ++z) {
+        for (uint32_t x = 0; x < width - 1; ++x) {
+            indices.emplace_back(z * width + x);
+            indices.emplace_back((z + 1) * width + x);
+            indices.emplace_back(z * width + (x + 1));
+
+            indices.emplace_back(z * width + (x + 1));
+            indices.emplace_back((z + 1) * width + x);
+            indices.emplace_back((z + 1) * width + (x + 1));
+        }
+    }
+
+    return mesh(vertices, indices);
+}
+
 void application::run() noexcept {
     shader skybox_shader(RESOURCE_DIR "shaders/terrain/skybox.vert", RESOURCE_DIR "shaders/terrain/skybox.frag");
     shader shadow_shader(RESOURCE_DIR "shaders/terrain/shadowmap.vert", RESOURCE_DIR "shaders/terrain/shadowmap.frag");
     shader instanced_shadow_shader(RESOURCE_DIR "shaders/terrain/instacned_shadowmap.vert", RESOURCE_DIR "shaders/terrain/shadowmap.frag");
     shader terrain_shader(RESOURCE_DIR "shaders/terrain/terrain.vert", RESOURCE_DIR "shaders/terrain/terrain.frag");
+    shader water_shader(RESOURCE_DIR "shaders/terrain/water.vert", RESOURCE_DIR "shaders/terrain/water.frag");
     shader plants_shader(RESOURCE_DIR "shaders/terrain/plants.vert", RESOURCE_DIR "shaders/terrain/plants.frag");
 
-    framebuffer reflect_refract_fbos[2];
-    texture_2d reflect_refract_color_buffers[2];
-    renderbuffer reflect_refract_depth_buffers[2];
-    for (size_t i = 0; i < 2; ++i) {
-        reflect_refract_fbos[i].create();
+    framebuffer reflect_fbo;
+    reflect_fbo.create();
+    texture_2d reflect_color_buffer(m_proj_settings.width, m_proj_settings.height, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+    reflect_color_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    reflect_color_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    reflect_color_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    reflect_color_buffer.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    reflect_fbo.attach(GL_COLOR_ATTACHMENT0, 0, reflect_color_buffer);
+    renderbuffer reflect_depth_buffer(m_proj_settings.width, m_proj_settings.height, GL_DEPTH_COMPONENT);
+    assert(reflect_fbo.attach(GL_DEPTH_ATTACHMENT, reflect_depth_buffer));
 
-        reflect_refract_color_buffers[i].create(m_proj_settings.width, m_proj_settings.height, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-        reflect_refract_color_buffers[i].set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        reflect_refract_color_buffers[i].set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        reflect_refract_fbos[i].attach(GL_COLOR_ATTACHMENT0, 0, reflect_refract_color_buffers[i]);
-
-        reflect_refract_depth_buffers[i].create(m_proj_settings.width, m_proj_settings.height, GL_DEPTH_COMPONENT32F);
-        assert(reflect_refract_fbos[i].attach(GL_DEPTH_ATTACHMENT, reflect_refract_depth_buffers[0]));
-        reflect_refract_fbos[i].unbind();
-    }
-    constexpr size_t reflect_fbo = 0, refract_fbo = 1;
+    framebuffer refract_fbo;
+    refract_fbo.create();
+    texture_2d refract_color_buffer(m_proj_settings.width, m_proj_settings.height, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+    refract_color_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    refract_color_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    refract_color_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    refract_color_buffer.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    refract_fbo.attach(GL_COLOR_ATTACHMENT0, 0, refract_color_buffer);
+    renderbuffer refract_depth_buffer(m_proj_settings.width, m_proj_settings.height, GL_DEPTH_COMPONENT);
+    assert(refract_fbo.attach(GL_DEPTH_ATTACHMENT, refract_depth_buffer));
 
     csm::shadowmap_config csm_config;
     csm_config.width = m_proj_settings.width;
@@ -124,8 +159,23 @@ void application::run() noexcept {
     csm_config.border_color = glm::vec4(1.0f);
     csm csm_shadowmap(3, csm_config);
 
+    model cube(RESOURCE_DIR "models/cube/cube.obj", std::nullopt);
+    cubemap skybox(std::array<std::string, 6>{
+            RESOURCE_DIR "textures/terrain/skybox/right.png",
+            RESOURCE_DIR "textures/terrain/skybox/left.png",
+            RESOURCE_DIR "textures/terrain/skybox/top.png",
+            RESOURCE_DIR "textures/terrain/skybox/bottom.png",
+            RESOURCE_DIR "textures/terrain/skybox/front.png",
+            RESOURCE_DIR "textures/terrain/skybox/back.png"
+        }, false, false
+    );
+    skybox.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    skybox.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    skybox.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    skybox.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    terrain terrain(RESOURCE_DIR "textures/terrain/height_map.png", 10.0f, 7.0f);
+
+    terrain terrain(RESOURCE_DIR "textures/terrain/height_map.png", 10.0f, 6.0f);
     const std::vector<std::string> tile_textures = {
         RESOURCE_DIR "textures/terrain/sand_tile.jpg",
         RESOURCE_DIR "textures/terrain/grass_tile.png",
@@ -145,21 +195,23 @@ void application::run() noexcept {
 
     const glm::mat4 terrain_model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -500.0f, 0.0f));
 
+    const float water_height = terrain.tiles[0].optimal + glm::abs(terrain.tiles[0].high - terrain.tiles[0].optimal) / 2.0f;
     glm::vec4 default_clip_plane(0.0f, -1.0f, 0.0f, terrain.tiles.back().high + 1.0f);
-    glm::vec4 reflect_refract_clip_planes[] = {
-        glm::vec4(0.0f, -1.0f, 0.0f, terrain.tiles[0].optimal + (terrain.tiles[0].high - terrain.tiles[0].optimal) / 2.0f),
-        glm::vec4(0.0f, 1.0f, 0.0f, -(terrain.tiles[0].optimal + (terrain.tiles[0].high - terrain.tiles[0].optimal) / 2.0f)),
-    };
+    glm::vec4 refract_clip_plane(0.0f, -1.0f, 0.0f, water_height);
+    glm::vec4 reflect_clip_plane(0.0f,  1.0f, 0.0f, -water_height);
+
+    mesh water_mesh = generate_water_mesh(256, 256, water_height);
+    const glm::mat4 water_model_matrix = terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 1.0f, 10.0f));
 
 
-    model tree(RESOURCE_DIR "models/terrain/low_poly_tree.obj", std::nullopt);
-    texture_2d tree_surface(RESOURCE_DIR "textures/terrain/low_poly_tree.png");
-    tree_surface.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    tree_surface.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    tree_surface.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    tree_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    tree_surface.generate_mipmap();
-
+    // model tree(RESOURCE_DIR "models/terrain/low_poly_tree.obj", std::nullopt);
+    // texture_2d tree_surface(RESOURCE_DIR "textures/terrain/low_poly_tree.png");
+    // tree_surface.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // tree_surface.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // tree_surface.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    // tree_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // tree_surface.generate_mipmap();
+    //
     // std::vector<glm::mat4> tree_transforms(150);
     // for (size_t i = 0; i < tree_transforms.size(); ++i) {
     //     float x = std::numeric_limits<float>::lowest(), y = std::numeric_limits<float>::lowest(), z = std::numeric_limits<float>::lowest();
@@ -174,21 +226,6 @@ void application::run() noexcept {
     // }
     // buffer tree_transforms_buffer(
     //     GL_SHADER_STORAGE_BUFFER, tree_transforms.size() * sizeof(glm::mat4), sizeof(glm::mat4), GL_STATIC_DRAW, tree_transforms.data());
-
-    model cube(RESOURCE_DIR "models/cube/cube.obj", std::nullopt);
-    cubemap skybox(std::array<std::string, 6>{
-            RESOURCE_DIR "textures/terrain/skybox/right.png",
-            RESOURCE_DIR "textures/terrain/skybox/left.png",
-            RESOURCE_DIR "textures/terrain/skybox/top.png",
-            RESOURCE_DIR "textures/terrain/skybox/bottom.png",
-            RESOURCE_DIR "textures/terrain/skybox/front.png",
-            RESOURCE_DIR "textures/terrain/skybox/back.png"
-        }, false, false
-    );
-    skybox.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    skybox.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    skybox.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    skybox.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     
     glm::vec3 light_direction = glm::normalize(glm::vec3(-1.0f, -1.0f, 1.0f));
@@ -283,9 +320,9 @@ void application::run() noexcept {
             }
 
             {
-                reflect_refract_fbos[reflect_fbo].bind();
+                reflect_fbo.bind();
                 m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                m_renderer.viewport(0, 0, reflect_refract_color_buffers[reflect_fbo].get_width(), reflect_refract_color_buffers[reflect_fbo].get_height());
+                m_renderer.viewport(0, 0, reflect_color_buffer.get_width(), reflect_color_buffer.get_height());
 
                 m_renderer.disable(GL_CULL_FACE);
                 m_renderer.render(GL_TRIANGLES, skybox_shader, cube);
@@ -293,7 +330,7 @@ void application::run() noexcept {
 
                 const glm::vec3 origin_camera_position = m_camera.position;
                 const glm::vec4 camera_terrain_position = glm::inverse(terrain_model_matrix) * glm::vec4(origin_camera_position, 1.0f);
-                const float water_terrain_heigth = reflect_refract_clip_planes[reflect_fbo].w;
+                const float water_terrain_heigth = water_height;
                 const float camera_to_water_dist = abs(camera_terrain_position.y - water_terrain_heigth);
                 const glm::vec3 new_camera_position = origin_camera_position - glm::vec3(0.0f, 2.0f * camera_to_water_dist, 0.0f);
                 m_camera.position = new_camera_position;
@@ -302,21 +339,23 @@ void application::run() noexcept {
                 m_camera.position = origin_camera_position;
                 m_camera.invert_pitch();
 
-                terrain_shader.uniform("u_water_clip_plane", reflect_refract_clip_planes[reflect_fbo]);
+                terrain_shader.uniform("u_water_clip_plane", reflect_clip_plane);
+                m_renderer.enable(GL_CULL_FACE);
                 m_renderer.render(GL_TRIANGLES, terrain_shader, terrain.ground_mesh);
+                m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
             }
 
             {
-                reflect_refract_fbos[refract_fbo].bind();
+                refract_fbo.bind();
                 m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                m_renderer.viewport(0, 0, reflect_refract_color_buffers[refract_fbo].get_width(), reflect_refract_color_buffers[refract_fbo].get_height());
+                m_renderer.viewport(0, 0, refract_color_buffer.get_width(), refract_color_buffer.get_height());
 
                 m_renderer.disable(GL_CULL_FACE);
                 m_renderer.render(GL_TRIANGLES, skybox_shader, cube);
                 m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
 
                 terrain_shader.uniform("u_view", m_camera.get_view());      
-                terrain_shader.uniform("u_water_clip_plane", reflect_refract_clip_planes[refract_fbo]);  
+                terrain_shader.uniform("u_water_clip_plane", refract_clip_plane);  
                 m_renderer.render(GL_TRIANGLES, terrain_shader, terrain.ground_mesh);
             }
 
@@ -332,6 +371,13 @@ void application::run() noexcept {
             terrain_shader.uniform("u_water_clip_plane", default_clip_plane);
             
             m_renderer.render(GL_TRIANGLES, terrain_shader, terrain.ground_mesh);
+
+            water_shader.uniform("u_projection", m_proj_settings.projection_mat);
+            water_shader.uniform("u_view", m_camera.get_view());
+            water_shader.uniform("u_model", water_model_matrix);
+            water_shader.uniform("u_reflection_map", reflect_color_buffer, 0);
+            water_shader.uniform("u_refraction_map", refract_color_buffer, 1);
+            m_renderer.render(GL_TRIANGLES, water_shader, water_mesh);
 
             // plants_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
             // plants_shader.uniform("u_projection", m_proj_settings.projection_mat);
@@ -397,10 +443,10 @@ void application::run() noexcept {
         ImGui::End();
         
         ImGui::Begin("Water Framebuffers");
-            ImGui::SliderInt("index", &debug_water_fbos_index, 0, 1);
-            const uint32_t fbo_width = reflect_refract_color_buffers[debug_water_fbos_index].get_width();
-            const uint32_t fbo_height = reflect_refract_color_buffers[debug_water_fbos_index].get_height();
-            ImGui::Image((void*)(intptr_t)reflect_refract_color_buffers[debug_water_fbos_index].get_id(), 
+            ImGui::SliderInt(debug_water_fbos_index == 0 ? "refract" : "reflect", &debug_water_fbos_index, 0, 1);
+            const uint32_t fbo_width = debug_water_fbos_index == 0 ? refract_color_buffer.get_width() : reflect_color_buffer.get_width();
+            const uint32_t fbo_height = debug_water_fbos_index == 0 ? refract_color_buffer.get_height() : reflect_color_buffer.get_height();
+            ImGui::Image((void*)(intptr_t)(debug_water_fbos_index == 0 ? refract_color_buffer.get_id() : reflect_color_buffer.get_id()), 
                 ImVec2(fbo_width, fbo_height), ImVec2(0, 1), ImVec2(1, 0));
         ImGui::End();
 
