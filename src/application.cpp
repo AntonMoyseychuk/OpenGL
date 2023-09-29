@@ -195,7 +195,7 @@ void application::run() noexcept {
 
     const glm::mat4 terrain_model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -500.0f, 0.0f));
 
-    const float water_height = terrain.tiles[0].optimal + glm::abs(terrain.tiles[0].high - terrain.tiles[0].optimal) / 2.0f;
+    const float water_height = terrain.tiles[1].optimal;
     glm::vec4 default_clip_plane(0.0f, -1.0f, 0.0f, terrain.tiles.back().high + 1.0f);
     glm::vec4 refract_clip_plane(0.0f, -1.0f, 0.0f, water_height);
     glm::vec4 reflect_clip_plane(0.0f,  1.0f, 0.0f, -water_height);
@@ -389,6 +389,10 @@ void application::run() noexcept {
             water_shader.uniform("u_reflection_map", reflect_color_buffer, 0);
             water_shader.uniform("u_refraction_map", refract_color_buffer, 1);
             water_shader.uniform("u_dudv_map", dudv_map, 2);
+            water_shader.uniform("u_fog.color", fog_color);
+            water_shader.uniform("u_fog.density", fog_density);
+            water_shader.uniform("u_fog.gradient", fog_gradient);
+            water_shader.uniform("u_camera_position", m_camera.position);
             water_shader.uniform("u_wave_strength", water_wave_strength);
             move_factor += wave_speed * io.DeltaTime;
             if (move_factor >= 1.0f) {
@@ -458,7 +462,8 @@ void application::run() noexcept {
 
             ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::End();
-        
+
+    #if 0        
         ImGui::Begin("Water Framebuffers");
             ImGui::SliderInt(debug_water_fbos_index == 0 ? "refract" : "reflect", &debug_water_fbos_index, 0, 1);
             const uint32_t fbo_width = debug_water_fbos_index == 0 ? refract_color_buffer.get_width() : reflect_color_buffer.get_width();
@@ -467,7 +472,6 @@ void application::run() noexcept {
                 ImVec2(fbo_width, fbo_height), ImVec2(0, 1), ImVec2(1, 0));
         ImGui::End();
 
-    #if 0
         ImGui::Begin("Terrain");
             ImGui::DragFloat("height scale", &terrain.height_scale, 0.001f, 0.01f, std::numeric_limits<float>::max());
             ImGui::DragFloat("world scale", &terrain.world_scale, 0.1f, 0.1f, std::numeric_limits<float>::max());
