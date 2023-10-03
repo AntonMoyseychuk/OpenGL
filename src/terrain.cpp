@@ -58,9 +58,38 @@ void terrain::create(const std::string_view height_map_path, float world_scale, 
         }
     }
 
-    _calculate_normals_from_verices_and_indices(vertices, indices);
+    _calculate_normals(vertices, indices);
 
-    this->ground_mesh.create(vertices, indices);
+    ground_mesh.create(vertices, indices);
+}
+
+void terrain::create_water_mesh(float height) noexcept {
+    std::vector<mesh::vertex> vertices(width * depth);
+    
+    for (uint32_t z = 0; z < depth; ++z) {
+        for (uint32_t x = 0; x < width; ++x) {
+            mesh::vertex& vertex = vertices[z * width + x];
+            vertex.position = glm::vec3(x, height, z);
+            vertex.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+            vertex.texcoord = glm::vec2(x / static_cast<float>(width - 1), (depth - 1 - z) / static_cast<float>(depth - 1));
+        }
+    }
+
+    std::vector<uint32_t> indices;
+    indices.reserve((width - 1) * (depth - 1) * 6);
+    for (uint32_t z = 0; z < depth - 1; ++z) {
+        for (uint32_t x = 0; x < width - 1; ++x) {
+            indices.emplace_back(z * width + x);
+            indices.emplace_back((z + 1) * width + x);
+            indices.emplace_back(z * width + (x + 1));
+
+            indices.emplace_back(z * width + (x + 1));
+            indices.emplace_back((z + 1) * width + x);
+            indices.emplace_back((z + 1) * width + (x + 1));
+        }
+    }
+
+    water_mesh.create(vertices, indices);
 }
 
 float terrain::get_height(float x, float z) const noexcept {
@@ -88,24 +117,37 @@ float terrain::get_interpolated_height(float x, float z) const noexcept {
     return final_height;
 }
 
-void terrain::calculate_tile_regions() noexcept {
+void terrain::calculate_tile_regions(size_t tiles_count, const std::string* tile_texture_paths) noexcept {
+    tiles.resize(tiles_count);
+
     const float height_range = max_height - min_height;
 
-    const float tile_range = height_range / tiles.size();
-    const float remainder = height_range - tile_range * tiles.size();
+    const float tile_range = height_range /tiles_count;
+    const float remainder = height_range - tile_range * tiles_count;
 
     ASSERT(remainder >= 0.0, "terrain", "negative remainder");
 
     float last_height = min_height - 1.0f;
-    for (size_t i = 0; i < tiles.size(); ++i) {
+    for (size_t i = 0; i < tiles_count; ++i) {
         tiles[i].low = last_height + 1;
         last_height += tile_range;
         tiles[i].optimal = last_height;
         tiles[i].high = tiles[i].optimal + tile_range;
     }
+
+    if (tile_texture_paths != nullptr) {
+        for (size_t i = 0; i < tiles_count; ++i) {
+            tiles[i].texture.load(tile_texture_paths[i], true, false, texture_2d::variety::NONE);
+            tiles[i].texture.generate_mipmap();
+            tiles[i].texture.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            tiles[i].texture.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            tiles[i].texture.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+            tiles[i].texture.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+        }
+    }
 }
 
-void terrain::_calculate_normals_from_verices_and_indices(std::vector<mesh::vertex> &vertices, const std::vector<std::uint32_t> &indices) noexcept {
+void terrain::_calculate_normals(std::vector<mesh::vertex> &vertices, const std::vector<std::uint32_t> &indices) noexcept {
     struct vertex_normals_sum {
         glm::vec3 sum = glm::vec3(0.0f);
         uint32_t count = 0;

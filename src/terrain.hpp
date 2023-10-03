@@ -8,14 +8,15 @@ struct terrain {
     terrain(const std::string_view height_map_path, float world_scale, float height_scale);
 
     void create(const std::string_view height_map_path, float world_scale, float height_scale) noexcept;
+    void create_water_mesh(float height) noexcept;
 
     float get_height(float x, float z) const noexcept;
     float get_interpolated_height(float x, float z) const noexcept;
 
-    void calculate_tile_regions() noexcept;
+    void calculate_tile_regions(size_t tiles_count, const std::string* tile_texture_paths = nullptr) noexcept;
 
 private:
-    void _calculate_normals_from_verices_and_indices(std::vector<mesh::vertex>& vertices, const std::vector<std::uint32_t>& indices) noexcept;
+    void _calculate_normals(std::vector<mesh::vertex>& vertices, const std::vector<std::uint32_t>& indices) noexcept;
 
 public:
     struct tile {
@@ -26,6 +27,7 @@ public:
     };
 
     mesh ground_mesh;
+    mesh water_mesh;
     std::vector<float> heights;
     std::vector<tile> tiles;
 

@@ -87,42 +87,13 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     m_renderer.enable(GL_CLIP_DISTANCE0);
 }
 
-mesh generate_water_mesh(uint32_t width, uint32_t depth, float height) noexcept {
-    std::vector<mesh::vertex> vertices(width * depth);
-    
-    for (uint32_t z = 0; z < depth; ++z) {
-        for (uint32_t x = 0; x < width; ++x) {
-            mesh::vertex& vertex = vertices[z * width + x];
-            vertex.position = glm::vec3(x, height, z);
-            vertex.normal = glm::vec3(0.0f, 1.0f, 0.0f);
-            vertex.texcoord = glm::vec2(x / static_cast<float>(width - 1), (depth - 1 - z) / static_cast<float>(depth - 1));
-        }
-    }
-
-    std::vector<uint32_t> indices;
-    indices.reserve((width - 1) * (depth - 1) * 6);
-    for (uint32_t z = 0; z < depth - 1; ++z) {
-        for (uint32_t x = 0; x < width - 1; ++x) {
-            indices.emplace_back(z * width + x);
-            indices.emplace_back((z + 1) * width + x);
-            indices.emplace_back(z * width + (x + 1));
-
-            indices.emplace_back(z * width + (x + 1));
-            indices.emplace_back((z + 1) * width + x);
-            indices.emplace_back((z + 1) * width + (x + 1));
-        }
-    }
-
-    return mesh(vertices, indices);
-}
-
 void application::run() noexcept {
     shader skybox_shader(RESOURCE_DIR "shaders/terrain/skybox.vert", RESOURCE_DIR "shaders/terrain/skybox.frag");
     shader shadow_shader(RESOURCE_DIR "shaders/terrain/shadowmap.vert", RESOURCE_DIR "shaders/terrain/shadowmap.frag");
     shader instanced_shadow_shader(RESOURCE_DIR "shaders/terrain/instacned_shadowmap.vert", RESOURCE_DIR "shaders/terrain/shadowmap.frag");
     shader terrain_shader(RESOURCE_DIR "shaders/terrain/terrain.vert", RESOURCE_DIR "shaders/terrain/terrain.frag");
     shader water_shader(RESOURCE_DIR "shaders/terrain/water.vert", RESOURCE_DIR "shaders/terrain/water.frag");
-    shader plants_shader(RESOURCE_DIR "shaders/terrain/plants.vert", RESOURCE_DIR "shaders/terrain/plants.frag");
+    // shader plants_shader(RESOURCE_DIR "shaders/terrain/plants.vert", RESOURCE_DIR "shaders/terrain/plants.frag");
 
     framebuffer reflect_fbo;
     reflect_fbo.create();
@@ -182,16 +153,7 @@ void application::run() noexcept {
         RESOURCE_DIR "textures/terrain/rock_tile.jpg",
         RESOURCE_DIR "textures/terrain/snow_tile.png"
     };
-    terrain.tiles.resize(tile_textures.size());
-    for (size_t i = 0; i < tile_textures.size(); ++i) {
-        terrain.tiles[i].texture.load(tile_textures[i], true, false, texture_2d::variety::NONE);
-        terrain.tiles[i].texture.generate_mipmap();
-        terrain.tiles[i].texture.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        terrain.tiles[i].texture.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        terrain.tiles[i].texture.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-        terrain.tiles[i].texture.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    }
-    terrain.calculate_tile_regions();
+    terrain.calculate_tile_regions(tile_textures.size(), tile_textures.data());
 
     const glm::mat4 terrain_model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -500.0f, 0.0f));
 
@@ -200,8 +162,8 @@ void application::run() noexcept {
     glm::vec4 refract_clip_plane(0.0f, -1.0f, 0.0f, water_height);
     glm::vec4 reflect_clip_plane(0.0f,  1.0f, 0.0f, -water_height);
 
-    mesh water_mesh = generate_water_mesh(512, 512, water_height);
-    const glm::mat4 water_model_matrix = terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(5.0f, 1.0f, 5.0f));
+    terrain.create_water_mesh(water_height);
+    const glm::mat4 water_model_matrix = terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 1.0f, 10.0f));
     texture_2d dudv_map(RESOURCE_DIR "textures/terrain/dudv.png");
     dudv_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     dudv_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -278,7 +240,7 @@ void application::run() noexcept {
 
         for (size_t i = 0; i < csm_shadowmap.subfrustas.size(); ++i) {
             terrain_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
-            plants_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
+            // plants_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
         }
 
         if (shadow_pass) {
@@ -410,7 +372,7 @@ void application::run() noexcept {
             if (move_factor >= 1.0f) {
                 move_factor -= 1.0f;
             }
-            m_renderer.render(GL_TRIANGLES, water_shader, water_mesh);
+            m_renderer.render(GL_TRIANGLES, water_shader, terrain.water_mesh);
 
             // plants_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
             // plants_shader.uniform("u_projection", m_proj_settings.projection_mat);
