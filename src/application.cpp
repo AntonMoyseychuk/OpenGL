@@ -118,8 +118,6 @@ void application::run() noexcept {
     refract_depth_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     refract_depth_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     assert(refract_fbo.attach(GL_DEPTH_ATTACHMENT, 0, refract_depth_buffer));
-    // renderbuffer refract_depth_buffer(m_proj_settings.width, m_proj_settings.height, GL_DEPTH_COMPONENT);
-    // assert(refract_fbo.attach(GL_DEPTH_ATTACHMENT, refract_depth_buffer));
 
     csm::shadowmap_config csm_config;
     csm_config.width = m_proj_settings.width;
