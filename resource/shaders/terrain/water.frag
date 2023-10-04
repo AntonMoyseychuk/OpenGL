@@ -26,6 +26,7 @@ uniform sampler2D u_reflection_map;
 uniform sampler2D u_refraction_map;
 uniform sampler2D u_dudv_map;
 uniform sampler2D u_normal_map;
+uniform sampler2D u_depth_map;
 
 uniform float u_wave_strength = 0.01f;
 uniform float u_wave_move_factor;
@@ -33,13 +34,23 @@ uniform float u_wave_shininess = 20.0f;
 uniform float u_specular_strength = 0.5f;
 
 uniform vec3 u_camera_position;
+uniform float u_near;
+uniform float u_far;
+uniform float u_max_water_depth;
 
 void main() {
     const vec2 ndc = (fs_in.frag_pos_clipspace.xy / fs_in.frag_pos_clipspace.w) / 2.0f + 0.5f;
     
     vec2 refract_texcoord = ndc;
     vec2 reflect_texcoord = vec2(ndc.x, -ndc.y);
-    
+
+    float depth = texture(u_depth_map, refract_texcoord).r;
+    float floor_dist = 2.0f * u_near * u_far / (u_far + u_near - (2.0f * depth - 1.0f) * (u_far - u_near));
+    depth = gl_FragCoord.z;
+    float water_dist = 2.0f * u_near * u_far / (u_far + u_near - (2.0f * depth - 1.0f) * (u_far - u_near));
+    float water_depth = floor_dist - water_dist;
+    const float soft_coef = clamp(water_depth / u_max_water_depth, 0.0f, 1.0f);
+
     vec2 distorted_texcoord = texture(u_dudv_map, vec2(fs_in.texcoord.x + u_wave_move_factor, fs_in.texcoord.y)).rg * 0.1f;
     distorted_texcoord = fs_in.texcoord + vec2(distorted_texcoord.x, distorted_texcoord.y + u_wave_move_factor);
     vec2 total_distortion = (texture(u_dudv_map, distorted_texcoord).rg * 2.0f - 1.0f) * u_wave_strength;
@@ -61,7 +72,7 @@ void main() {
     const vec3 half_dir = normalize(view_dir + light_dir);
 
     const float spec = pow(max(dot(half_dir, normal), 0.0f), u_wave_shininess);
-    const vec4 specular = vec4(spec * u_light.color * u_specular_strength, 1.0f);
+    const vec4 specular = vec4(spec * u_light.color * u_specular_strength * soft_coef, 1.0f);
 
     reflection_color += specular;
     refraction_color += specular;
@@ -69,4 +80,5 @@ void main() {
     const float alpha = dot(normal, view_dir);
     frag_color = mix(refraction_color, reflection_color, 1.0f - alpha);
     frag_color = mix(vec4(u_fog.color, 1.0f), frag_color, fs_in.visibility);
+    frag_color.a = soft_coef;
 }

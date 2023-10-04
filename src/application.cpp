@@ -114,8 +114,12 @@ void application::run() noexcept {
     refract_color_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
     refract_color_buffer.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
     refract_fbo.attach(GL_COLOR_ATTACHMENT0, 0, refract_color_buffer);
-    renderbuffer refract_depth_buffer(m_proj_settings.width, m_proj_settings.height, GL_DEPTH_COMPONENT);
-    assert(refract_fbo.attach(GL_DEPTH_ATTACHMENT, refract_depth_buffer));
+    texture_2d refract_depth_buffer(m_proj_settings.width, m_proj_settings.height, 0, GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT);
+    refract_depth_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    refract_depth_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    assert(refract_fbo.attach(GL_DEPTH_ATTACHMENT, 0, refract_depth_buffer));
+    // renderbuffer refract_depth_buffer(m_proj_settings.width, m_proj_settings.height, GL_DEPTH_COMPONENT);
+    // assert(refract_fbo.attach(GL_DEPTH_ATTACHMENT, refract_depth_buffer));
 
     csm::shadowmap_config csm_config;
     csm_config.width = m_proj_settings.width;
@@ -160,7 +164,7 @@ void application::run() noexcept {
     const float water_height = terrain.tiles[1].optimal;
     glm::vec4 default_clip_plane(0.0f, -1.0f, 0.0f, terrain.tiles.back().high + 1.0f);
     glm::vec4 refract_clip_plane(0.0f, -1.0f, 0.0f, water_height);
-    glm::vec4 reflect_clip_plane(0.0f,  1.0f, 0.0f, -water_height);
+    glm::vec4 reflect_clip_plane(0.0f,  1.0f, 0.0f, -water_height + 0.5f);
 
     terrain.create_water_mesh(water_height);
     const glm::mat4 water_model_matrix = terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 1.0f, 10.0f));
@@ -329,9 +333,9 @@ void application::run() noexcept {
                 m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
                 m_renderer.viewport(0, 0, refract_color_buffer.get_width(), refract_color_buffer.get_height());
 
-                m_renderer.disable(GL_CULL_FACE);
-                m_renderer.render(GL_TRIANGLES, skybox_shader, cube);
-                m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
+                // m_renderer.disable(GL_CULL_FACE);
+                // m_renderer.render(GL_TRIANGLES, skybox_shader, cube);
+                // m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
 
                 terrain_shader.uniform("u_view", m_camera.get_view());      
                 terrain_shader.uniform("u_water_clip_plane", refract_clip_plane);  
@@ -358,12 +362,16 @@ void application::run() noexcept {
             water_shader.uniform("u_refraction_map", refract_color_buffer, 1);
             water_shader.uniform("u_dudv_map", dudv_map, 2);
             water_shader.uniform("u_normal_map", normal_map, 3);
+            water_shader.uniform("u_depth_map", refract_depth_buffer, 4);
             water_shader.uniform("u_fog.color", fog_color);
             water_shader.uniform("u_fog.density", fog_density);
             water_shader.uniform("u_fog.gradient", fog_gradient);
             water_shader.uniform("u_light.direction", curr_light_direction);
             water_shader.uniform("u_light.color", light_color);
             water_shader.uniform("u_camera_position", m_camera.position);
+            water_shader.uniform("u_near", m_proj_settings.near);
+            water_shader.uniform("u_far", m_proj_settings.far);
+            water_shader.uniform("u_max_water_depth", glm::abs(water_height - terrain.min_height));
             water_shader.uniform("u_wave_move_factor", move_factor);
             water_shader.uniform("u_wave_shininess", water_shininess);
             water_shader.uniform("u_specular_strength", water_specular_strength);
@@ -372,7 +380,10 @@ void application::run() noexcept {
             if (move_factor >= 1.0f) {
                 move_factor -= 1.0f;
             }
+            m_renderer.enable(GL_BLEND);
+            m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             m_renderer.render(GL_TRIANGLES, water_shader, terrain.water_mesh);
+            m_renderer.disable(GL_BLEND);
 
             // plants_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
             // plants_shader.uniform("u_projection", m_proj_settings.projection_mat);
@@ -436,7 +447,7 @@ void application::run() noexcept {
             ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::End();
 
-    #if 0        
+    #if 1        
         ImGui::Begin("Water Framebuffers");
             ImGui::SliderInt(debug_water_fbos_index == 0 ? "refract" : "reflect", &debug_water_fbos_index, 0, 1);
             const uint32_t fbo_width = debug_water_fbos_index == 0 ? refract_color_buffer.get_width() : reflect_color_buffer.get_width();
@@ -445,17 +456,21 @@ void application::run() noexcept {
                 ImVec2(fbo_width, fbo_height), ImVec2(0, 1), ImVec2(1, 0));
         ImGui::End();
 
-        ImGui::Begin("Terrain");
-            ImGui::DragFloat("height scale", &terrain.height_scale, 0.001f, 0.01f, std::numeric_limits<float>::max());
-            ImGui::DragFloat("world scale", &terrain.world_scale, 0.1f, 0.1f, std::numeric_limits<float>::max());
+        // ImGui::Begin("Refract Depth");
+        //     ImGui::Image((void*)(intptr_t)refract_depth_buffer.get_id(), ImVec2(fbo_width, fbo_height), ImVec2(0, 1), ImVec2(1, 0));
+        // ImGui::End();
 
-            if (ImGui::Button("regenerate")) {
-                terrain.create(RESOURCE_DIR "textures/terrain/height_map.png", terrain.world_scale, terrain.height_scale);
+        // ImGui::Begin("Terrain");
+        //     ImGui::DragFloat("height scale", &terrain.height_scale, 0.001f, 0.01f, std::numeric_limits<float>::max());
+        //     ImGui::DragFloat("world scale", &terrain.world_scale, 0.1f, 0.1f, std::numeric_limits<float>::max());
 
-                texture_2d surface(RESOURCE_DIR "textures/terrain/terrain_surface.png");
-                terrain.mesh.add_texture(std::move(surface));
-            }
-        ImGui::End();
+        //     if (ImGui::Button("regenerate")) {
+        //         terrain.create(RESOURCE_DIR "textures/terrain/height_map.png", terrain.world_scale, terrain.height_scale);
+
+        //         texture_2d surface(RESOURCE_DIR "textures/terrain/terrain_surface.png");
+        //         terrain.mesh.add_texture(std::move(surface));
+        //     }
+        // ImGui::End();
     #endif
 
         ImGui::Begin("Water");
