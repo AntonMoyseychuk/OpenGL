@@ -1,6 +1,7 @@
 #pragma once
 #include "shader.hpp"
 #include "model.hpp"
+#include "particle_system.hpp"
 
 class renderer {
 public:
@@ -22,6 +23,7 @@ public:
 
     void render(uint32_t mode, const shader& shader, const mesh& mesh) const noexcept;
     void render(uint32_t mode, const shader& shader, const model& model) const noexcept;
+    void render(uint32_t mode, const shader& shader, const particle_system& particles) const noexcept;
     void render_instanced(uint32_t mode, const shader& shader, const mesh& mesh, size_t count) const noexcept;
     void render_instanced(uint32_t mode, const shader& shader, const model& model, size_t count) const noexcept;
 };

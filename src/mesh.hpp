@@ -13,6 +13,9 @@
 
 struct mesh : public nocopyable {
     struct vertex {
+        // vertex() = default;
+        // vertex(const glm::vec3& position, const glm::vec3& normal, const glm::vec2& texcoord, const glm::vec3& tangent);
+
         glm::vec3 position;
         glm::vec3 normal;
         glm::vec2 texcoord;
