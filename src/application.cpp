@@ -78,7 +78,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     m_renderer.depth_func(GL_LEQUAL);
 
     const glm::vec3 camera_position(0.0f, 0.0f, 25.0f);
-    m_camera.create(camera_position, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 300.0f, 10.0f);
+    m_camera.create(camera_position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 300.0f, 10.0f);
 
     m_proj_settings.x = m_proj_settings.y = 0;
     m_proj_settings.near = 0.1f;
@@ -100,8 +100,7 @@ void application::run() noexcept {
 
     const float bounds_width = right - left;
     const float bounds_height = top - bottom;
-    particles_shader.uniform("u_proj_view", glm::ortho(left, right, bottom, top, -1.0f, 1.0f));
-    
+    particles_shader.uniform("u_proj_view", glm::ortho(left, right, bottom, top, -1.0f, 100.0f) * m_camera.get_view());
     particle_props props;
     props.start_color = { 254 / 255.0f, 212 / 255.0f, 123 / 255.0f, 1.0f };
 	props.end_color = { 254 / 255.0f, 109 / 255.0f, 41 / 255.0f, 1.0f };
@@ -144,10 +143,10 @@ void application::run() noexcept {
             double x, y;
             glfwGetCursorPos(m_window, &x, &y);
 
-            auto pos = m_camera.position;
             x = (x / width) * bounds_width - bounds_width * 0.5f;
             y = bounds_height * 0.5f - (y / height) * bounds_height;
-            props.position = { x + pos.x, y + pos.y };
+            props.position = { x + m_camera.position.x, y + m_camera.position.y };
+
             for (size_t i = 0; i < 5; ++i) {
                 p_system.emit(props);
             }
@@ -163,7 +162,7 @@ void application::run() noexcept {
             ImGui::ColorEdit4("Death Color", glm::value_ptr(props.end_color));
             ImGui::DragFloat("Life Time", &props.life_time, 0.1f, 0.0f, 1000.0f);
         ImGui::End();
-    #if 0 //UI
+        
         ImGui::Begin("Information");
             ImGui::Text("OpenGL version: %s", glGetString(GL_VERSION)); ImGui::NewLine();
                 
@@ -182,6 +181,7 @@ void application::run() noexcept {
             ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::End();
 
+    #if 0 //UI
     #if 1        
         ImGui::Begin("Water Framebuffers");
             ImGui::SliderInt(debug_water_fbos_index == 0 ? "refract" : "reflect", &debug_water_fbos_index, 0, 1);

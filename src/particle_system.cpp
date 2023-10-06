@@ -2,6 +2,9 @@
 
 #include "random.hpp"
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/compatibility.hpp>
+
 particle_system::particle_system(size_t particle_count) {
     ASSERT(particle_count > 0, "particle_system", "particle_count is equal 0");
 
@@ -21,10 +24,18 @@ particle_system::particle_system(size_t particle_count) {
 
     m_pool_index = particle_count - 1;
     m_particle_pool.resize(particle_count);
+    m_colors_pool.resize(particle_count);
+    m_transforms_pool.resize(particle_count);
+
+    m_colors_buffer.create(GL_SHADER_STORAGE_BUFFER, particle_count * sizeof(m_colors_pool[0]), sizeof(m_colors_pool[0]), GL_STREAM_DRAW, nullptr);
+    m_transforms_buffer.create(GL_SHADER_STORAGE_BUFFER, particle_count * sizeof(m_transforms_pool[0]), sizeof(m_transforms_pool[0]), GL_DYNAMIC_DRAW, nullptr);
 }
 
 void particle_system::update(float dt) noexcept {
-    for (auto& particle : m_particle_pool) {
+    active_particles_count = 0;
+    for (size_t i = 0; i < m_particle_pool.size(); ++i) {
+        particle_system::particle& particle = m_particle_pool[i];
+
         if (particle.is_active == false) {
             continue;
         }
@@ -34,9 +45,28 @@ void particle_system::update(float dt) noexcept {
             continue;
         }
 
+        ++active_particles_count;
+
+        size_t insertion_index = active_particles_count - 1;
+
         particle.life_remaining -= dt;
         particle.position += particle.velocity * dt;
         particle.rotation += 0.01f * dt;
+
+        const float life = particle.life_remaining / particle.life_time;
+        m_colors_pool[insertion_index] = glm::lerp(particle.end_color, particle.start_color, life);
+        m_colors_pool[insertion_index].a *= life;
+
+        const float size = glm::lerp(particle.end_size, particle.start_size, life);
+        
+        m_transforms_pool[insertion_index] = glm::translate(glm::mat4(1.0f), glm::vec3(particle.position.x, particle.position.y, 0.0f))
+            * glm::rotate(glm::mat4(1.0f), particle.rotation, glm::vec3(0.0f, 0.0f, 1.0f))
+            * glm::scale(glm::mat4(1.0f), glm::vec3(size, size, 1.0f));
+    }
+
+    if (active_particles_count > 0) {
+        m_colors_buffer.subdata(0, active_particles_count * sizeof(m_colors_pool[0]), m_colors_pool.data());
+        m_transforms_buffer.subdata(0, active_particles_count * sizeof(m_transforms_pool[0]), m_transforms_pool.data());
     }
 }
 

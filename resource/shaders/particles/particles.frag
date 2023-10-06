@@ -2,8 +2,10 @@
 
 out vec4 frag_color;
 
-uniform vec4 u_color;
+in VS_OUT {
+	vec4 color;
+} fs_in;
 
 void main() {
-	frag_color = u_color;
+	frag_color = fs_in.color;
 }

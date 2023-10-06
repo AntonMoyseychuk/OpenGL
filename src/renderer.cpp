@@ -70,24 +70,9 @@ void renderer::render(uint32_t mode, const shader &shader, const model &model) c
 }
 
 void renderer::render(uint32_t mode, const shader &shader, const particle_system &particles) const noexcept {
-    for (auto& particle : particles.m_particle_pool) {
-        if (particle.is_active == false) {
-            continue;
-        }
-
-        const float life = particle.life_remaining / particle.life_time;
-        glm::vec4 color = glm::lerp(particle.end_color, particle.start_color, life);
-        color.a *= life;
-
-        const float size = glm::lerp(particle.end_size, particle.start_size, life);
-        
-        const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(particle.position.x, particle.position.y, 0.0f))
-            * glm::rotate(glm::mat4(1.0f), particle.rotation, glm::vec3(0.0f, 0.0f, 1.0f))
-            * glm::scale(glm::mat4(1.0f), glm::vec3(size, size, 1.0f));
-        shader.uniform("u_model", model);
-        shader.uniform("u_color", color);
-        this->render(mode, shader, particles.m_mesh);
-    }
+    particles.m_transforms_buffer.bind_base(0);
+    particles.m_colors_buffer.bind_base(1);
+    render_instanced(GL_TRIANGLES, shader, particles.m_mesh, particles.active_particles_count);
 }
 
 void renderer::render_instanced(uint32_t mode, const shader &shader, const mesh &mesh, size_t count) const noexcept {
