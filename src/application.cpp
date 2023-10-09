@@ -148,7 +148,7 @@ void application::run() noexcept {
     skybox.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 
-    terrain terrain(RESOURCE_DIR "textures/terrain/height_map.png", 10.0f, 6.0f);
+    terrain terrain(RESOURCE_DIR "textures/terrain/height_map.png", 0.1f);
     const std::vector<std::string> tile_textures = {
         RESOURCE_DIR "textures/terrain/sand_tile.jpg",
         RESOURCE_DIR "textures/terrain/grass_tile.png",
@@ -157,15 +157,17 @@ void application::run() noexcept {
     };
     terrain.calculate_tile_regions(tile_textures.size(), tile_textures.data());
 
-    const glm::mat4 terrain_model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -500.0f, 0.0f));
+    const glm::mat4 terrain_scale_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 6.0f, 10.0f));
+    const glm::mat4 terrain_translate_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -500.0f, 0.0f));
+    const glm::mat4 terrain_model_matrix = terrain_translate_matrix * terrain_scale_matrix;
 
     const float water_height = terrain.tiles[1].optimal;
     glm::vec4 default_clip_plane(0.0f, -1.0f, 0.0f, terrain.tiles.back().high + 1.0f);
     glm::vec4 refract_clip_plane(0.0f, -1.0f, 0.0f, water_height);
-    glm::vec4 reflect_clip_plane(0.0f,  1.0f, 0.0f, -water_height + 0.5f);
+    glm::vec4 reflect_clip_plane(0.0f,  1.0f, 0.0f, -water_height);
 
     terrain.create_water_mesh(water_height);
-    const glm::mat4 water_model_matrix = terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 1.0f, 10.0f));
+    const glm::mat4 water_model_matrix = terrain_model_matrix;
     texture_2d dudv_map(RESOURCE_DIR "textures/terrain/dudv.png");
     dudv_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     dudv_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -266,6 +268,7 @@ void application::run() noexcept {
             for (size_t i = 0; i < csm_shadowmap.shadowmaps.size(); ++i) {
                 const std::string csm_uniform = "u_light.csm.shadowmap[" + std::to_string(i) + "]";
                 const std::string matrix_uniform = "u_light_space[" + std::to_string(i) + "]";
+                
                 const glm::mat4 light_space_matrix = csm_shadowmap.subfrustas[i].lightspace_projection * csm_shadowmap.subfrustas[i].lightspace_view;
                 
                 terrain_shader.uniform(csm_uniform, int32_t(10 + i));
