@@ -102,12 +102,12 @@ void application::run() noexcept {
     const float bounds_height = top - bottom;
 
     particle_props props;
-    props.start_color = glm::vec4(254 / 255.0f, 212 / 255.0f, 123 / 255.0f, 1.0f);
-	props.end_color = glm::vec4(254 / 255.0f, 109 / 255.0f, 41 / 255.0f, 1.0f);
+    props.start_color = glm::vec4(1.0f);
+	props.end_color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
 	props.start_size = 0.1f, props.size_variation = 0.3f, props.end_size = 0.0f;
 	props.life_time = 1.0f;
 	props.velocity = glm::vec3(0.0f);
-	props.velocity_variation = glm::vec3(3.0f, 1.0f, 3.0f);
+	props.velocity_variation = glm::vec3(3.0f);
 	props.position = glm::vec3(0.0f);
 
     particle_system p_system(10000);
@@ -138,8 +138,7 @@ void application::run() noexcept {
 
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        int32_t mouse_state = glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT);
-        if (mouse_state == GLFW_PRESS || mouse_state == GLFW_REPEAT) {
+        if (glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
             // double x, y;
             // glfwGetCursorPos(m_window, &x, &y);
             //
