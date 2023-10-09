@@ -5,18 +5,19 @@
 
 struct terrain {
     terrain() = default;
-    terrain(const std::string_view height_map_path, float world_scale, float height_scale);
+    terrain(const std::string_view height_map_path, float dudv);
 
-    void create(const std::string_view height_map_path, float world_scale, float height_scale) noexcept;
+    void create(const std::string_view height_map_path, float dudv) noexcept;
     void create_water_mesh(float height) noexcept;
 
-    float get_height(float x, float z) const noexcept;
-    float get_interpolated_height(float x, float z) const noexcept;
+    float get_height(float local_x, float local_z) const noexcept;
+    float get_interpolated_height(float local_x, float local_z) const noexcept;
 
     void calculate_tile_regions(size_t tiles_count, const std::string* tile_texture_paths = nullptr) noexcept;
 
 private:
     void _calculate_normals(std::vector<mesh::vertex>& vertices, const std::vector<std::uint32_t>& indices) noexcept;
+    bool _belongs_terrain(float local_x, float local_z) const noexcept;
 
 public:
     struct tile {
@@ -36,7 +37,4 @@ public:
 
     float min_height = std::numeric_limits<float>::max();
     float max_height = std::numeric_limits<float>::min();
-
-    float world_scale = 1.0f;
-    float height_scale = 1.0f;
 };

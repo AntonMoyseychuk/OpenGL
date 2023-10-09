@@ -3,11 +3,11 @@
 #include <stb/stb_image.h>
 #include <stb/stb_image_write.h>
 
-terrain::terrain(const std::string_view height_map_path, float world_scale, float height_scale) {
-    create(height_map_path, world_scale, height_scale);
+terrain::terrain(const std::string_view height_map_path, float dudv) {
+    create(height_map_path, dudv);
 }
 
-void terrain::create(const std::string_view height_map_path, float world_scale, float height_scale) noexcept {
+void terrain::create(const std::string_view height_map_path, float dudv) noexcept {
     int32_t channel_count;
     uint8_t* height_map = stbi_load(height_map_path.data(), &width, &depth, &channel_count, 0);
 
@@ -18,19 +18,14 @@ void terrain::create(const std::string_view height_map_path, float world_scale, 
         return;
     }
 
-    ASSERT(world_scale >= 0.0f, "terrain", "world_scale must be greater or equal than zero");
-    ASSERT(height_scale >= 0.0f, "terrain", "height_scale must be greater or equal than zero");
-    this->world_scale = world_scale;
-    this->height_scale = height_scale;
-
-    const float du = 1.0f / (world_scale), dv = 1.0f / (world_scale);
+    ASSERT(dudv > 0.0f, "terrain", "dudv must be greater than zero");
 
     std::vector<mesh::vertex> vertices(width * depth);
     this->heights.resize(vertices.size());
     for (uint32_t z = 0; z < depth; ++z) {
         for (uint32_t x = 0; x < width; ++x) {
             const size_t index = z * width * channel_count + x * channel_count;
-            const float height = (height_map[index + 1]) * height_scale;
+            const float height = height_map[index + 1];
 
             min_height = std::min(min_height, height);
             max_height = std::max(max_height, height);
@@ -38,8 +33,8 @@ void terrain::create(const std::string_view height_map_path, float world_scale, 
             this->heights[z * width + x] = height;
 
             mesh::vertex& vertex = vertices[z * width + x];
-            vertex.position = glm::vec3(x * world_scale, height, z * world_scale);
-            vertex.texcoord = glm::vec2(x * du, (depth - 1 - z) * dv);
+            vertex.position = glm::vec3(x, height, z);
+            vertex.texcoord = glm::vec2(x * dudv, (depth - 1 - z) * dudv);
         }
     }
     stbi_image_free(height_map);
@@ -92,24 +87,25 @@ void terrain::create_water_mesh(float height) noexcept {
     water_mesh.create(vertices, indices);
 }
 
-float terrain::get_height(float x, float z) const noexcept {
-    x = glm::clamp(x, 0.0f, width * world_scale);
-    z = glm::clamp(z, 0.0f, (depth - 1) * world_scale);
-    return heights[size_t(z / world_scale) * width + size_t(x / world_scale)];
+float terrain::get_height(float local_x, float local_z) const noexcept {
+    if (!_belongs_terrain(local_x, local_z)) {
+        return std::numeric_limits<float>::lowest();
+    }
+    return heights[size_t(local_z) * width + size_t(local_x)];
 }
 
-float terrain::get_interpolated_height(float x, float z) const noexcept {
-    const float base_height = get_height(x, z);
-    if (x + 1.0f >= width * world_scale || z + 1.0f >= depth * world_scale) {
+float terrain::get_interpolated_height(float local_x, float local_z) const noexcept {
+    const float base_height = get_height(local_x, local_z);
+    if (!_belongs_terrain(local_x, local_z)) {
         return base_height;
     }
 
-    const float next_height_x = get_height(x + 1.0f, z);
-    const float ratio_x = x - floorf(x);
+    const float next_height_x = get_height(local_x + 1.0f, local_z);
+    const float ratio_x = local_x - floorf(local_x);
     const float interpolated_height_x = (next_height_x - base_height) * ratio_x + base_height;
 
-    const float next_height_z = get_height(x, z + 1.0f);
-    const float ratio_z = z - floorf(z);
+    const float next_height_z = get_height(local_x, local_z + 1.0f);
+    const float ratio_z = local_z - floorf(local_z);
     const float interpolated_height_z = (next_height_z - base_height) * ratio_z + base_height;
 
     const float final_height = (interpolated_height_x + interpolated_height_z) / 2.0f;
@@ -172,4 +168,8 @@ void terrain::_calculate_normals(std::vector<mesh::vertex> &vertices, const std:
     for (size_t i = 0; i < vertices.size(); ++i) {
         vertices[i].normal = glm::normalize(averaged_normals[i].sum / static_cast<float>(averaged_normals[i].count));
     }
+}
+
+bool terrain::_belongs_terrain(float local_x, float local_z) const noexcept {
+    return (local_x >= 0.0f || local_x < width || local_z >= 0.0f || local_z < depth);
 }
