@@ -310,9 +310,8 @@ void application::run() noexcept {
                 m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
 
                 const glm::vec3 origin_camera_position = m_camera.position;
-                const glm::vec4 camera_terrain_position = glm::inverse(terrain_model_matrix) * glm::vec4(origin_camera_position, 1.0f);
-                const float water_terrain_heigth = water_height;
-                const float camera_to_water_dist = abs(camera_terrain_position.y - water_terrain_heigth);
+                const glm::vec4 water_world_position = terrain_model_matrix * glm::vec4(0.0f, water_height, 0.0f, 1.0f);
+                const float camera_to_water_dist = abs(origin_camera_position.y - water_world_position.y);
                 const glm::vec3 new_camera_position = origin_camera_position - glm::vec3(0.0f, 2.0f * camera_to_water_dist, 0.0f);
                 m_camera.position = new_camera_position;
                 m_camera.invert_pitch();
