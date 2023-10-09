@@ -78,7 +78,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     m_renderer.depth_func(GL_LEQUAL);
 
     const glm::vec3 camera_position(0.0f, 0.0f, 25.0f);
-    m_camera.create(camera_position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 300.0f, 10.0f);
+    m_camera.create(camera_position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 3.0f, 10.0f);
 
     m_proj_settings.x = m_proj_settings.y = 0;
     m_proj_settings.near = 0.1f;
@@ -100,67 +100,72 @@ void application::run() noexcept {
 
     const float bounds_width = right - left;
     const float bounds_height = top - bottom;
-    particles_shader.uniform("u_proj_view", glm::ortho(left, right, bottom, top, -1.0f, 100.0f) * m_camera.get_view());
+
     particle_props props;
-    props.start_color = { 254 / 255.0f, 212 / 255.0f, 123 / 255.0f, 1.0f };
-	props.end_color = { 254 / 255.0f, 109 / 255.0f, 41 / 255.0f, 1.0f };
+    props.start_color = glm::vec4(254 / 255.0f, 212 / 255.0f, 123 / 255.0f, 1.0f);
+	props.end_color = glm::vec4(254 / 255.0f, 109 / 255.0f, 41 / 255.0f, 1.0f);
 	props.start_size = 0.1f, props.size_variation = 0.3f, props.end_size = 0.0f;
 	props.life_time = 1.0f;
-	props.velocity = { 0.0f, 0.0f };
-	props.velocity_variation = { 3.0f, 1.0f };
-	props.position = { 0.0f, 0.0f };
+	props.velocity = glm::vec3(0.0f);
+	props.velocity_variation = glm::vec3(3.0f, 1.0f, 3.0f);
+	props.position = glm::vec3(0.0f);
 
-    particle_system p_system(1000);
+    particle_system p_system(10000);
 
     ImGuiIO& io = ImGui::GetIO();
 
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
 
-        // m_camera.update_dt(io.DeltaTime);
-        // if (!m_camera.is_fixed) {
-        //     if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        //         m_camera.move(m_camera.get_up() * io.DeltaTime);
-        //     } else if (glfwGetKey(m_window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-        //         m_camera.move(-m_camera.get_up() * io.DeltaTime);
-        //     }
-        //     if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS) {
-        //         m_camera.move(m_camera.get_forward() * io.DeltaTime);
-        //     } else if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS) {
-        //         m_camera.move(-m_camera.get_forward() * io.DeltaTime);
-        //     }
-        //     if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS) {
-        //         m_camera.move(m_camera.get_right() * io.DeltaTime);
-        //     } else if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS) {
-        //         m_camera.move(-m_camera.get_right() * io.DeltaTime);
-        //     }
-        // }
+        m_camera.update_dt(io.DeltaTime);
+        if (!m_camera.is_fixed) {
+            if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+                m_camera.move(m_camera.get_up() * io.DeltaTime);
+            } else if (glfwGetKey(m_window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+                m_camera.move(-m_camera.get_up() * io.DeltaTime);
+            }
+            if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS) {
+                m_camera.move(m_camera.get_forward() * io.DeltaTime);
+            } else if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS) {
+                m_camera.move(-m_camera.get_forward() * io.DeltaTime);
+            }
+            if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS) {
+                m_camera.move(m_camera.get_right() * io.DeltaTime);
+            } else if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS) {
+                m_camera.move(-m_camera.get_right() * io.DeltaTime);
+            }
+        }
 
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         int32_t mouse_state = glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT);
         if (mouse_state == GLFW_PRESS || mouse_state == GLFW_REPEAT) {
-            double x, y;
-            glfwGetCursorPos(m_window, &x, &y);
-
-            x = (x / width) * bounds_width - bounds_width * 0.5f;
-            y = bounds_height * 0.5f - (y / height) * bounds_height;
-            props.position = { x + m_camera.position.x, y + m_camera.position.y };
+            // double x, y;
+            // glfwGetCursorPos(m_window, &x, &y);
+            //
+            // x = (x / width) * bounds_width - bounds_width * 0.5f;
+            // y = bounds_height * 0.5f - (y / height) * bounds_height;
+            // props.position = { x + m_camera.position.x, y + m_camera.position.y };
 
             for (size_t i = 0; i < 5; ++i) {
                 p_system.emit(props);
             }
         }
 
-        p_system.update(io.DeltaTime);
+        p_system.update(io.DeltaTime, m_camera.get_view());
 
+        particles_shader.uniform("u_proj_view", m_proj_settings.projection_mat * m_camera.get_view());
         m_renderer.render(GL_TRIANGLES, particles_shader, p_system);
 
+    #if 1 //UI
         _imgui_frame_begin();
-        ImGui::Begin("Settings");
-            ImGui::ColorEdit4("Birth Color", glm::value_ptr(props.start_color));
-            ImGui::ColorEdit4("Death Color", glm::value_ptr(props.end_color));
-            ImGui::DragFloat("Life Time", &props.life_time, 0.1f, 0.0f, 1000.0f);
+        ImGui::Begin("particles");
+            ImGui::ColorEdit4("birth color", glm::value_ptr(props.start_color));
+            ImGui::ColorEdit4("death color", glm::value_ptr(props.end_color));
+            ImGui::DragFloat("start size", &props.start_size, 0.001f, 0.0f, 1000.0f);
+            ImGui::DragFloat("end size", &props.end_size, 0.001f, 0.0f, 1000.0f);
+            ImGui::DragFloat("size variation", &props.size_variation, 0.001f, 0.0f, 1000.0f);
+            ImGui::DragFloat("life time", &props.life_time, 0.1f, 0.0f, 1000.0f);
         ImGui::End();
         
         ImGui::Begin("Information");
@@ -181,64 +186,6 @@ void application::run() noexcept {
             ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::End();
 
-    #if 0 //UI
-    #if 1        
-        ImGui::Begin("Water Framebuffers");
-            ImGui::SliderInt(debug_water_fbos_index == 0 ? "refract" : "reflect", &debug_water_fbos_index, 0, 1);
-            const uint32_t fbo_width = debug_water_fbos_index == 0 ? refract_color_buffer.get_width() : reflect_color_buffer.get_width();
-            const uint32_t fbo_height = debug_water_fbos_index == 0 ? refract_color_buffer.get_height() : reflect_color_buffer.get_height();
-            ImGui::Image((void*)(intptr_t)(debug_water_fbos_index == 0 ? refract_color_buffer.get_id() : reflect_color_buffer.get_id()), 
-                ImVec2(fbo_width, fbo_height), ImVec2(0, 1), ImVec2(1, 0));
-        ImGui::End();
-
-        // ImGui::Begin("Refract Depth");
-        //     ImGui::Image((void*)(intptr_t)refract_depth_buffer.get_id(), ImVec2(fbo_width, fbo_height), ImVec2(0, 1), ImVec2(1, 0));
-        // ImGui::End();
-
-        // ImGui::Begin("Terrain");
-        //     ImGui::DragFloat("height scale", &terrain.height_scale, 0.001f, 0.01f, std::numeric_limits<float>::max());
-        //     ImGui::DragFloat("world scale", &terrain.world_scale, 0.1f, 0.1f, std::numeric_limits<float>::max());
-
-        //     if (ImGui::Button("regenerate")) {
-        //         terrain.create(RESOURCE_DIR "textures/terrain/height_map.png", terrain.world_scale, terrain.height_scale);
-
-        //         texture_2d surface(RESOURCE_DIR "textures/terrain/terrain_surface.png");
-        //         terrain.mesh.add_texture(std::move(surface));
-        //     }
-        // ImGui::End();
-    #endif
-
-        ImGui::Begin("Water");
-            ImGui::DragFloat("wave strength", &wave_strength, 0.001f, 0.001f, std::numeric_limits<float>::max());
-            ImGui::DragFloat("wave speed", &wave_speed, 0.001f, 0.001f, std::numeric_limits<float>::max());
-            ImGui::DragFloat("shininess", &water_shininess, 0.1f, 0.1f, std::numeric_limits<float>::max());
-            ImGui::DragFloat("specular strength", &water_specular_strength, 0.1f, 0.1f, std::numeric_limits<float>::max());
-        ImGui::End();
-
-        ImGui::Begin("Skybox");
-            ImGui::DragFloat("speed", &skybox_speed, 0.001f, 0.0f, std::numeric_limits<float>::max());
-        ImGui::End();
-
-        ImGui::Begin("Light");
-            ImGui::ColorEdit3("color", glm::value_ptr(light_color));
-            ImGui::Checkbox("debug cascade", &cascade_debug_mode);
-        ImGui::End();
-
-        ImGui::Begin("Depth Texture");
-            ImGui::SliderInt("cascade index", &debug_cascade_index, 0, csm_shadowmap.shadowmaps.size() - 1);
-            const uint32_t csm_width = csm_shadowmap.shadowmaps[debug_cascade_index].get_width();
-            const uint32_t csm_height = csm_shadowmap.shadowmaps[debug_cascade_index].get_height();
-            ImGui::Text("Resolution [%d X %d]", csm_width, csm_height);
-            ImGui::Image((void*)(intptr_t)csm_shadowmap.shadowmaps[debug_cascade_index].get_id(), 
-                ImVec2(csm_width, csm_height), ImVec2(0, 1), ImVec2(1, 0));
-        ImGui::End();
-
-        ImGui::Begin("Fog");
-            ImGui::ColorEdit3("color", glm::value_ptr(fog_color));
-            ImGui::DragFloat("density", &fog_density, 0.0001f, 0.0f, std::numeric_limits<float>::max(), "%.5f");
-            ImGui::DragFloat("gradient", &fog_gradient, 0.01f, 0.0f, std::numeric_limits<float>::max());
-        ImGui::End();
-
         ImGui::Begin("Camera");
             ImGui::DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f);
             ImGui::DragFloat("speed", &m_camera.speed, 0.1f, 1.0f, std::numeric_limits<float>::max());
@@ -257,8 +204,8 @@ void application::run() noexcept {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         ImGui::End();
-    #endif
         _imgui_frame_end();
+    #endif
 
         glfwSwapBuffers(m_window);
     }

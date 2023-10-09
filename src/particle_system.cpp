@@ -27,11 +27,13 @@ particle_system::particle_system(size_t particle_count) {
     m_colors_pool.resize(particle_count);
     m_transforms_pool.resize(particle_count);
 
-    m_colors_buffer.create(GL_SHADER_STORAGE_BUFFER, particle_count * sizeof(m_colors_pool[0]), sizeof(m_colors_pool[0]), GL_STREAM_DRAW, nullptr);
-    m_transforms_buffer.create(GL_SHADER_STORAGE_BUFFER, particle_count * sizeof(m_transforms_pool[0]), sizeof(m_transforms_pool[0]), GL_DYNAMIC_DRAW, nullptr);
+    m_colors_buffer.create(
+        GL_SHADER_STORAGE_BUFFER, particle_count * sizeof(m_colors_pool[0]), sizeof(m_colors_pool[0]), GL_STREAM_DRAW, nullptr);
+    m_transforms_buffer.create(
+        GL_SHADER_STORAGE_BUFFER, particle_count * sizeof(m_transforms_pool[0]), sizeof(m_transforms_pool[0]), GL_DYNAMIC_DRAW, nullptr);
 }
 
-void particle_system::update(float dt) noexcept {
+void particle_system::update(float dt, const glm::mat4& view) noexcept {
     active_particles_count = 0;
     for (size_t i = 0; i < m_particle_pool.size(); ++i) {
         particle_system::particle& particle = m_particle_pool[i];
@@ -59,8 +61,14 @@ void particle_system::update(float dt) noexcept {
 
         const float size = glm::lerp(particle.end_size, particle.start_size, life);
         
-        m_transforms_pool[insertion_index] = glm::translate(glm::mat4(1.0f), glm::vec3(particle.position.x, particle.position.y, 0.0f))
-            * glm::rotate(glm::mat4(1.0f), particle.rotation, glm::vec3(0.0f, 0.0f, 1.0f))
+        m_transforms_pool[insertion_index] = glm::translate(glm::mat4(1.0f), particle.position);
+        for (size_t y = 0; y < 3; ++y) {
+            for (size_t x = 0; x < 3; ++x) {
+                m_transforms_pool[insertion_index][y][x] = view[x][y];
+            }
+        }
+
+        m_transforms_pool[insertion_index] *= glm::rotate(glm::mat4(1.0f), particle.rotation, glm::vec3(0.0f, 0.0f, 1.0f))
             * glm::scale(glm::mat4(1.0f), glm::vec3(size, size, 1.0f));
     }
 
@@ -80,6 +88,7 @@ void particle_system::emit(const particle_props &props) noexcept {
     particle.velocity = props.velocity;
     particle.velocity.x += props.velocity_variation.x * (random(0.0f, 1.0f) - 0.5f);
     particle.velocity.y += props.velocity_variation.y * (random(0.0f, 1.0f) - 0.5f);
+    particle.velocity.z += props.velocity_variation.z * (random(0.0f, 1.0f) - 0.5f);
 
     particle.start_color = props.start_color;
     particle.end_color = props.end_color;
