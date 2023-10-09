@@ -16,6 +16,7 @@ struct terrain {
     void calculate_tile_regions(size_t tiles_count, const std::string* tile_texture_paths = nullptr) noexcept;
 
 private:
+    std::vector<uint32_t> _generate_mesh_indices(int32_t width, int32_t depth) const noexcept;
     void _calculate_normals(std::vector<mesh::vertex>& vertices, const std::vector<std::uint32_t>& indices) noexcept;
     bool _belongs_terrain(float local_x, float local_z) const noexcept;
 

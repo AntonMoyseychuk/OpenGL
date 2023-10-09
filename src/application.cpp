@@ -308,10 +308,10 @@ void application::run() noexcept {
             // plants_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
             // plants_shader.uniform("u_projection", m_proj_settings.projection_mat);
             // plants_shader.uniform("u_view", m_camera.get_view());
-            
+            //
             // plants_shader.uniform("u_light.direction", curr_light_direction);
             // plants_shader.uniform("u_light.color", light_color);
-            
+            //
             // plants_shader.uniform("u_fog.color", fog_color);
             // plants_shader.uniform("u_fog.density", fog_density);
             // plants_shader.uniform("u_fog.gradient", fog_gradient);

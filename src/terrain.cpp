@@ -39,20 +39,7 @@ void terrain::create(const std::string_view height_map_path, float dudv) noexcep
     }
     stbi_image_free(height_map);
 
-    std::vector<uint32_t> indices;
-    indices.reserve((width - 1) * (depth - 1) * 6);
-    for (uint32_t z = 0; z < depth - 1; ++z) {
-        for (uint32_t x = 0; x < width - 1; ++x) {
-            indices.emplace_back(z * width + x);
-            indices.emplace_back((z + 1) * width + x);
-            indices.emplace_back(z * width + (x + 1));
-
-            indices.emplace_back(z * width + (x + 1));
-            indices.emplace_back((z + 1) * width + x);
-            indices.emplace_back((z + 1) * width + (x + 1));
-        }
-    }
-
+    const auto indices = _generate_mesh_indices(width, depth);
     _calculate_normals(vertices, indices);
 
     ground_mesh.create(vertices, indices);
@@ -70,21 +57,7 @@ void terrain::create_water_mesh(float height) noexcept {
         }
     }
 
-    std::vector<uint32_t> indices;
-    indices.reserve((width - 1) * (depth - 1) * 6);
-    for (uint32_t z = 0; z < depth - 1; ++z) {
-        for (uint32_t x = 0; x < width - 1; ++x) {
-            indices.emplace_back(z * width + x);
-            indices.emplace_back((z + 1) * width + x);
-            indices.emplace_back(z * width + (x + 1));
-
-            indices.emplace_back(z * width + (x + 1));
-            indices.emplace_back((z + 1) * width + x);
-            indices.emplace_back((z + 1) * width + (x + 1));
-        }
-    }
-
-    water_mesh.create(vertices, indices);
+    water_mesh.create(vertices, _generate_mesh_indices(width, depth));
 }
 
 float terrain::get_height(float local_x, float local_z) const noexcept {
@@ -143,7 +116,26 @@ void terrain::calculate_tile_regions(size_t tiles_count, const std::string* tile
     }
 }
 
-void terrain::_calculate_normals(std::vector<mesh::vertex> &vertices, const std::vector<std::uint32_t> &indices) noexcept {
+std::vector<uint32_t> terrain::_generate_mesh_indices(int32_t width, int32_t depth) const noexcept {
+    std::vector<uint32_t> indices;
+    indices.reserve((width - 1) * (depth - 1) * 6);
+    for (uint32_t z = 0; z < depth - 1; ++z) {
+        for (uint32_t x = 0; x < width - 1; ++x) {
+            indices.emplace_back(z * width + x);
+            indices.emplace_back((z + 1) * width + x);
+            indices.emplace_back(z * width + (x + 1));
+
+            indices.emplace_back(z * width + (x + 1));
+            indices.emplace_back((z + 1) * width + x);
+            indices.emplace_back((z + 1) * width + (x + 1));
+        }
+    }
+
+    return indices;
+}
+
+void terrain::_calculate_normals(std::vector<mesh::vertex> &vertices, const std::vector<std::uint32_t> &indices) noexcept
+{
     struct vertex_normals_sum {
         glm::vec3 sum = glm::vec3(0.0f);
         uint32_t count = 0;
