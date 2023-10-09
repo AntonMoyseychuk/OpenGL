@@ -190,15 +190,17 @@ void application::run() noexcept {
     //
     // std::vector<glm::mat4> tree_transforms(150);
     // for (size_t i = 0; i < tree_transforms.size(); ++i) {
-    //     float x = std::numeric_limits<float>::lowest(), y = std::numeric_limits<float>::lowest(), z = std::numeric_limits<float>::lowest();
-    //     while(glm::abs(terrain.tiles[1].optimal - y) >= 20.0f) {
-    //         x = random<float>(5 * terrain.world_scale, (terrain.width - 5) * terrain.world_scale);
-    //         z = random<float>(5 * terrain.world_scale, (terrain.depth - 5) * terrain.world_scale);
-    //         y = terrain.get_interpolated_height(x, z);
+    //     glm::vec3 position(std::numeric_limits<float>::lowest());
+    //     while(glm::abs(terrain.tiles[1].optimal - position.y) >= 20.0f) {
+    //         position.x = random<float>(1.0f, terrain.width - 1.0f);
+    //         position.z = random<float>(1.0f, terrain.depth - 1.0f);
+    //         position.y = terrain.get_interpolated_height(position.x, position.z);
     //     }
     //
-    //     tree_transforms[i] = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z)) 
-    //         * terrain_model_matrix * glm::scale(glm::mat4(1.0f), glm::vec3(1.2f));
+    //     tree_transforms[i] = terrain_model_matrix 
+    //         * glm::translate(glm::mat4(1.0f), position) 
+    //         * glm::inverse(terrain_scale_matrix) 
+    //         * glm::scale(glm::mat4(1.0f), glm::vec3(1.5f));
     // }
     // buffer tree_transforms_buffer(
     //     GL_SHADER_STORAGE_BUFFER, tree_transforms.size() * sizeof(glm::mat4), sizeof(glm::mat4), GL_STATIC_DRAW, tree_transforms.data());
@@ -303,6 +305,17 @@ void application::run() noexcept {
                 terrain_shader.uniform("u_terrain.tiles[" + std::to_string(i) + "].high", terrain.tiles[i].high);
             }
 
+            // plants_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
+            // plants_shader.uniform("u_projection", m_proj_settings.projection_mat);
+            // plants_shader.uniform("u_view", m_camera.get_view());
+            
+            // plants_shader.uniform("u_light.direction", curr_light_direction);
+            // plants_shader.uniform("u_light.color", light_color);
+            
+            // plants_shader.uniform("u_fog.color", fog_color);
+            // plants_shader.uniform("u_fog.density", fog_density);
+            // plants_shader.uniform("u_fog.gradient", fog_gradient);
+
             {
                 reflect_fbo.bind();
                 m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -322,8 +335,9 @@ void application::run() noexcept {
                 m_camera.position = origin_camera_position;
                 m_camera.invert_pitch();
 
-                terrain_shader.uniform("u_water_clip_plane", reflect_clip_plane);
+
                 m_renderer.enable(GL_CULL_FACE);
+                terrain_shader.uniform("u_water_clip_plane", reflect_clip_plane);
                 m_renderer.render(GL_TRIANGLES, terrain_shader, terrain.ground_mesh);
                 m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
             }
@@ -332,10 +346,6 @@ void application::run() noexcept {
                 refract_fbo.bind();
                 m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
                 m_renderer.viewport(0, 0, refract_color_buffer.get_width(), refract_color_buffer.get_height());
-
-                // m_renderer.disable(GL_CULL_FACE);
-                // m_renderer.render(GL_TRIANGLES, skybox_shader, cube);
-                // m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
 
                 terrain_shader.uniform("u_view", m_camera.get_view());      
                 terrain_shader.uniform("u_water_clip_plane", refract_clip_plane);  
@@ -384,18 +394,7 @@ void application::run() noexcept {
             m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             m_renderer.render(GL_TRIANGLES, water_shader, terrain.water_mesh);
             m_renderer.disable(GL_BLEND);
-
-            // plants_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
-            // plants_shader.uniform("u_projection", m_proj_settings.projection_mat);
-            // plants_shader.uniform("u_view", m_camera.get_view());
-            //
-            // plants_shader.uniform("u_light.direction", curr_light_direction);
-            // plants_shader.uniform("u_light.color", light_color);
-            //
-            // plants_shader.uniform("u_fog.color", fog_color);
-            // plants_shader.uniform("u_fog.density", fog_density);
-            // plants_shader.uniform("u_fog.gradient", fog_gradient);
-            //
+            
             // plants_shader.uniform("u_material.diffuse0", tree_surface, 0);
             // tree_transforms_buffer.bind_base(0);
             // m_renderer.render_instanced(GL_TRIANGLES, plants_shader, tree, tree_transforms.size());
