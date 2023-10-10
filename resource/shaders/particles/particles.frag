@@ -10,5 +10,6 @@ in VS_OUT {
 uniform sampler2D u_sprite;
 
 void main() {
-	frag_color = fs_in.color;
+	frag_color = texture(u_sprite, fs_in.texcoord);
+	frag_color.rgb = mix(frag_color.rgb, fs_in.color.rgb, 0.5f);
 }

@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "mesh.hpp"
+#include "camera.hpp"
 
 struct particle_props {
     glm::vec3 position;
@@ -16,7 +17,7 @@ class particle_system {
 public:
     particle_system(size_t particle_count);
 
-    void update(float dt, const glm::mat4& view) noexcept;
+    void update(float dt, const camera& camera) noexcept;
 
     void emit(const particle_props& props) noexcept;
 

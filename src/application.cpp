@@ -90,6 +90,16 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 void application::run() noexcept {
     shader particles_shader(RESOURCE_DIR "shaders/particles/particles.vert", RESOURCE_DIR "shaders/particles/particles.frag");
 
+    texture_2d particle_texture(RESOURCE_DIR "textures/particles/star.png");
+    particle_texture.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    particle_texture.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    particle_texture.generate_mipmap();
+
+    particles_shader.uniform("u_sprite", particle_texture, 0);
+
+    m_renderer.enable(GL_BLEND);
+    m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     const float width = m_proj_settings.width;
     const float height = m_proj_settings.height;
 
@@ -151,7 +161,7 @@ void application::run() noexcept {
             }
         }
 
-        p_system.update(io.DeltaTime, m_camera.get_view());
+        p_system.update(io.DeltaTime, m_camera);
 
         particles_shader.uniform("u_proj_view", m_proj_settings.projection_mat * m_camera.get_view());
         m_renderer.render(GL_TRIANGLES, particles_shader, p_system);

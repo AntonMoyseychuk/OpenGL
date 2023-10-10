@@ -170,6 +170,6 @@ void terrain::_calculate_normals(std::vector<mesh::vertex> &vertices, const std:
     }
 
     for (size_t i = 0; i < vertices.size(); ++i) {
-        vertices[i].normal = averaged_normals[i].sum / static_cast<float>(averaged_normals[i].count);
+        vertices[i].normal = glm::normalize(averaged_normals[i].sum / static_cast<float>(averaged_normals[i].count));
     }
 }
