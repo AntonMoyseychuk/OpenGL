@@ -77,7 +77,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     m_renderer.enable(GL_DEPTH_TEST);
     m_renderer.depth_func(GL_LEQUAL);
 
-    const glm::vec3 camera_position(0.0f, 0.0f, 25.0f);
+    const glm::vec3 camera_position(0.0f, 0.0f, 15.0f);
     m_camera.create(camera_position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 3.0f, 10.0f);
 
     m_proj_settings.x = m_proj_settings.y = 0;

@@ -44,10 +44,12 @@ namespace util {
 }
 
 void particle_system::update(float dt, const camera& camera) noexcept {
-    std::map<float, glm::mat4> sorted_transforms;
-    std::map<float, glm::vec4> sorted_colors;
+    std::map<double, glm::mat4> sorted_transforms;
+    std::map<double, glm::vec4> sorted_colors;
     
     active_particles_count = 0;
+
+    const glm::dvec3 high_precision_camera_position = camera.position;
     
     for (size_t i = 0; i < m_particle_pool.size(); ++i) {
         particle_system::particle& particle = m_particle_pool[i];
@@ -67,7 +69,7 @@ void particle_system::update(float dt, const camera& camera) noexcept {
         particle.position += particle.velocity * dt;
         particle.rotation += 0.01f * dt;
 
-        const float particle_to_camera_distance = glm::distance(camera.position, particle.position);
+        const double particle_to_camera_distance = glm::distance(high_precision_camera_position, glm::dvec3(particle.position));
 
         const float life = particle.life_remaining / particle.life_time;
         glm::vec4 color = glm::lerp(particle.end_color, particle.start_color, life);
@@ -91,8 +93,8 @@ void particle_system::update(float dt, const camera& camera) noexcept {
     }
 
     if (active_particles_count > 0) {
-        util::copy_map_into_buffer(sorted_colors.rbegin(), sorted_colors.rend(), (glm::vec4*)m_colors_buffer.map(GL_READ_WRITE));
-        util::copy_map_into_buffer(sorted_transforms.rbegin(), sorted_transforms.rend(), (glm::mat4*)m_transforms_buffer.map(GL_READ_WRITE));
+        util::copy_map_into_buffer(sorted_colors.rbegin(), sorted_colors.rend(), (glm::vec4*)m_colors_buffer.map(GL_WRITE_ONLY));
+        util::copy_map_into_buffer(sorted_transforms.rbegin(), sorted_transforms.rend(), (glm::mat4*)m_transforms_buffer.map(GL_WRITE_ONLY));
 
         assert(m_colors_buffer.unmap());
         assert(m_transforms_buffer.unmap());
