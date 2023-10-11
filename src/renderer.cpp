@@ -70,8 +70,7 @@ void renderer::render(uint32_t mode, const shader &shader, const model &model) c
 }
 
 void renderer::render(uint32_t mode, const shader &shader, const particle_system &particles) const noexcept {
-    particles.m_transforms_buffer.bind_base(0);
-    particles.m_colors_buffer.bind_base(1);
+    particles.bind_buffers();
     render_instanced(GL_TRIANGLES, shader, particles.m_mesh, particles.active_particles_count);
 }
 

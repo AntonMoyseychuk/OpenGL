@@ -18,8 +18,9 @@ public:
     particle_system(size_t particle_count);
 
     void update(float dt, const camera& camera) noexcept;
-
     void emit(const particle_props& props) noexcept;
+
+    void bind_buffers() const noexcept; 
 
 private:
     struct particle {

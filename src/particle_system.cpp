@@ -58,6 +58,8 @@ void particle_system::update(float dt, const camera& camera) noexcept {
             continue;
         }
 
+        particle.life_remaining -= dt;
+
         if (particle.life_remaining <= 0.0f) {
             particle.is_active = false;
             continue;
@@ -65,11 +67,10 @@ void particle_system::update(float dt, const camera& camera) noexcept {
 
         ++active_particles_count;
 
-        particle.life_remaining -= dt;
         particle.position += particle.velocity * dt;
         particle.rotation += 0.01f * dt;
 
-        const double particle_to_camera_distance = glm::distance(high_precision_camera_position, glm::dvec3(particle.position));
+        const double particle_to_camera_distance = glm::distance(high_precision_camera_position, glm::dvec3(particle.position)) * 1'000'000.0;
 
         const float life = particle.life_remaining / particle.life_time;
         glm::vec4 color = glm::lerp(particle.end_color, particle.start_color, life);
@@ -95,7 +96,7 @@ void particle_system::update(float dt, const camera& camera) noexcept {
     if (active_particles_count > 0) {
         util::copy_map_into_buffer(sorted_colors.rbegin(), sorted_colors.rend(), (glm::vec4*)m_colors_buffer.map(GL_WRITE_ONLY));
         util::copy_map_into_buffer(sorted_transforms.rbegin(), sorted_transforms.rend(), (glm::mat4*)m_transforms_buffer.map(GL_WRITE_ONLY));
-
+        
         assert(m_colors_buffer.unmap());
         assert(m_transforms_buffer.unmap());
     }
@@ -122,4 +123,9 @@ void particle_system::emit(const particle_props &props) noexcept {
     particle.end_size = props.end_size;
 
     m_pool_index = --m_pool_index % m_particle_pool.size();
+}
+
+void particle_system::bind_buffers() const noexcept {
+    m_transforms_buffer.bind_base(0);
+    m_colors_buffer.bind_base(1);
 }
