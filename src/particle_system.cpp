@@ -29,6 +29,8 @@ particle_system::particle_system(size_t particle_count) {
 
     m_colors_buffer.create(GL_SHADER_STORAGE_BUFFER, particle_count * sizeof(glm::vec4), sizeof(glm::vec4), GL_STREAM_DRAW, nullptr);
     m_transforms_buffer.create(GL_SHADER_STORAGE_BUFFER, particle_count * sizeof(glm::mat4), sizeof(glm::mat4), GL_DYNAMIC_DRAW, nullptr);
+    m_offsets_buffer.create(GL_SHADER_STORAGE_BUFFER, particle_count * sizeof(glm::vec4), sizeof(glm::vec4), GL_DYNAMIC_DRAW, nullptr);
+    m_blending_buffer.create(GL_SHADER_STORAGE_BUFFER, particle_count * sizeof(float), sizeof(float), GL_DYNAMIC_DRAW, nullptr);
 }
 
 namespace util {
@@ -46,6 +48,8 @@ namespace util {
 void particle_system::update(float dt, const camera& camera) noexcept {
     std::map<double, glm::mat4> sorted_transforms;
     std::map<double, glm::vec4> sorted_colors;
+    std::map<double, glm::vec4> sorted_offsets;
+    std::map<double, float> sorted_blend_factors;
     
     active_particles_count = 0;
 
@@ -91,14 +95,32 @@ void particle_system::update(float dt, const camera& camera) noexcept {
             * glm::scale(glm::mat4(1.0f), glm::vec3(size, size, 1.0f));
 
         sorted_transforms.insert_or_assign(particle_to_camera_distance, transform);
+
+        const float atlas_progression = (1.0f - life) * (m_atlas_tiles_count - 1);
+        const uint32_t tile_index1 = glm::floor(atlas_progression);
+        const uint32_t tile_index2 = tile_index1 < m_atlas_tiles_count - 1 ? tile_index1 + 1 : tile_index1;
+        const uint32_t tiles_in_raw = glm::sqrt(m_atlas_tiles_count);
+        const float tile_size = 1.0f / tiles_in_raw;
+        sorted_offsets.insert_or_assign(particle_to_camera_distance, glm::vec4(
+            tile_index1 % tiles_in_raw * tile_size,
+            tile_index1 / tiles_in_raw * tile_size,
+            tile_index2 % tiles_in_raw * tile_size,
+            tile_index2 / tiles_in_raw * tile_size
+        ));
+
+        sorted_blend_factors.insert_or_assign(particle_to_camera_distance, atlas_progression - tile_index1);
     }
 
     if (active_particles_count > 0) {
         util::copy_map_into_buffer(sorted_colors.rbegin(), sorted_colors.rend(), (glm::vec4*)m_colors_buffer.map(GL_WRITE_ONLY));
         util::copy_map_into_buffer(sorted_transforms.rbegin(), sorted_transforms.rend(), (glm::mat4*)m_transforms_buffer.map(GL_WRITE_ONLY));
+        util::copy_map_into_buffer(sorted_offsets.rbegin(), sorted_offsets.rend(), (glm::vec4*)m_offsets_buffer.map(GL_WRITE_ONLY));
+        util::copy_map_into_buffer(sorted_blend_factors.rbegin(), sorted_blend_factors.rend(), (float*)m_blending_buffer.map(GL_WRITE_ONLY));
         
         assert(m_colors_buffer.unmap());
         assert(m_transforms_buffer.unmap());
+        assert(m_offsets_buffer.unmap());
+        assert(m_blending_buffer.unmap());
     }
 }
 
@@ -128,4 +150,10 @@ void particle_system::emit(const particle_props &props) noexcept {
 void particle_system::bind_buffers() const noexcept {
     m_transforms_buffer.bind_base(0);
     m_colors_buffer.bind_base(1);
+    m_offsets_buffer.bind_base(2);
+    m_blending_buffer.bind_base(3);
+}
+
+void particle_system::set_atlas_tiles_count(uint32_t count) noexcept {
+    m_atlas_tiles_count = count > 0 ? count : 1;
 }

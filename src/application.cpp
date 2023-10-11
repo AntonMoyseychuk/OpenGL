@@ -90,7 +90,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 void application::run() noexcept {
     shader particles_shader(RESOURCE_DIR "shaders/particles/particles.vert", RESOURCE_DIR "shaders/particles/particles.frag");
 
-    texture_2d particle_texture(RESOURCE_DIR "textures/particles/star.png");
+    texture_2d particle_texture(RESOURCE_DIR "textures/particles/particle_atlas.png", false);
     particle_texture.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     particle_texture.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     particle_texture.generate_mipmap();
@@ -115,14 +115,17 @@ void application::run() noexcept {
     props.start_color = glm::vec4(1.0f);
 	props.end_color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
 	props.start_size = 0.1f, props.size_variation = 0.3f, props.end_size = 0.0f;
-	props.life_time = 1.0f;
+	props.life_time = 2.0f;
 	props.velocity = glm::vec3(0.0f);
-	props.velocity_variation = glm::vec3(3.0f);
+	props.velocity_variation = glm::vec3(0.1f);
 	props.position = glm::vec3(0.0f);
 
     particle_system p_system(10000);
+    p_system.set_atlas_tiles_count(64);
 
     ImGuiIO& io = ImGui::GetIO();
+
+    int32_t emited_count = 15;
 
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
@@ -156,7 +159,7 @@ void application::run() noexcept {
             // y = bounds_height * 0.5f - (y / height) * bounds_height;
             // props.position = { x + m_camera.position.x, y + m_camera.position.y };
 
-            for (size_t i = 0; i < 5; ++i) {
+            for (size_t i = 0; i < emited_count; ++i) {
                 p_system.emit(props);
             }
         }
@@ -171,10 +174,13 @@ void application::run() noexcept {
         ImGui::Begin("particles");
             ImGui::ColorEdit4("birth color", glm::value_ptr(props.start_color));
             ImGui::ColorEdit4("death color", glm::value_ptr(props.end_color));
+            ImGui::DragFloat3("velocity", glm::value_ptr(props.velocity), 0.1f, -1000.0f, 1000.0f);
+            ImGui::DragFloat3("velocity variation", glm::value_ptr(props.velocity_variation), 0.1f, 0.0f, 1000.0f);
             ImGui::DragFloat("start size", &props.start_size, 0.001f, 0.0f, 1000.0f);
             ImGui::DragFloat("end size", &props.end_size, 0.001f, 0.0f, 1000.0f);
             ImGui::DragFloat("size variation", &props.size_variation, 0.001f, 0.0f, 1000.0f);
             ImGui::DragFloat("life time", &props.life_time, 0.1f, 0.0f, 1000.0f);
+            ImGui::DragInt("emited count", &emited_count, 1, 0, 1000);
         ImGui::End();
         
         ImGui::Begin("Information");

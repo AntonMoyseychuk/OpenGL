@@ -22,6 +22,8 @@ public:
 
     void bind_buffers() const noexcept; 
 
+    void set_atlas_tiles_count(uint32_t count) noexcept;
+
 private:
     struct particle {
         glm::vec3 position;
@@ -40,6 +42,10 @@ private:
     mesh m_mesh;
     buffer m_colors_buffer;
     buffer m_transforms_buffer;
+    buffer m_offsets_buffer;
+    buffer m_blending_buffer;
+
+    uint32_t m_atlas_tiles_count = 1;
 
     size_t m_pool_index;
     size_t active_particles_count = 0;
