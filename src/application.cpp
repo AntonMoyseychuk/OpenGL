@@ -77,7 +77,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     m_renderer.enable(GL_DEPTH_TEST);
     m_renderer.depth_func(GL_LEQUAL);
 
-    const glm::vec3 camera_position(0.0f, 0.0f, 15.0f);
+    const glm::vec3 camera_position(0.0f, 0.0f, 8.0f);
     m_camera.create(camera_position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 3.0f, 10.0f);
 
     m_proj_settings.x = m_proj_settings.y = 0;
@@ -90,12 +90,24 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 void application::run() noexcept {
     shader particles_shader(RESOURCE_DIR "shaders/particles/particles.vert", RESOURCE_DIR "shaders/particles/particles.frag");
 
-    texture_2d particle_texture(RESOURCE_DIR "textures/particles/particle_atlas.png", false);
+    texture_2d particle_texture(RESOURCE_DIR "textures/particles/particle_atlas2.png", false);
     particle_texture.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     particle_texture.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     particle_texture.generate_mipmap();
 
     particles_shader.uniform("u_sprite", particle_texture, 0);
+
+    particle_props props;
+    props.start_color = glm::vec4(1.0f);
+	props.end_color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+	props.start_size = 0.1f, props.size_variation = 0.15f, props.end_size = 0.0f;
+	props.life_time = 2.0f;
+	props.velocity = glm::vec3(0.0f);
+	props.velocity_variation = glm::vec3(0.2f);
+	props.position = glm::vec3(0.0f);
+
+    particle_system p_system(10000);
+    p_system.set_texture_atlas_dimension(6, 8);
 
     m_renderer.enable(GL_BLEND);
     m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -110,18 +122,6 @@ void application::run() noexcept {
 
     const float bounds_width = right - left;
     const float bounds_height = top - bottom;
-
-    particle_props props;
-    props.start_color = glm::vec4(1.0f);
-	props.end_color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-	props.start_size = 0.1f, props.size_variation = 0.3f, props.end_size = 0.0f;
-	props.life_time = 2.0f;
-	props.velocity = glm::vec3(0.0f);
-	props.velocity_variation = glm::vec3(0.1f);
-	props.position = glm::vec3(0.0f);
-
-    particle_system p_system(10000);
-    p_system.set_atlas_tiles_count(64);
 
     ImGuiIO& io = ImGui::GetIO();
 
@@ -174,13 +174,12 @@ void application::run() noexcept {
         ImGui::Begin("particles");
             ImGui::ColorEdit4("birth color", glm::value_ptr(props.start_color));
             ImGui::ColorEdit4("death color", glm::value_ptr(props.end_color));
-            ImGui::DragFloat3("velocity", glm::value_ptr(props.velocity), 0.1f, -1000.0f, 1000.0f);
-            ImGui::DragFloat3("velocity variation", glm::value_ptr(props.velocity_variation), 0.1f, 0.0f, 1000.0f);
+            ImGui::DragFloat3("velocity variation", glm::value_ptr(props.velocity_variation), 0.01f, 0.0f, 1000.0f);
             ImGui::DragFloat("start size", &props.start_size, 0.001f, 0.0f, 1000.0f);
             ImGui::DragFloat("end size", &props.end_size, 0.001f, 0.0f, 1000.0f);
             ImGui::DragFloat("size variation", &props.size_variation, 0.001f, 0.0f, 1000.0f);
-            ImGui::DragFloat("life time", &props.life_time, 0.1f, 0.0f, 1000.0f);
-            ImGui::DragInt("emited count", &emited_count, 1, 0, 1000);
+            ImGui::DragFloat("life time", &props.life_time, 0.01f, 0.0f, 1000.0f);
+            ImGui::DragInt("emission power", &emited_count, 1, 0, 1000);
         ImGui::End();
         
         ImGui::Begin("Information");

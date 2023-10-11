@@ -22,7 +22,7 @@ public:
 
     void bind_buffers() const noexcept; 
 
-    void set_atlas_tiles_count(uint32_t count) noexcept;
+    void set_texture_atlas_dimension(uint32_t raws, uint32_t columns) noexcept;
 
 private:
     struct particle {
@@ -45,7 +45,7 @@ private:
     buffer m_offsets_buffer;
     buffer m_blending_buffer;
 
-    uint32_t m_atlas_tiles_count = 1;
+    glm::vec2 m_atlas_dimension = glm::vec2(1.0f);
 
     size_t m_pool_index;
     size_t active_particles_count = 0;

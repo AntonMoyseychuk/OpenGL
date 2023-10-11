@@ -2,6 +2,7 @@
 
 #include "random.hpp"
 
+#include <glm/gtx/norm.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/compatibility.hpp>
 
@@ -46,14 +47,18 @@ namespace util {
 }
 
 void particle_system::update(float dt, const camera& camera) noexcept {
-    std::map<double, glm::mat4> sorted_transforms;
-    std::map<double, glm::vec4> sorted_colors;
-    std::map<double, glm::vec4> sorted_offsets;
-    std::map<double, float> sorted_blend_factors;
+    static std::map<double, glm::mat4> sorted_transforms;
+    sorted_transforms.clear();
+    static std::map<double, glm::vec4> sorted_colors;
+    sorted_colors.clear();
+    static std::map<double, glm::vec4> sorted_offsets;
+    sorted_offsets.clear();
+    static std::map<double, float> sorted_blend_factors;
+    sorted_blend_factors.clear();
     
     active_particles_count = 0;
 
-    const glm::dvec3 high_precision_camera_position = camera.position;
+    const glm::mat4 view = camera.get_view();
     
     for (size_t i = 0; i < m_particle_pool.size(); ++i) {
         particle_system::particle& particle = m_particle_pool[i];
@@ -74,7 +79,7 @@ void particle_system::update(float dt, const camera& camera) noexcept {
         particle.position += particle.velocity * dt;
         particle.rotation += 0.01f * dt;
 
-        const double particle_to_camera_distance = glm::distance(high_precision_camera_position, glm::dvec3(particle.position)) * 1'000'000.0;
+        const double particle_to_camera_distance = glm::length2(camera.position - particle.position) * 1'000'000.0;
 
         const float life = particle.life_remaining / particle.life_time;
         glm::vec4 color = glm::lerp(particle.end_color, particle.start_color, life);
@@ -82,30 +87,29 @@ void particle_system::update(float dt, const camera& camera) noexcept {
         
         sorted_colors.insert_or_assign(particle_to_camera_distance, color);
         
-        glm::mat4 transform(1.0f);
-        const glm::mat4 view = camera.get_view();
+        glm::mat4 transform = glm::translate(glm::mat4(1.0f), particle.position);
         for (size_t y = 0; y < 3; ++y) {
             for (size_t x = 0; x < 3; ++x) {
                 transform[y][x] = view[x][y];
             }
         }
         const float size = glm::lerp(particle.end_size, particle.start_size, life);
-        transform *= glm::translate(glm::mat4(1.0f), particle.position) 
-            * glm::rotate(glm::mat4(1.0f), particle.rotation, glm::vec3(0.0f, 0.0f, 1.0f))
+        transform *= glm::rotate(glm::mat4(1.0f), particle.rotation, glm::vec3(0.0f, 0.0f, 1.0f))
             * glm::scale(glm::mat4(1.0f), glm::vec3(size, size, 1.0f));
 
         sorted_transforms.insert_or_assign(particle_to_camera_distance, transform);
 
-        const float atlas_progression = (1.0f - life) * (m_atlas_tiles_count - 1);
+        const uint32_t tiles_count = m_atlas_dimension.x * m_atlas_dimension.y;
+        const float atlas_progression = (1.0f - life) * (tiles_count - 1);
         const uint32_t tile_index1 = glm::floor(atlas_progression);
-        const uint32_t tile_index2 = tile_index1 < m_atlas_tiles_count - 1 ? tile_index1 + 1 : tile_index1;
-        const uint32_t tiles_in_raw = glm::sqrt(m_atlas_tiles_count);
-        const float tile_size = 1.0f / tiles_in_raw;
+        const uint32_t tile_index2 = tile_index1 < tiles_count - 1 ? tile_index1 + 1 : tile_index1;
+        const float tile_width = 1.0f / m_atlas_dimension.x, tile_heigth = 1.0f / m_atlas_dimension.y;
+        const uint32_t tiles_in_raw = m_atlas_dimension.x;
         sorted_offsets.insert_or_assign(particle_to_camera_distance, glm::vec4(
-            tile_index1 % tiles_in_raw * tile_size,
-            tile_index1 / tiles_in_raw * tile_size,
-            tile_index2 % tiles_in_raw * tile_size,
-            tile_index2 / tiles_in_raw * tile_size
+            tile_index1 % tiles_in_raw * tile_width,
+            tile_index1 / tiles_in_raw * tile_heigth,
+            tile_index2 % tiles_in_raw * tile_width,
+            tile_index2 / tiles_in_raw * tile_heigth
         ));
 
         sorted_blend_factors.insert_or_assign(particle_to_camera_distance, atlas_progression - tile_index1);
@@ -132,16 +136,16 @@ void particle_system::emit(const particle_props &props) noexcept {
     particle.rotation = random(0.0f, 1.0f) * 2.0f * glm::pi<float>();
 
     particle.velocity = props.velocity;
-    particle.velocity.x += props.velocity_variation.x * (random(0.0f, 1.0f) - 0.5f);
-    particle.velocity.y += props.velocity_variation.y * (random(0.0f, 1.0f) - 0.5f);
-    particle.velocity.z += props.velocity_variation.z * (random(0.0f, 1.0f) - 0.5f);
+    particle.velocity.x += props.velocity_variation.x * (random(-10.0f, 10.0f) / 10.0f);
+    particle.velocity.y += props.velocity_variation.y * (random(-10.0f, 10.0f) / 10.0f);
+    particle.velocity.z += props.velocity_variation.z * (random(-10.0f, 10.0f) / 10.0f);
 
     particle.start_color = props.start_color;
     particle.end_color = props.end_color;
 
     particle.life_time = props.life_time;
     particle.life_remaining = props.life_time;
-    particle.start_size = props.start_size + props.size_variation * (random(0.0f, 1.0f) - 0.5f);
+    particle.start_size = props.start_size + props.size_variation * (random(-10.0f, 10.0f) / 10.0f);
     particle.end_size = props.end_size;
 
     m_pool_index = --m_pool_index % m_particle_pool.size();
@@ -154,6 +158,7 @@ void particle_system::bind_buffers() const noexcept {
     m_blending_buffer.bind_base(3);
 }
 
-void particle_system::set_atlas_tiles_count(uint32_t count) noexcept {
-    m_atlas_tiles_count = count > 0 ? count : 1;
+void particle_system::set_texture_atlas_dimension(uint32_t raws, uint32_t columns) noexcept {
+    m_atlas_dimension.x = columns > 0 ? columns : 1;
+    m_atlas_dimension.y = raws > 0 ? raws : 1;
 }
