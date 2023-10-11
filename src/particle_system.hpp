@@ -35,8 +35,6 @@ private:
     };
 
     std::vector<particle> m_particle_pool;
-    std::vector<glm::mat4> m_transforms_pool;
-    std::vector<glm::vec4> m_colors_pool;
 
     mesh m_mesh;
     buffer m_colors_buffer;
