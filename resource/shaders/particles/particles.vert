@@ -34,7 +34,7 @@ void main() {
 	vs_out.texcoord1 = u_offset[gl_InstanceID].xy + a_texcoord / u_atlas_size;
 	vs_out.texcoord2 = u_offset[gl_InstanceID].zw + a_texcoord / u_atlas_size;
 
-	vs_out.blend = u_blend[gl_InstanceID];
+	vs_out.blend = 1.0f - u_blend[gl_InstanceID];
 	
 	gl_Position = u_proj_view * u_model[gl_InstanceID] * vec4(a_position, 1.0f);
 }

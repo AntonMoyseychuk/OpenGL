@@ -90,7 +90,7 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 void application::run() noexcept {
     shader particles_shader(RESOURCE_DIR "shaders/particles/particles.vert", RESOURCE_DIR "shaders/particles/particles.frag");
 
-    texture_2d particle_texture(RESOURCE_DIR "textures/particles/particle_atlas2.png", false);
+    texture_2d particle_texture(RESOURCE_DIR "textures/particles/fire.png", false);
     particle_texture.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     particle_texture.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     particle_texture.generate_mipmap();
@@ -107,7 +107,7 @@ void application::run() noexcept {
 	props.position = glm::vec3(0.0f);
 
     particle_system p_system(10000);
-    p_system.set_texture_atlas_dimension(6, 8);
+    p_system.set_texture_atlas_dimension(8, 8);
 
     m_renderer.enable(GL_BLEND);
     m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

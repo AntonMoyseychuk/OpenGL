@@ -59,6 +59,8 @@ void particle_system::update(float dt, const camera& camera) noexcept {
     active_particles_count = 0;
 
     const glm::mat4 view = camera.get_view();
+
+    const glm::dvec3 camera_position = camera.position;
     
     for (size_t i = 0; i < m_particle_pool.size(); ++i) {
         particle_system::particle& particle = m_particle_pool[i];
@@ -79,7 +81,7 @@ void particle_system::update(float dt, const camera& camera) noexcept {
         particle.position += particle.velocity * dt;
         particle.rotation += 0.01f * dt;
 
-        const double particle_to_camera_distance = glm::length2(camera.position - particle.position) * 1'000'000.0;
+        const double particle_to_camera_distance = glm::length2(camera_position - glm::dvec3(particle.position)) * 1'000'000.0;
 
         const float life = particle.life_remaining / particle.life_time;
         glm::vec4 color = glm::lerp(particle.end_color, particle.start_color, life);
@@ -112,7 +114,7 @@ void particle_system::update(float dt, const camera& camera) noexcept {
             tile_index2 / tiles_in_raw * tile_heigth
         ));
 
-        sorted_blend_factors.insert_or_assign(particle_to_camera_distance, atlas_progression - tile_index1);
+        sorted_blend_factors.insert_or_assign(particle_to_camera_distance, atlas_progression - (float)tile_index1);
     }
 
     if (active_particles_count > 0) {
