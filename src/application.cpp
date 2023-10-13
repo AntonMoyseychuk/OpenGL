@@ -144,6 +144,13 @@ void application::run() noexcept {
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
 
+        if (glfwGetKey(m_window, GLFW_KEY_F) == GLFW_PRESS) {
+            m_camera.is_fixed = !m_camera.is_fixed;
+
+            glfwSetInputMode(m_window, GLFW_CURSOR, (m_camera.is_fixed ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
         m_camera.update_dt(io.DeltaTime);
         if (!m_camera.is_fixed) {
             if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS) {
@@ -165,19 +172,17 @@ void application::run() noexcept {
 
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        // if (glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-            for (size_t i = 0; i < emited_count; ++i) {
-                fire_system.emit(fire_particle_props);
-            }
+        for (size_t i = 0; i < emited_count; ++i) {
+            fire_system.emit(fire_particle_props);
+        }
 
-            for (size_t i = 0; i < emited_count; ++i) {
-                explosion_system.emit(explosion_particle_props);
-            }
+        for (size_t i = 0; i < emited_count; ++i) {
+            explosion_system.emit(explosion_particle_props);
+        }
 
-            for (size_t i = 0; i < emited_count; ++i) {
-                smoke_system.emit(smoke_particle_props);
-            }
-        // }
+        for (size_t i = 0; i < emited_count; ++i) {
+            smoke_system.emit(smoke_particle_props);
+        }
 
         fire_system.update(io.DeltaTime, m_camera);
         explosion_system.update(io.DeltaTime, m_camera);
@@ -193,59 +198,6 @@ void application::run() noexcept {
 
         particles_shader.uniform("u_atlas", smoke_atlas, 0);
         m_renderer.render(GL_TRIANGLES, particles_shader, smoke_system);
-
-    #if 1 //UI
-        // _imgui_frame_begin();
-        // ImGui::Begin("particles");
-        //     ImGui::ColorEdit4("birth color", glm::value_ptr(props.start_color));
-        //     ImGui::ColorEdit4("death color", glm::value_ptr(props.end_color));
-        //     ImGui::DragFloat3("velocity variation", glm::value_ptr(props.velocity_variation), 0.01f, 0.0f, 1000.0f);
-        //     ImGui::DragFloat("start size", &props.start_size, 0.001f, 0.0f, 1000.0f);
-        //     ImGui::DragFloat("end size", &props.end_size, 0.001f, 0.0f, 1000.0f);
-        //     ImGui::DragFloat("size variation", &props.size_variation, 0.001f, 0.0f, 1000.0f);
-        //     ImGui::DragFloat("life time", &props.life_time, 0.01f, 0.0f, 1000.0f);
-        //     ImGui::DragInt("emission power", &emited_count, 1, 0, 1000);
-        // ImGui::End();
-        
-        // ImGui::Begin("Information");
-        //     ImGui::Text("OpenGL version: %s", glGetString(GL_VERSION)); ImGui::NewLine();
-                
-        //     if (ImGui::Checkbox("wireframe mode", &m_wireframed)) {
-        //         m_renderer.polygon_mode(GL_FRONT_AND_BACK, (m_wireframed ? GL_LINE : GL_FILL));
-        //     }
-
-        //     if (ImGui::Checkbox("cull face", &m_cull_face)) {
-        //         m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
-        //     }
-                
-        //     if (ImGui::NewLine(), ImGui::ColorEdit4("background color", glm::value_ptr(m_clear_color))) {
-        //         m_renderer.set_clear_color(m_clear_color);
-        //     }
-
-        //     ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-        // ImGui::End();
-
-        // ImGui::Begin("Camera");
-        //     ImGui::DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f);
-        //     ImGui::DragFloat("speed", &m_camera.speed, 0.1f, 1.0f, std::numeric_limits<float>::max());
-        //     ImGui::DragFloat("sensitivity", &m_camera.sensitivity, 0.1f, 0.1f, std::numeric_limits<float>::max());
-
-        //     if (ImGui::SliderFloat("field of view", &m_camera.fov, 1.0f, 179.0f)) {
-        //         _window_resize_callback(m_window, m_proj_settings.width, m_proj_settings.height);
-        //     }
-
-        //     if (ImGui::Checkbox("fixed (Press \'F\')", &m_camera.is_fixed)) {
-        //         glfwSetInputMode(m_window, GLFW_CURSOR, (m_camera.is_fixed ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED));
-        //     } else 
-            if (glfwGetKey(m_window, GLFW_KEY_F) == GLFW_PRESS) {
-                m_camera.is_fixed = !m_camera.is_fixed;
-
-                glfwSetInputMode(m_window, GLFW_CURSOR, (m_camera.is_fixed ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED));
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-        // ImGui::End();
-        // _imgui_frame_end();
-    #endif
 
         glfwSwapBuffers(m_window);
     }
