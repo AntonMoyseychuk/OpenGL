@@ -5,7 +5,9 @@
 
 #include <glm/glm.hpp>
 
-struct csm {
+#include "nocopyable.hpp"
+
+struct csm : public nocopyable {
     struct shadowmap_config {
         uint32_t width;
         uint32_t height;
@@ -37,9 +39,6 @@ struct csm {
 
     void bind_for_writing(size_t cascade_index) const noexcept;
     void bind_for_reading(size_t first_slot) const noexcept;
-
-    csm(const csm& other) = delete;
-    csm& operator=(const csm& other) = delete;
 
 private:
     std::vector<glm::vec4> _get_subfrusta_corners_world_space(const glm::mat4& view, const glm::mat4& projection) const noexcept;

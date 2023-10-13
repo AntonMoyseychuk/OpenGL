@@ -16,19 +16,26 @@ void camera::create(const glm::vec3 &position, const glm::vec3 &look_at, const g
     float fov, float speed, float sensitivity, bool is_fixed
 ) noexcept {
     this->position = position;
-    this->m_forward = glm::normalize(look_at - position);
-    this->m_right = glm::normalize(glm::cross(up, -m_forward));
-    this->m_up = glm::cross(-m_forward, m_right);
     this->speed = speed;
     this->sensitivity = sensitivity;
     this->fov = fov;
     this->is_fixed = is_fixed;
-    this->m_pitch = glm::degrees(glm::angle(glm::normalize(glm::vec3(m_forward.x, 0.0f, m_forward.z)), glm::vec3(0.0f, 0.0f, 1.0f)));
-    this->m_yaw = glm::degrees(glm::angle(m_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+
+    this->m_forward = glm::normalize(look_at - position);
+    this->m_right = glm::normalize(glm::cross(up, -m_forward));
+    this->m_up = glm::cross(-m_forward, m_right);
+
+    this->m_pitch = glm::degrees(glm::angle(m_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+    this->m_yaw = glm::degrees(glm::angle(m_forward, glm::vec3(1.0f, 0.0f, 0.0f)));
+    if (glm::sign(m_forward.z) < 0.0f) {
+        this->m_yaw = 360.0f - this->m_yaw;
+    }
 }
 
-void camera::rotate(float angle_degrees, const glm::vec2& axis) noexcept {
-    _recalculate_rotation(axis.x * angle_degrees, axis.y * angle_degrees);
+void camera::rotate(float angle_degrees, const glm::vec3& axis) noexcept {
+    // m_pitch = glm::clamp(m_pitch + angle_degrees * axis.x, 1.0f, 179.0f);
+    // m_yaw += angle_degrees * axis.y;
+    // _recalculate_rotation();
 }
 
 void camera::move(const glm::vec3 &offset) noexcept {
@@ -51,6 +58,11 @@ glm::mat4 camera::get_view() const noexcept {
     return glm::lookAt(position, position + m_forward, m_up);
 }
 
+void camera::invert_pitch() noexcept {
+    m_pitch = glm::abs(m_pitch - 179.0f);
+    _recalculate_rotation();
+}
+
 void camera::update_dt(float dt) noexcept {
     camera::dt.store(dt);
 }
@@ -62,10 +74,13 @@ void camera::mouse_callback(double xpos, double ypos) noexcept {
     m_last_cursor_pos.y = ypos;
 
     if (!is_fixed) {
-        double xoffset = (xpos - last_pos.x) * sensitivity * dt.load();
-        double yoffset = (ypos - last_pos.y) * sensitivity * dt.load(); 
+        float xoffset = (xpos - last_pos.x) * sensitivity * dt.load();
+        float yoffset = (ypos - last_pos.y) * sensitivity * dt.load(); 
 
-        _recalculate_rotation(yoffset, xoffset);
+        m_pitch = glm::clamp(m_pitch + yoffset, 1.0f, 179.0f);
+        m_yaw += xoffset;
+
+        _recalculate_rotation();
     }
 }
 
@@ -75,14 +90,11 @@ void camera::wheel_scroll_callback(double yoffset) noexcept {
     }
 }
 
-void camera::_recalculate_rotation(float delta_pitch, float delta_yaw) noexcept {
-    m_pitch = glm::clamp(m_pitch + delta_pitch, 91.0f, 269.0f);
-    m_yaw += delta_yaw;
-
-    const auto forward_x = std::cosf(glm::radians(m_yaw)) * std::cosf(glm::radians(m_pitch));
-    const auto forward_y = std::sinf(glm::radians(m_pitch));
-    const auto forward_z = std::sinf(glm::radians(m_yaw)) * std::cosf(glm::radians(m_pitch));
-    m_forward = glm::normalize(glm::vec3(forward_x, forward_y, forward_z));
+void camera::_recalculate_rotation() noexcept {
+    const float y = glm::cos(glm::radians(m_pitch));
+    const float x = glm::cos(glm::radians(m_yaw)) * glm::sin(glm::radians(m_pitch));
+    const float z = glm::sin(glm::radians(m_yaw)) * glm::sin(glm::radians(m_pitch));
+    m_forward = glm::normalize(glm::vec3(x, y, z));
 
     m_right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), -m_forward));
     m_up = glm::normalize(glm::cross(-m_forward, m_right));

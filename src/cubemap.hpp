@@ -2,17 +2,17 @@
 #include <array>
 #include <string>
 
-class cubemap {
+#include "nocopyable.hpp"
+
+class cubemap : public nocopyable {
 public:
     cubemap() = default;
     cubemap(uint32_t width, uint32_t height, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, 
         const std::array<uint8_t*, 6>& pixels = {});
-    cubemap(const std::array<std::string, 6>& faces, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, 
-        bool flip_on_load = false);
+    cubemap(const std::array<std::string, 6>& faces, bool flip_on_load = false, bool use_gamma = false);
     ~cubemap();
 
-    void load(const std::array<std::string, 6>& faces, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, 
-        bool flip_on_load = false) noexcept;
+    void load(const std::array<std::string, 6>& faces, bool flip_on_load, bool use_gamma) noexcept;
     void create(uint32_t width, uint32_t height, uint32_t level, uint32_t internal_format, uint32_t format, uint32_t type, 
         const std::array<uint8_t*, 6>& pixels = {}) noexcept;
     void destroy() noexcept;
@@ -33,8 +33,8 @@ public:
     cubemap(cubemap&& cubemap);
     cubemap& operator=(cubemap&& cubemap) noexcept;
 
-    cubemap(const cubemap& cubemap) = delete;
-    cubemap& operator=(const cubemap& cubemap) = delete;
+private:
+    int32_t _get_gl_format(int32_t channel_count, bool use_gamma) const noexcept;
 
 private:
     struct data {

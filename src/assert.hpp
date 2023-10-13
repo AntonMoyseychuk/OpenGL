@@ -7,7 +7,7 @@
 #ifdef _DEBUG
     #define ASSERT(condition, tag, msg) do { \
         if (!(condition)) { \
-            LOG_ERROR(tag, msg);\
+            LOG_ERROR(tag, (msg));\
             debug_break(); \
         } \
     } while(0);

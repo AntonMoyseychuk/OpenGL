@@ -1,5 +1,8 @@
 #include "renderer.hpp"
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/compatibility.hpp>
+
 void renderer::clear(uint32_t mask) const noexcept {
     OGL_CALL(glClear(mask));
 }
@@ -45,7 +48,10 @@ void renderer::render(uint32_t mode, const shader &shader, const mesh &mesh) con
 
     const size_t index_count = mesh.ibo.get_element_count();
     if (index_count == 0) {
-        OGL_CALL(glDrawArrays(mode, 0, mesh.vbo.get_element_count()));
+        const size_t vertex_count = mesh.vbo.get_element_count();
+        if (vertex_count > 0) {
+            OGL_CALL(glDrawArrays(mode, 0, vertex_count));
+        }
     } else {
         OGL_CALL(glDrawElements(mode, index_count, GL_UNSIGNED_INT, nullptr));
     }
@@ -61,6 +67,11 @@ void renderer::render(uint32_t mode, const shader &shader, const model &model) c
     for (size_t i = 0; i < meshes->size(); ++i) {
         render(mode, shader, meshes->at(i));
     }
+}
+
+void renderer::render(uint32_t mode, const shader &shader, const particle_system &particles) const noexcept {
+    particles.bind_buffers();
+    render_instanced(GL_TRIANGLES, shader, particles.m_mesh, particles.active_particles_count);
 }
 
 void renderer::render_instanced(uint32_t mode, const shader &shader, const mesh &mesh, size_t count) const noexcept {

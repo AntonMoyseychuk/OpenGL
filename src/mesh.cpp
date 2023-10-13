@@ -4,6 +4,11 @@
 #include <glad/glad.h>
 #include <utility>
 
+// mesh::vertex::vertex(const glm::vec3& position, const glm::vec3& normal, const glm::vec2& texcoord, const glm::vec3& tangent)
+//     : position(position), normal(normal), texcoord(texcoord), tangent(tangent)
+// {
+// }
+
 mesh::mesh(const std::vector<vertex> &vertices, const std::vector<uint32_t> &indices) {
     create(vertices, indices);
 }

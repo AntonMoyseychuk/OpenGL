@@ -11,7 +11,12 @@
 #include <string>
 #include <optional>
 
-class shader {
+#include "texture.hpp"
+#include "cubemap.hpp"
+
+#include "nocopyable.hpp"
+
+class shader : public nocopyable {
 public:
     shader() = default;
     shader(const std::string& vs_filepath, const std::string& fs_filepath, const std::optional<std::string>& gs_filepath = std::nullopt);
@@ -35,13 +40,12 @@ public:
     void uniform(const std::string& name, const glm::vec4& uniform) const noexcept;
     void uniform(const std::string& name, const glm::mat3& uniform) const noexcept;
     void uniform(const std::string& name, const glm::mat4& uniform) const noexcept;
+    void uniform(const std::string& name, const texture_2d& texture, int32_t unit) const noexcept;
+    void uniform(const std::string& name, const cubemap& cubemap, int32_t unit) const noexcept;
 
     shader(shader&& shader);
     shader& operator=(shader&& shader) noexcept;
-
-    shader(const shader& shader) = delete;
-    shader& operator=(const shader& shader) = delete;
-
+    
     bool operator==(const shader& shader) const noexcept;
     bool operator!=(const shader& shader) const noexcept;
 

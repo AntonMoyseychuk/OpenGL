@@ -145,6 +145,16 @@ void shader::uniform(const std::string& name, const glm::mat4& uniform) const no
     _set_uniform(glUniformMatrix4fv, name, 1, false, glm::value_ptr(uniform));
 }
 
+void shader::uniform(const std::string &name, const texture_2d &texture, int32_t unit) const noexcept {
+    this->uniform(name, unit);
+    texture.bind(unit);
+}
+
+void shader::uniform(const std::string &name, const cubemap &cubemap, int32_t unit) const noexcept {
+    this->uniform(name, unit);
+    cubemap.bind(unit);
+}
+
 shader::shader(shader&& shader)
     : m_program_id(shader.m_program_id), m_uniform_locations(shader.m_uniform_locations)
 {
