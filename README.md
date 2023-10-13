@@ -1,4 +1,4 @@
 # opengl
 Particles Rendering
 
-[particles.webm](https://github.com/AntonMoyseychuk/opengl/assets/108875469/81cb723a-f203-4f6c-8295-aba070bbad17)
+[particles.webm](https://github.com/AntonMoyseychuk/opengl/assets/108875469/a4773ebc-9a43-44e8-849c-b92503f15e36)
