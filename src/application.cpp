@@ -90,42 +90,56 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 void application::run() noexcept {
     shader particles_shader(RESOURCE_DIR "shaders/particles/particles.vert", RESOURCE_DIR "shaders/particles/particles.frag");
 
-    texture_2d particle_texture(RESOURCE_DIR "textures/particles/fire.png", false);
-    particle_texture.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    particle_texture.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    particle_texture.generate_mipmap();
+    texture_2d fire_atlas(RESOURCE_DIR "textures/particles/fire.png", false);
+    fire_atlas.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    fire_atlas.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    fire_atlas.generate_mipmap();
 
-    particles_shader.uniform("u_sprite", particle_texture, 0);
+    texture_2d explosion_atlas(RESOURCE_DIR "textures/particles/explosion.png", false);
+    explosion_atlas.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    explosion_atlas.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    explosion_atlas.generate_mipmap();
 
-    particle_props props;
-    props.start_color = glm::vec4(1.0f);
-	props.end_color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-	props.start_size = 0.1f, props.size_variation = 0.15f, props.end_size = 0.0f;
-	props.life_time = 2.0f;
-	props.velocity = glm::vec3(0.0f);
-	props.velocity_variation = glm::vec3(0.2f);
-	props.position = glm::vec3(0.0f);
+    texture_2d smoke_atlas(RESOURCE_DIR "textures/particles/smoke.png", false);
+    smoke_atlas.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    smoke_atlas.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    smoke_atlas.generate_mipmap();
 
-    particle_system p_system(10000);
-    p_system.set_texture_atlas_dimension(8, 8);
+
+    particle_props fire_particle_props;
+    particle_props explosion_particle_props;
+    particle_props smoke_particle_props;
+    fire_particle_props.start_color = explosion_particle_props.start_color = smoke_particle_props.start_color = glm::vec4(1.0f);
+    fire_particle_props.end_color = explosion_particle_props.end_color = smoke_particle_props.end_color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    fire_particle_props.start_size = explosion_particle_props.start_size = smoke_particle_props.start_size = 0.1f;
+    fire_particle_props.size_variation = explosion_particle_props.size_variation = smoke_particle_props.size_variation = 0.15f;
+    fire_particle_props.end_size = explosion_particle_props.end_size = smoke_particle_props.end_size = 0.0f;
+    fire_particle_props.life_time = explosion_particle_props.life_time = smoke_particle_props.life_time = 2.0f;
+    fire_particle_props.velocity = explosion_particle_props.velocity = smoke_particle_props.velocity = glm::vec3(0.0f);
+    fire_particle_props.velocity_variation = explosion_particle_props.velocity_variation = smoke_particle_props.velocity_variation = glm::vec3(0.2f);
+    
+    fire_particle_props.position = glm::vec3(-1.0f, 0.0f, 0.0f);
+    explosion_particle_props.position = glm::vec3(0.0f);
+    smoke_particle_props.position = glm::vec3(1.0f, 0.0f, 0.0f);
+
+
+    particle_system fire_system(10000);
+    fire_system.set_texture_atlas_dimension(8, 8);
+
+    particle_system explosion_system(10000);
+    explosion_system.set_texture_atlas_dimension(6, 8);
+
+    particle_system smoke_system(10000);
+    smoke_system.set_texture_atlas_dimension(8, 8);
 
     m_renderer.enable(GL_BLEND);
     m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    const float width = m_proj_settings.width;
-    const float height = m_proj_settings.height;
-
-    const float left = -m_proj_settings.aspect;
-    const float right = m_proj_settings.aspect;
-    const float bottom = -1.0f;
-    const float top = 1.0f;
-
-    const float bounds_width = right - left;
-    const float bounds_height = top - bottom;
+    m_renderer.set_clear_color(glm::vec4(1.0f));
 
     ImGuiIO& io = ImGui::GetIO();
 
-    int32_t emited_count = 15;
+    int32_t emited_count = 10;
 
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
@@ -151,74 +165,86 @@ void application::run() noexcept {
 
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        if (glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-            // double x, y;
-            // glfwGetCursorPos(m_window, &x, &y);
-            //
-            // x = (x / width) * bounds_width - bounds_width * 0.5f;
-            // y = bounds_height * 0.5f - (y / height) * bounds_height;
-            // props.position = { x + m_camera.position.x, y + m_camera.position.y };
+        // if (glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+            for (size_t i = 0; i < emited_count; ++i) {
+                fire_system.emit(fire_particle_props);
+            }
 
             for (size_t i = 0; i < emited_count; ++i) {
-                p_system.emit(props);
+                explosion_system.emit(explosion_particle_props);
             }
-        }
 
-        p_system.update(io.DeltaTime, m_camera);
+            for (size_t i = 0; i < emited_count; ++i) {
+                smoke_system.emit(smoke_particle_props);
+            }
+        // }
+
+        fire_system.update(io.DeltaTime, m_camera);
+        explosion_system.update(io.DeltaTime, m_camera);
+        smoke_system.update(io.DeltaTime, m_camera);
 
         particles_shader.uniform("u_proj_view", m_proj_settings.projection_mat * m_camera.get_view());
-        m_renderer.render(GL_TRIANGLES, particles_shader, p_system);
+
+        particles_shader.uniform("u_atlas", fire_atlas, 0);
+        m_renderer.render(GL_TRIANGLES, particles_shader, fire_system);
+
+        particles_shader.uniform("u_atlas", explosion_atlas, 0);
+        m_renderer.render(GL_TRIANGLES, particles_shader, explosion_system);
+
+        particles_shader.uniform("u_atlas", smoke_atlas, 0);
+        m_renderer.render(GL_TRIANGLES, particles_shader, smoke_system);
 
     #if 1 //UI
-        _imgui_frame_begin();
-        ImGui::Begin("particles");
-            ImGui::ColorEdit4("birth color", glm::value_ptr(props.start_color));
-            ImGui::ColorEdit4("death color", glm::value_ptr(props.end_color));
-            ImGui::DragFloat3("velocity variation", glm::value_ptr(props.velocity_variation), 0.01f, 0.0f, 1000.0f);
-            ImGui::DragFloat("start size", &props.start_size, 0.001f, 0.0f, 1000.0f);
-            ImGui::DragFloat("end size", &props.end_size, 0.001f, 0.0f, 1000.0f);
-            ImGui::DragFloat("size variation", &props.size_variation, 0.001f, 0.0f, 1000.0f);
-            ImGui::DragFloat("life time", &props.life_time, 0.01f, 0.0f, 1000.0f);
-            ImGui::DragInt("emission power", &emited_count, 1, 0, 1000);
-        ImGui::End();
+        // _imgui_frame_begin();
+        // ImGui::Begin("particles");
+        //     ImGui::ColorEdit4("birth color", glm::value_ptr(props.start_color));
+        //     ImGui::ColorEdit4("death color", glm::value_ptr(props.end_color));
+        //     ImGui::DragFloat3("velocity variation", glm::value_ptr(props.velocity_variation), 0.01f, 0.0f, 1000.0f);
+        //     ImGui::DragFloat("start size", &props.start_size, 0.001f, 0.0f, 1000.0f);
+        //     ImGui::DragFloat("end size", &props.end_size, 0.001f, 0.0f, 1000.0f);
+        //     ImGui::DragFloat("size variation", &props.size_variation, 0.001f, 0.0f, 1000.0f);
+        //     ImGui::DragFloat("life time", &props.life_time, 0.01f, 0.0f, 1000.0f);
+        //     ImGui::DragInt("emission power", &emited_count, 1, 0, 1000);
+        // ImGui::End();
         
-        ImGui::Begin("Information");
-            ImGui::Text("OpenGL version: %s", glGetString(GL_VERSION)); ImGui::NewLine();
+        // ImGui::Begin("Information");
+        //     ImGui::Text("OpenGL version: %s", glGetString(GL_VERSION)); ImGui::NewLine();
                 
-            if (ImGui::Checkbox("wireframe mode", &m_wireframed)) {
-                m_renderer.polygon_mode(GL_FRONT_AND_BACK, (m_wireframed ? GL_LINE : GL_FILL));
-            }
+        //     if (ImGui::Checkbox("wireframe mode", &m_wireframed)) {
+        //         m_renderer.polygon_mode(GL_FRONT_AND_BACK, (m_wireframed ? GL_LINE : GL_FILL));
+        //     }
 
-            if (ImGui::Checkbox("cull face", &m_cull_face)) {
-                m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
-            }
+        //     if (ImGui::Checkbox("cull face", &m_cull_face)) {
+        //         m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
+        //     }
                 
-            if (ImGui::NewLine(), ImGui::ColorEdit4("background color", glm::value_ptr(m_clear_color))) {
-                m_renderer.set_clear_color(m_clear_color);
-            }
+        //     if (ImGui::NewLine(), ImGui::ColorEdit4("background color", glm::value_ptr(m_clear_color))) {
+        //         m_renderer.set_clear_color(m_clear_color);
+        //     }
 
-            ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-        ImGui::End();
+        //     ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+        // ImGui::End();
 
-        ImGui::Begin("Camera");
-            ImGui::DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f);
-            ImGui::DragFloat("speed", &m_camera.speed, 0.1f, 1.0f, std::numeric_limits<float>::max());
-            ImGui::DragFloat("sensitivity", &m_camera.sensitivity, 0.1f, 0.1f, std::numeric_limits<float>::max());
+        // ImGui::Begin("Camera");
+        //     ImGui::DragFloat3("position", glm::value_ptr(m_camera.position), 0.1f);
+        //     ImGui::DragFloat("speed", &m_camera.speed, 0.1f, 1.0f, std::numeric_limits<float>::max());
+        //     ImGui::DragFloat("sensitivity", &m_camera.sensitivity, 0.1f, 0.1f, std::numeric_limits<float>::max());
 
-            if (ImGui::SliderFloat("field of view", &m_camera.fov, 1.0f, 179.0f)) {
-                _window_resize_callback(m_window, m_proj_settings.width, m_proj_settings.height);
-            }
+        //     if (ImGui::SliderFloat("field of view", &m_camera.fov, 1.0f, 179.0f)) {
+        //         _window_resize_callback(m_window, m_proj_settings.width, m_proj_settings.height);
+        //     }
 
-            if (ImGui::Checkbox("fixed (Press \'F\')", &m_camera.is_fixed)) {
-                glfwSetInputMode(m_window, GLFW_CURSOR, (m_camera.is_fixed ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED));
-            } else if (glfwGetKey(m_window, GLFW_KEY_F) == GLFW_PRESS) {
+        //     if (ImGui::Checkbox("fixed (Press \'F\')", &m_camera.is_fixed)) {
+        //         glfwSetInputMode(m_window, GLFW_CURSOR, (m_camera.is_fixed ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED));
+        //     } else 
+            if (glfwGetKey(m_window, GLFW_KEY_F) == GLFW_PRESS) {
                 m_camera.is_fixed = !m_camera.is_fixed;
 
                 glfwSetInputMode(m_window, GLFW_CURSOR, (m_camera.is_fixed ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED));
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
-        ImGui::End();
-        _imgui_frame_end();
+        // ImGui::End();
+        // _imgui_frame_end();
     #endif
 
         glfwSwapBuffers(m_window);

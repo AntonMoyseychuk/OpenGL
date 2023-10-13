@@ -81,7 +81,9 @@ void particle_system::update(float dt, const camera& camera) noexcept {
         particle.position += particle.velocity * dt;
         particle.rotation += 0.01f * dt;
 
-        const double particle_to_camera_distance = glm::length2(camera_position - glm::dvec3(particle.position)) * 1'000'000.0;
+        const glm::dvec3 particle_to_camera_vector = camera_position - glm::dvec3(particle.position);
+        const glm::vec3 particle_to_camera_unit_vector = glm::normalize(particle_to_camera_vector);
+        const double particle_to_camera_distance = glm::length2(particle_to_camera_vector) * 1'000'000.0;
 
         const float life = particle.life_remaining / particle.life_time;
         glm::vec4 color = glm::lerp(particle.end_color, particle.start_color, life);
@@ -89,7 +91,8 @@ void particle_system::update(float dt, const camera& camera) noexcept {
         
         sorted_colors.insert_or_assign(particle_to_camera_distance, color);
         
-        glm::mat4 transform = glm::translate(glm::mat4(1.0f), particle.position);
+        const float bias = glm::max(1.0f * (1.0f - glm::dot(-camera.get_forward(), -particle_to_camera_unit_vector)), 0.1f);
+        glm::mat4 transform = glm::translate(glm::mat4(1.0f), particle.position + particle_to_camera_unit_vector * bias);
         for (size_t y = 0; y < 3; ++y) {
             for (size_t x = 0; x < 3; ++x) {
                 transform[y][x] = view[x][y];
