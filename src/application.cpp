@@ -194,7 +194,7 @@ void application::run() noexcept {
     std::vector<glm::mat4> tree_transforms(150);
     for (size_t i = 0; i < tree_transforms.size(); ++i) {
         glm::vec3 position(std::numeric_limits<float>::lowest());
-        while(!in_range(position.y - water_height, 0.1f, 25.0f)) {
+        while(!in_range(position.y - water_height, 0.1f, 15.0f)) {
             position.x = random<float>(1.0f, terrain.width - 1.0f);
             position.z = random<float>(1.0f, terrain.depth - 1.0f);
             position.y = terrain.get_interpolated_height(position.x, position.z);
@@ -343,7 +343,6 @@ void application::run() noexcept {
                 m_renderer.render(GL_TRIANGLES, terrain_shader, terrain.ground_mesh);
 
                 plants_shader.uniform("u_material.diffuse0", tree_surface, 0);
-                plants_shader.uniform("u_water_clip_plane", reflect_clip_plane);
                 tree_transforms_buffer.bind_base(0);
                 m_renderer.render_instanced(GL_TRIANGLES, plants_shader, tree, tree_transforms.size());
                 m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
