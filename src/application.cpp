@@ -555,7 +555,7 @@ void application::_imgui_init(const char *glsl_version) const noexcept {
     ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-    ImGui_ImplOpenGL3_Init("#version 460 core");
+    ImGui_ImplOpenGL3_Init(glsl_version);
 }
 
 void application::_imgui_shutdown() const noexcept {
