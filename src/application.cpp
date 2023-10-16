@@ -7,6 +7,9 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/norm.hpp>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/compatibility.hpp>
+
 #include "debug.hpp"
 
 #include "shader.hpp"
@@ -75,12 +78,12 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     m_renderer.enable(GL_DEPTH_TEST);
     m_renderer.depth_func(GL_LEQUAL);
 
-    const glm::vec3 camera_position(-25.0f, 500.0f, 55.0f);
-    m_camera.create(camera_position, camera_position + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 300.0f, 10.0f);
+    const glm::vec3 camera_position(0.0f, 0.0f, 15.0f);
+    m_camera.create(camera_position, camera_position + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, 5.0f, 10.0f);
 
     m_proj_settings.x = m_proj_settings.y = 0;
     m_proj_settings.near = 0.1f;
-    m_proj_settings.far = 2200.0f;
+    m_proj_settings.far = 100.0f;
     _window_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
 
@@ -88,325 +91,95 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
 }
 
 void application::run() noexcept {
-    shader skybox_shader(RESOURCE_DIR "shaders/terrain/skybox.vert", RESOURCE_DIR "shaders/terrain/skybox.frag");
-    shader shadow_shader(RESOURCE_DIR "shaders/terrain/shadowmap.vert", RESOURCE_DIR "shaders/terrain/shadowmap.frag");
-    shader instanced_shadow_shader(RESOURCE_DIR "shaders/terrain/instacned_shadowmap.vert", RESOURCE_DIR "shaders/terrain/shadowmap.frag");
-    shader terrain_shader(RESOURCE_DIR "shaders/terrain/terrain.vert", RESOURCE_DIR "shaders/terrain/terrain.frag");
-    shader water_shader(RESOURCE_DIR "shaders/terrain/water.vert", RESOURCE_DIR "shaders/terrain/water.frag");
-    shader plants_shader(RESOURCE_DIR "shaders/terrain/plants.vert", RESOURCE_DIR "shaders/terrain/plants.frag");
-
-    framebuffer reflect_fbo;
-    reflect_fbo.create();
-    texture_2d reflect_color_buffer(m_proj_settings.width, m_proj_settings.height, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-    reflect_color_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    reflect_color_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    reflect_color_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    reflect_color_buffer.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    reflect_fbo.attach(GL_COLOR_ATTACHMENT0, 0, reflect_color_buffer);
-    renderbuffer reflect_depth_buffer(m_proj_settings.width, m_proj_settings.height, GL_DEPTH_COMPONENT);
-    assert(reflect_fbo.attach(GL_DEPTH_ATTACHMENT, reflect_depth_buffer));
-
-    framebuffer refract_fbo;
-    refract_fbo.create();
-    texture_2d refract_color_buffer(m_proj_settings.width, m_proj_settings.height, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-    refract_color_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    refract_color_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    refract_color_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    refract_color_buffer.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    refract_fbo.attach(GL_COLOR_ATTACHMENT0, 0, refract_color_buffer);
-    texture_2d refract_depth_buffer(m_proj_settings.width, m_proj_settings.height, 0, GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT);
-    refract_depth_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    refract_depth_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    assert(refract_fbo.attach(GL_DEPTH_ATTACHMENT, 0, refract_depth_buffer));
-
-    csm::shadowmap_config csm_config;
-    csm_config.width = m_proj_settings.width;
-    csm_config.height = m_proj_settings.height;
-    csm_config.internal_format = GL_DEPTH_COMPONENT32F;
-    csm_config.format = GL_DEPTH_COMPONENT;
-    csm_config.type = GL_FLOAT;
-    csm_config.mag_filter = GL_NEAREST;
-    csm_config.min_filter = GL_NEAREST;
-    csm_config.wrap_s = GL_CLAMP_TO_BORDER;
-    csm_config.wrap_t = GL_CLAMP_TO_BORDER;
-    csm_config.border_color = glm::vec4(1.0f);
-    csm csm_shadowmap(3, csm_config);
-
-    model cube(RESOURCE_DIR "models/cube/cube.obj", std::nullopt);
-    cubemap skybox(std::array<std::string, 6>{
-            RESOURCE_DIR "textures/terrain/skybox/right.png",
-            RESOURCE_DIR "textures/terrain/skybox/left.png",
-            RESOURCE_DIR "textures/terrain/skybox/top.png",
-            RESOURCE_DIR "textures/terrain/skybox/bottom.png",
-            RESOURCE_DIR "textures/terrain/skybox/front.png",
-            RESOURCE_DIR "textures/terrain/skybox/back.png"
-        }, false, false
-    );
-    skybox.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    skybox.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    skybox.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    skybox.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-
-    terrain terrain(RESOURCE_DIR "textures/terrain/height_map.png", 0.1f);
-    const std::vector<std::string> tile_textures = {
-        RESOURCE_DIR "textures/terrain/sand_tile.jpg",
-        RESOURCE_DIR "textures/terrain/grass_tile.png",
-        RESOURCE_DIR "textures/terrain/rock_tile.jpg",
-        RESOURCE_DIR "textures/terrain/snow_tile.png"
-    };
-    terrain.calculate_tile_regions(tile_textures.size(), tile_textures.data());
-
-    const glm::mat4 terrain_scale_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(10.0f, 6.0f, 10.0f));
-    const glm::mat4 terrain_translate_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -500.0f, 0.0f));
-    const glm::mat4 terrain_model_matrix = terrain_translate_matrix * terrain_scale_matrix;
-
-    const float water_height = terrain.tiles[1].optimal;
-    glm::vec4 default_clip_plane(0.0f, -1.0f, 0.0f, terrain.tiles.back().high + 1.0f);
-    glm::vec4 refract_clip_plane(0.0f, -1.0f, 0.0f, water_height);
-    glm::vec4 reflect_clip_plane(0.0f,  1.0f, 0.0f, -water_height);
-
-    terrain.create_water_mesh(water_height);
-    const glm::mat4 water_model_matrix = terrain_model_matrix;
-    texture_2d dudv_map(RESOURCE_DIR "textures/terrain/dudv.png");
-    dudv_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    dudv_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    dudv_map.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    dudv_map.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-    texture_2d normal_map(RESOURCE_DIR "textures/terrain/water_normal_map.png");
-    normal_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    normal_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    normal_map.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
-    normal_map.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-
-    model tree(RESOURCE_DIR "models/terrain/low_poly_tree.obj", std::nullopt);
-    texture_2d tree_surface(RESOURCE_DIR "textures/terrain/low_poly_tree.png");
-    tree_surface.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    tree_surface.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    tree_surface.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    tree_surface.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    tree_surface.generate_mipmap();
-    
-    const auto in_range = [](float value, float left_bound, float right_bound) -> bool {
-        return value >= left_bound && value <= right_bound;
-    };
-    std::vector<glm::mat4> tree_transforms(150);
-    for (size_t i = 0; i < tree_transforms.size(); ++i) {
-        glm::vec3 position(std::numeric_limits<float>::lowest());
-        while(!in_range(position.y - water_height, 0.1f, 15.0f)) {
-            position.x = random<float>(1.0f, terrain.width - 1.0f);
-            position.z = random<float>(1.0f, terrain.depth - 1.0f);
-            position.y = terrain.get_interpolated_height(position.x, position.z);
-        }
-    
-        tree_transforms[i] = terrain_model_matrix 
-            * glm::translate(glm::mat4(1.0f), position) 
-            * glm::inverse(terrain_scale_matrix) 
-            * glm::scale(glm::mat4(1.0f), glm::vec3(1.5f));
-    }
-    buffer tree_transforms_buffer(
-        GL_SHADER_STORAGE_BUFFER, tree_transforms.size() * sizeof(glm::mat4), sizeof(glm::mat4), GL_STATIC_DRAW, tree_transforms.data());
-
-    
-    glm::vec3 light_direction = glm::normalize(glm::vec3(-1.0f, -1.0f, 1.0f));
-    glm::vec3 light_color(0.74f, 0.396f, 0.055f);
-
-    glm::vec3 fog_color = light_color;
-    float fog_density = 0.00055f, fog_gradient = 4.5f;
-    
-    float skybox_speed = 0.01f;
-
-    float wave_strength = 0.01f;
-    float move_factor = 0.0f;
-    float wave_speed = 0.02f;
-    float water_shininess = 20.0f;
-    float water_specular_strength = 0.5f;
-
-    int32_t debug_cascade_index = 0;
-    bool cascade_debug_mode = false;
-
-    int32_t debug_terrain_tile_index = 0;
-    int32_t debug_water_fbos_index = 0;
-
     ImGuiIO& io = ImGui::GetIO();
 
-    auto render_scene = [&](bool shadow_pass = false) {
-        const glm::mat4 skybox_model_matrix = glm::rotate(glm::mat4(1.0f), (float)glfwGetTime() * skybox_speed, glm::vec3(0.0f, 1.0f, 0.0f));
-        const glm::vec3 curr_light_direction = glm::normalize(glm::vec3(glm::transpose(glm::inverse(skybox_model_matrix)) * glm::vec4(light_direction, 0.0f)));
+    shader gpass_shader(RESOURCE_DIR "shaders/ssao/gpass.vert", RESOURCE_DIR "shaders/ssao/gpass.frag");
+    shader ssao_shader(RESOURCE_DIR "shaders/ssao/ssao.vert", RESOURCE_DIR "shaders/ssao/ssao.frag");
+    shader lightpass_shader(RESOURCE_DIR "shaders/ssao/lightpass.vert", RESOURCE_DIR "shaders/ssao/lightpass.frag");
+    shader blur_shader(RESOURCE_DIR "shaders/ssao/blur.vert", RESOURCE_DIR "shaders/ssao/blur.frag");
 
-        const float z_mult = 2.1f;
-        
-        csm_shadowmap.calculate_subfrustas(
-            glm::radians(m_camera.fov), 
-            m_proj_settings.aspect, 
-            m_proj_settings.near, 
-            m_proj_settings.far, 
-            m_camera.get_view(), 
-            curr_light_direction,
-            z_mult
-        );
+    framebuffer gbuffer;
+    gbuffer.create();
 
-        for (size_t i = 0; i < csm_shadowmap.subfrustas.size(); ++i) {
-            terrain_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
-            plants_shader.uniform("u_light.csm.cascade_end_z[" + std::to_string(i) + "]", csm_shadowmap.subfrustas[i].far);
-        }
+    texture_2d position_buffer(m_proj_settings.width, m_proj_settings.height, 0, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+    position_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    position_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    position_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    position_buffer.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    assert(gbuffer.attach(GL_COLOR_ATTACHMENT0, 0, position_buffer));
 
-        if (shadow_pass) {
-            for (size_t i = 0; i < csm_shadowmap.subfrustas.size(); ++i) {
-                m_renderer.viewport(0, 0, csm_shadowmap.shadowmaps[i].get_width(), csm_shadowmap.shadowmaps[i].get_height());
+    texture_2d normal_buffer(m_proj_settings.width, m_proj_settings.height, 0, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+    normal_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    normal_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    normal_buffer.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    normal_buffer.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    assert(gbuffer.attach(GL_COLOR_ATTACHMENT1, 0, normal_buffer));
+    
+    renderbuffer depth_buffer(m_proj_settings.width, m_proj_settings.height, GL_DEPTH_COMPONENT);
+    assert(gbuffer.attach(GL_DEPTH_ATTACHMENT, depth_buffer));
 
-                csm_shadowmap.bind_for_writing(i);
-                m_renderer.clear(GL_DEPTH_BUFFER_BIT);
-                shadow_shader.uniform("u_projection", csm_shadowmap.subfrustas[i].lightspace_projection);
-                shadow_shader.uniform("u_view", csm_shadowmap.subfrustas[i].lightspace_view);
-                shadow_shader.uniform("u_model", terrain_model_matrix);
-                m_renderer.render(GL_TRIANGLES, shadow_shader, terrain.ground_mesh);
+    uint32_t draw_buffer_attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    gbuffer.set_draw_buffer(2, draw_buffer_attachments);
 
-                instanced_shadow_shader.uniform("u_projection", csm_shadowmap.subfrustas[i].lightspace_projection);
-                instanced_shadow_shader.uniform("u_view", csm_shadowmap.subfrustas[i].lightspace_view);
-                tree_transforms_buffer.bind_base(0);
-                m_renderer.render_instanced(GL_TRIANGLES, instanced_shadow_shader, tree, tree_transforms.size());
-            }
-        } else {
-            csm_shadowmap.bind_for_reading(10);
-            for (size_t i = 0; i < csm_shadowmap.shadowmaps.size(); ++i) {
-                const std::string csm_uniform = "u_light.csm.shadowmap[" + std::to_string(i) + "]";
-                const std::string matrix_uniform = "u_light_space[" + std::to_string(i) + "]";
-                
-                const glm::mat4 light_space_matrix = csm_shadowmap.subfrustas[i].lightspace_projection * csm_shadowmap.subfrustas[i].lightspace_view;
-                
-                terrain_shader.uniform(csm_uniform, int32_t(10 + i));
-                terrain_shader.uniform(matrix_uniform, light_space_matrix);
 
-                plants_shader.uniform(csm_uniform, int32_t(10 + i));
-                plants_shader.uniform(matrix_uniform, light_space_matrix);
-            }
+    std::vector<glm::vec3> ssao_kernel(64);
+    ssao_shader.uniform("u_samples_count", ssao_kernel.size());
+    for (size_t i = 0; i < ssao_kernel.size(); ++i) {
+        ssao_kernel[i] = glm::normalize(glm::vec3(random(-1.0f, 1.0f), random(-1.0f, 1.0f), random(0.0f, 1.0f)));
+        ssao_kernel[i] *= random(0.0f, 1.0f);
+        ssao_shader.uniform("u_ssao_samples[" + std::to_string(i) + "]", ssao_kernel[i]);
+    }
 
-            skybox_shader.uniform("u_projection", m_proj_settings.projection_mat);
-            skybox_shader.uniform("u_view", glm::mat4(glm::mat3(m_camera.get_view())));
-            skybox_shader.uniform("u_model", skybox_model_matrix);
-            skybox_shader.uniform("u_skybox", skybox, 0);
 
-            terrain_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
-            terrain_shader.uniform("u_projection", m_proj_settings.projection_mat);
-            terrain_shader.uniform("u_model", terrain_model_matrix);
+    std::vector<glm::vec3> ssao_noise(16);
+    for (auto& noise : ssao_noise) {
+        noise = glm::vec3(random(-1.0f, 1.0f), random(-1.0f, 1.0f), 0.0f);
+    }
+    texture_2d noise_texture(4, 4, 0, GL_RGBA16F, GL_RGBA, GL_FLOAT, ssao_noise.data());
+    noise_texture.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    noise_texture.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    noise_texture.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    noise_texture.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-            terrain_shader.uniform("u_light.direction", curr_light_direction);
-            terrain_shader.uniform("u_light.color", light_color);
 
-            terrain_shader.uniform("u_fog.color", fog_color);
-            terrain_shader.uniform("u_fog.density", fog_density);
-            terrain_shader.uniform("u_fog.gradient", fog_gradient);
+    framebuffer ssao_framebuffer;
+    ssao_framebuffer.create();
 
-            terrain_shader.uniform("u_terrain.min_height", terrain.min_height);
-            terrain_shader.uniform("u_terrain.max_height", terrain.max_height);
-            for (size_t i = 0; i < terrain.tiles.size(); ++i) {
-                terrain_shader.uniform("u_terrain.tiles[" + std::to_string(i) + "].texture", terrain.tiles[i].texture, 25 + i);
-                terrain_shader.uniform("u_terrain.tiles[" + std::to_string(i) + "].low", terrain.tiles[i].low);
-                terrain_shader.uniform("u_terrain.tiles[" + std::to_string(i) + "].optimal", terrain.tiles[i].optimal);
-                terrain_shader.uniform("u_terrain.tiles[" + std::to_string(i) + "].high", terrain.tiles[i].high);
-            }
+    texture_2d ssao_color_buffer(m_proj_settings.width, m_proj_settings.height, 0, GL_RED, GL_RED, GL_FLOAT);
+    ssao_color_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    ssao_color_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    assert(ssao_framebuffer.attach(GL_COLOR_ATTACHMENT0, 0, ssao_color_buffer));
 
-            plants_shader.uniform("u_cascade_debug_mode", cascade_debug_mode);
-            plants_shader.uniform("u_projection", m_proj_settings.projection_mat);
-            
-            plants_shader.uniform("u_light.direction", curr_light_direction);
-            plants_shader.uniform("u_light.color", light_color);
-            
-            plants_shader.uniform("u_fog.color", fog_color);
-            plants_shader.uniform("u_fog.density", fog_density);
-            plants_shader.uniform("u_fog.gradient", fog_gradient);
 
-            {
-                reflect_fbo.bind();
-                m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                m_renderer.viewport(0, 0, reflect_color_buffer.get_width(), reflect_color_buffer.get_height());
+    framebuffer ssao_blur_framebuffer;
+    ssao_blur_framebuffer.create();
 
-                m_renderer.disable(GL_CULL_FACE);
-                m_renderer.render(GL_TRIANGLES, skybox_shader, cube);
-                m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
+    texture_2d ssao_blur_color_buffer(m_proj_settings.width, m_proj_settings.height, 0, GL_RED, GL_RED, GL_FLOAT);
+    ssao_blur_color_buffer.set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    ssao_blur_color_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    assert(ssao_blur_framebuffer.attach(GL_COLOR_ATTACHMENT0, 0, ssao_blur_color_buffer));
 
-                const glm::vec3 origin_camera_position = m_camera.position;
-                const glm::vec4 water_world_position = terrain_model_matrix * glm::vec4(0.0f, water_height, 0.0f, 1.0f);
-                const float camera_to_water_dist = abs(origin_camera_position.y - water_world_position.y);
-                const glm::vec3 new_camera_position = origin_camera_position - glm::vec3(0.0f, 2.0f * camera_to_water_dist, 0.0f);
-                m_camera.position = new_camera_position;
-                m_camera.invert_pitch();
-                terrain_shader.uniform("u_view", m_camera.get_view());
-                plants_shader.uniform("u_view", m_camera.get_view());
-                m_camera.position = origin_camera_position;
-                m_camera.invert_pitch();
 
-                m_renderer.enable(GL_CULL_FACE);
-                terrain_shader.uniform("u_water_clip_plane", reflect_clip_plane);
-                m_renderer.render(GL_TRIANGLES, terrain_shader, terrain.ground_mesh);
+    model backpack(RESOURCE_DIR "models/backpack/backpack.obj", std::nullopt);
 
-                plants_shader.uniform("u_material.diffuse0", tree_surface, 0);
-                tree_transforms_buffer.bind_base(0);
-                m_renderer.render_instanced(GL_TRIANGLES, plants_shader, tree, tree_transforms.size());
-                m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
-            }
+    mesh plane(
+        std::vector<mesh::vertex>{
+            { {-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f} },
+            { {-1.0f,  1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f} },
+            { { 1.0f,  1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 0.0f} },
+            { { 1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.0f, 0.0f} },
+        }, 
+        { 0, 2, 1, 0, 3, 2 }
+    );
 
-            {
-                refract_fbo.bind();
-                m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                m_renderer.viewport(0, 0, refract_color_buffer.get_width(), refract_color_buffer.get_height());
+    float ssao_noise_radius = 0.5f;
+    float ssao_bias = 0.025f;
 
-                terrain_shader.uniform("u_view", m_camera.get_view());      
-                terrain_shader.uniform("u_water_clip_plane", refract_clip_plane);  
-                m_renderer.render(GL_TRIANGLES, terrain_shader, terrain.ground_mesh);
-            }
+    glm::vec3 light_position(2.0f), light_color(1.0f);
+    float light_intencity = 1.0f;
 
-            framebuffer::bind_default();
-            m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            m_renderer.viewport(0, 0, m_proj_settings.width, m_proj_settings.height);
-            
-            m_renderer.disable(GL_CULL_FACE);
-            m_renderer.render(GL_TRIANGLES, skybox_shader, cube);
-            m_cull_face ? m_renderer.enable(GL_CULL_FACE) : m_renderer.disable(GL_CULL_FACE);
-
-            terrain_shader.uniform("u_view", m_camera.get_view());
-            terrain_shader.uniform("u_water_clip_plane", default_clip_plane);
-            
-            m_renderer.render(GL_TRIANGLES, terrain_shader, terrain.ground_mesh);
-
-            water_shader.uniform("u_projection", m_proj_settings.projection_mat);
-            water_shader.uniform("u_view", m_camera.get_view());
-            water_shader.uniform("u_model", water_model_matrix);
-            water_shader.uniform("u_reflection_map", reflect_color_buffer, 0);
-            water_shader.uniform("u_refraction_map", refract_color_buffer, 1);
-            water_shader.uniform("u_dudv_map", dudv_map, 2);
-            water_shader.uniform("u_normal_map", normal_map, 3);
-            water_shader.uniform("u_depth_map", refract_depth_buffer, 4);
-            water_shader.uniform("u_fog.color", fog_color);
-            water_shader.uniform("u_fog.density", fog_density);
-            water_shader.uniform("u_fog.gradient", fog_gradient);
-            water_shader.uniform("u_light.direction", curr_light_direction);
-            water_shader.uniform("u_light.color", light_color);
-            water_shader.uniform("u_camera_position", m_camera.position);
-            water_shader.uniform("u_near", m_proj_settings.near);
-            water_shader.uniform("u_far", m_proj_settings.far);
-            water_shader.uniform("u_max_water_depth", glm::abs(water_height - terrain.min_height));
-            water_shader.uniform("u_wave_move_factor", move_factor);
-            water_shader.uniform("u_wave_shininess", water_shininess);
-            water_shader.uniform("u_specular_strength", water_specular_strength);
-            water_shader.uniform("u_wave_strength", wave_strength);
-            move_factor += wave_speed * io.DeltaTime;
-            if (move_factor >= 1.0f) {
-                move_factor -= 1.0f;
-            }
-            m_renderer.enable(GL_BLEND);
-            m_renderer.blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            m_renderer.render(GL_TRIANGLES, water_shader, terrain.water_mesh);
-            m_renderer.disable(GL_BLEND);
-            
-            plants_shader.uniform("u_material.diffuse0", tree_surface, 0);
-            plants_shader.uniform("u_view", m_camera.get_view());
-            tree_transforms_buffer.bind_base(0);
-            m_renderer.render_instanced(GL_TRIANGLES, plants_shader, tree, tree_transforms.size());
-        }
-    };
+    uint32_t debug_gbuffer_ids[] = { position_buffer.get_id(), normal_buffer.get_id() };
+    int32_t debug_buffer_number = 0;
 
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
@@ -430,8 +203,50 @@ void application::run() noexcept {
             }
         }
 
-        render_scene(true);
-        render_scene();
+        gbuffer.bind();
+        m_renderer.set_clear_color(glm::vec4(0.0f));
+        m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        gpass_shader.uniform("u_projection_matrix", m_proj_settings.projection_mat);
+        gpass_shader.uniform("u_view_matrix", m_camera.get_view());
+        gpass_shader.uniform("u_model_matrix", glm::mat4(1.0f));
+        gpass_shader.uniform("u_normal_matrix", glm::mat4(1.0f));
+        m_renderer.render(GL_TRIANGLES, gpass_shader, backpack);
+
+        ssao_framebuffer.bind();
+        m_renderer.set_clear_color(glm::vec4(0.0f));
+        m_renderer.clear(GL_COLOR_BUFFER_BIT);
+        ssao_shader.uniform("u_gbuffer.position", position_buffer, 0);
+        ssao_shader.uniform("u_gbuffer.normal", normal_buffer, 1);
+        ssao_shader.uniform("u_ssao_noise", noise_texture, 2);
+        ssao_shader.uniform("u_screen_size", glm::vec2(m_proj_settings.width, m_proj_settings.height));
+        ssao_shader.uniform("u_noise_radius", ssao_noise_radius);
+        ssao_shader.uniform("u_ssao_bias", ssao_bias);
+        ssao_shader.uniform("u_projection_matrix", m_proj_settings.projection_mat);
+        m_renderer.render(GL_TRIANGLES, ssao_shader, plane);
+
+
+        ssao_blur_framebuffer.bind();
+        m_renderer.set_clear_color(glm::vec4(0.0f));
+        m_renderer.clear(GL_COLOR_BUFFER_BIT);
+        blur_shader.uniform("u_ssao_buffer", ssao_color_buffer, 0);
+        m_renderer.render(GL_TRIANGLES, blur_shader, plane);
+
+
+        framebuffer::bind_default();
+        m_renderer.set_clear_color(m_clear_color);
+        m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        lightpass_shader.uniform("u_gbuffer.position", position_buffer, 0);
+        lightpass_shader.uniform("u_gbuffer.normal", normal_buffer, 1);
+        lightpass_shader.uniform("u_ssaoblur_buffer", ssao_blur_color_buffer, 2);
+        lightpass_shader.uniform("u_light.position_viewspace", glm::vec3(m_camera.get_view() * glm::vec4(light_position, 1.0f)));
+        lightpass_shader.uniform("u_light.color", light_color);
+        lightpass_shader.uniform("u_light.intensity", light_intencity);
+        lightpass_shader.uniform("u_light.constant", 1.0f);
+        lightpass_shader.uniform("u_light.linear", 0.09f);
+        lightpass_shader.uniform("u_light.quadratic", 0.032f);
+        lightpass_shader.uniform("u_material.shininess", 64.0f);
+        m_renderer.render(GL_TRIANGLES, lightpass_shader, plane);
+
 
     #if 1 //UI
         _imgui_frame_begin();
@@ -453,61 +268,32 @@ void application::run() noexcept {
             ImGui::Text("average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::End();
 
-    #if 1        
-        ImGui::Begin("Water Framebuffers");
-            ImGui::SliderInt(debug_water_fbos_index == 0 ? "refract" : "reflect", &debug_water_fbos_index, 0, 1);
-            const uint32_t fbo_width = debug_water_fbos_index == 0 ? refract_color_buffer.get_width() : reflect_color_buffer.get_width();
-            const uint32_t fbo_height = debug_water_fbos_index == 0 ? refract_color_buffer.get_height() : reflect_color_buffer.get_height();
-            ImGui::Image((void*)(intptr_t)(debug_water_fbos_index == 0 ? refract_color_buffer.get_id() : reflect_color_buffer.get_id()), 
-                ImVec2(fbo_width, fbo_height), ImVec2(0, 1), ImVec2(1, 0));
-        ImGui::End();
-
-        // ImGui::Begin("Refract Depth");
-        //     ImGui::Image((void*)(intptr_t)refract_depth_buffer.get_id(), ImVec2(fbo_width, fbo_height), ImVec2(0, 1), ImVec2(1, 0));
-        // ImGui::End();
-
-        // ImGui::Begin("Terrain");
-        //     ImGui::DragFloat("height scale", &terrain.height_scale, 0.001f, 0.01f, std::numeric_limits<float>::max());
-        //     ImGui::DragFloat("world scale", &terrain.world_scale, 0.1f, 0.1f, std::numeric_limits<float>::max());
-
-        //     if (ImGui::Button("regenerate")) {
-        //         terrain.create(RESOURCE_DIR "textures/terrain/height_map.png", terrain.world_scale, terrain.height_scale);
-
-        //         texture_2d surface(RESOURCE_DIR "textures/terrain/terrain_surface.png");
-        //         terrain.mesh.add_texture(std::move(surface));
-        //     }
-        // ImGui::End();
-    #endif
-
-        ImGui::Begin("Water");
-            ImGui::DragFloat("wave strength", &wave_strength, 0.001f, 0.001f, std::numeric_limits<float>::max());
-            ImGui::DragFloat("wave speed", &wave_speed, 0.001f, 0.001f, std::numeric_limits<float>::max());
-            ImGui::DragFloat("shininess", &water_shininess, 0.1f, 0.1f, std::numeric_limits<float>::max());
-            ImGui::DragFloat("specular strength", &water_specular_strength, 0.1f, 0.1f, std::numeric_limits<float>::max());
-        ImGui::End();
-
-        ImGui::Begin("Skybox");
-            ImGui::DragFloat("speed", &skybox_speed, 0.001f, 0.0f, std::numeric_limits<float>::max());
+        ImGui::Begin("SSAO");
+            ImGui::DragFloat("radius", &ssao_noise_radius, 0.01f, 0.0f, std::numeric_limits<float>::max());
+            ImGui::DragFloat("bias", &ssao_bias, 0.01f, 0.0f, std::numeric_limits<float>::max());
         ImGui::End();
 
         ImGui::Begin("Light");
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
+            if (ImGui::Button("X")) {
+                light_position.x = 0.0f;
+            }
+            ImGui::PushItemWidth(70);
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
+            ImGui::SameLine(); ImGui::DragFloat("##X", &light_position.x, 0.1f);
+            if ((ImGui::SameLine(), ImGui::Button("Y"))) {
+                light_position.y = 0.0f;
+            }
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.6f, 1.0f));
+            ImGui::SameLine(); ImGui::DragFloat("##Y", &light_position.y, 0.1f);
+            if ((ImGui::SameLine(), ImGui::Button("Z"))) {
+                light_position.z = 0.0f;
+            }
+            ImGui::SameLine(); ImGui::DragFloat("##Z", &light_position.z, 0.1f);
+            ImGui::PopStyleColor(3);
+            ImGui::PopItemWidth();
             ImGui::ColorEdit3("color", glm::value_ptr(light_color));
-            ImGui::Checkbox("debug cascade", &cascade_debug_mode);
-        ImGui::End();
-
-        ImGui::Begin("Depth Texture");
-            ImGui::SliderInt("cascade index", &debug_cascade_index, 0, csm_shadowmap.shadowmaps.size() - 1);
-            const uint32_t csm_width = csm_shadowmap.shadowmaps[debug_cascade_index].get_width();
-            const uint32_t csm_height = csm_shadowmap.shadowmaps[debug_cascade_index].get_height();
-            ImGui::Text("Resolution [%d X %d]", csm_width, csm_height);
-            ImGui::Image((void*)(intptr_t)csm_shadowmap.shadowmaps[debug_cascade_index].get_id(), 
-                ImVec2(csm_width, csm_height), ImVec2(0, 1), ImVec2(1, 0));
-        ImGui::End();
-
-        ImGui::Begin("Fog");
-            ImGui::ColorEdit3("color", glm::value_ptr(fog_color));
-            ImGui::DragFloat("density", &fog_density, 0.0001f, 0.0f, std::numeric_limits<float>::max(), "%.5f");
-            ImGui::DragFloat("gradient", &fog_gradient, 0.01f, 0.0f, std::numeric_limits<float>::max());
+            ImGui::DragFloat("intensity", &light_intencity, 0.1f, 0.0f, 1.0f);
         ImGui::End();
 
         ImGui::Begin("Camera");
@@ -528,6 +314,20 @@ void application::run() noexcept {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         ImGui::End();
+
+        ImGui::Begin("G Buffer");
+            ImGui::SliderInt("buffer number", &debug_buffer_number, 0, 3);
+            {
+                const ImVec2 buffer_size_imvec2(position_buffer.get_width(), position_buffer.get_height());
+                switch (debug_buffer_number) {
+                    case 0: ImGui::Image((void*)(uintptr_t)position_buffer.get_id(), buffer_size_imvec2, ImVec2(0, 1), ImVec2(1, 0)); break;
+                    case 1: ImGui::Image((void*)(uintptr_t)normal_buffer.get_id(), buffer_size_imvec2, ImVec2(0, 1), ImVec2(1, 0)); break;
+                    case 2: ImGui::Image((void*)(uintptr_t)ssao_color_buffer.get_id(), buffer_size_imvec2, ImVec2(0, 1), ImVec2(1, 0)); break;
+                    case 3: ImGui::Image((void*)(uintptr_t)ssao_blur_color_buffer.get_id(), buffer_size_imvec2, ImVec2(0, 1), ImVec2(1, 0)); break;
+                }
+            }
+        ImGui::End();
+
         _imgui_frame_end();
     #endif
 
