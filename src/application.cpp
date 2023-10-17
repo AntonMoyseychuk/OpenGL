@@ -159,8 +159,8 @@ void application::run() noexcept {
     ssao_blur_color_buffer.set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     assert(ssao_blur_framebuffer.attach(GL_COLOR_ATTACHMENT0, 0, ssao_blur_color_buffer));
 
-
     model backpack(RESOURCE_DIR "models/backpack/backpack.obj", std::nullopt);
+    model cube(RESOURCE_DIR "models/cube/cube.obj", std::nullopt);
 
     mesh plane(
         std::vector<mesh::vertex>{
@@ -177,6 +177,9 @@ void application::run() noexcept {
 
     glm::vec3 light_position(2.0f), light_color(1.0f);
     float light_intencity = 1.0f;
+
+    const glm::mat4 cube_model_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(20.0f));
+    const glm::mat4 cube_normal_matrix = glm::transpose(glm::inverse(cube_model_matrix));
 
     uint32_t debug_gbuffer_ids[] = { position_buffer.get_id(), normal_buffer.get_id() };
     int32_t debug_buffer_number = 0;
@@ -210,7 +213,12 @@ void application::run() noexcept {
         gpass_shader.uniform("u_view_matrix", m_camera.get_view());
         gpass_shader.uniform("u_model_matrix", glm::mat4(1.0f));
         gpass_shader.uniform("u_normal_matrix", glm::mat4(1.0f));
+        gpass_shader.uniform("u_reverse_normals", false);
         m_renderer.render(GL_TRIANGLES, gpass_shader, backpack);
+        gpass_shader.uniform("u_model_matrix", cube_model_matrix);
+        gpass_shader.uniform("u_normal_matrix", cube_normal_matrix);
+        gpass_shader.uniform("u_reverse_normals", true);
+        m_renderer.render(GL_TRIANGLES, gpass_shader, cube);
 
         ssao_framebuffer.bind();
         m_renderer.set_clear_color(glm::vec4(0.0f));
