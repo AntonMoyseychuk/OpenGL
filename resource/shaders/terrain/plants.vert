@@ -30,6 +30,7 @@ uniform struct Fog {
     float gradient;
 } u_fog;
 
+
 void main() {
     const mat3 normal_matrix = transpose(inverse(mat3(u_model[gl_InstanceID])));
 

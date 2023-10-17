@@ -9,7 +9,6 @@ in VS_OUT {
 struct GBuffer {
     sampler2D position;
     sampler2D normal;
-    sampler2D albedo;
 };
 uniform GBuffer u_gbuffer;
 
@@ -32,17 +31,16 @@ struct Material {
 };
 uniform Material u_material;
 
-uniform bool u_use_ssao = true;
-
 void main() {
     const vec3 frag_pos_view_space = texture(u_gbuffer.position, fs_in.texcoord).xyz;
     const vec3 normal_view_space = normalize(texture(u_gbuffer.normal, fs_in.texcoord).xyz);
-    const vec4 albedo_spec = texture(u_gbuffer.albedo, fs_in.texcoord);
     const float ambient_factor = texture(u_ssaoblur_buffer, fs_in.texcoord).r;
+    
+    const vec3 albedo = vec3(1.0f);
 
     const vec3 view_direction = normalize(frag_pos_view_space);
 
-    const vec3 ambient = u_use_ssao ? 0.3f * albedo_spec.rgb * ambient_factor : 0.1f * albedo_spec.rgb;
+    const vec3 ambient = 0.3f * albedo * ambient_factor;
 
     const vec3 light_direction = normalize(frag_pos_view_space - u_light.position_viewspace);
     const float dist = length(frag_pos_view_space - u_light.position_viewspace);
@@ -52,10 +50,10 @@ void main() {
     const float attenuation = u_light.intensity / (u_light.constant + u_light.linear * dist + u_light.quadratic * dist * dist);
 
     const float diff = max(dot(-light_direction, normal_view_space), 0.0f);
-    const vec3 diffuse = diff * albedo_spec.rgb * u_light.color;
+    const vec3 diffuse = diff * albedo * u_light.color;
 
     const float spec = pow(max(dot(normal_view_space, -half_direction), 0.0), u_material.shininess);
-    const vec3 specular = spec * albedo_spec.a * u_light.color;
+    const vec3 specular = spec * albedo * u_light.color;
 
     frag_color = vec4(ambient + (diffuse + specular) * attenuation, 1.0f);
 }

@@ -7,6 +7,9 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/norm.hpp>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/compatibility.hpp>
+
 #include "debug.hpp"
 
 #include "shader.hpp"
@@ -223,7 +226,7 @@ void application::_imgui_init(const char *glsl_version) const noexcept {
     ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-    ImGui_ImplOpenGL3_Init("#version 460 core");
+    ImGui_ImplOpenGL3_Init(glsl_version);
 }
 
 void application::_imgui_shutdown() const noexcept {

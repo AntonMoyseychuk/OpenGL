@@ -1,60 +1,57 @@
 #version 460 core
 
-out float frag_color;
+layout (location = 0) out float occlusion;
 
 in VS_OUT {
     vec2 texcoord;
 } fs_in;
 
-struct GBuffer {
+uniform struct gbuffer {
     sampler2D position;
     sampler2D normal;
-};
-uniform GBuffer u_gbuffer;
+} u_gbuffer;
 
-uniform mat4 u_projection;
+uniform sampler2D u_ssao_noise;
 
-uniform sampler2D u_noise_buffer;
+const int MAX_SAMPLES_COUNT = 128;
+uniform uint u_samples_count = MAX_SAMPLES_COUNT;
+uniform vec3 u_ssao_samples[MAX_SAMPLES_COUNT];
+
 uniform vec2 u_screen_size;
-uniform float u_noise_scale = 4.0f;
+uniform float u_noise_size = 4.0f;
+uniform float u_noise_radius = 1.0f;
+uniform float u_ssao_bias = 0.025f;
 
-uniform float u_radius = 0.5f;
-uniform float u_bias = 0.025f;
-
-const int MAX_KERNEL_SIZE = 128;
-uniform vec3 u_kernel[MAX_KERNEL_SIZE];
+uniform mat4 u_projection_matrix;
 
 void main() {
-    // const vec2 noise_scale = u_screen_size / u_noise_scale;
+    const vec2 noise_scale = u_screen_size / u_noise_size;
 
-    const vec3 frag_pos_view_space = texture(u_gbuffer.position, fs_in.texcoord).xyz;
-    // const vec3 normal = normalize(texture(u_gbuffer.normal, fs_in.texcoord).xyz);
-    // const vec3 random_offset = normalize(texture(u_noise_buffer, fs_in.texcoord * noise_scale).xyz);
+    const vec3 position = texture(u_gbuffer.position, fs_in.texcoord).xyz;
+    const vec3 normal = normalize(texture(u_gbuffer.normal, fs_in.texcoord).xyz);
 
-    // const vec3 tangent = normalize(random_offset - normal * dot(random_offset, normal));
-    // const vec3 bitangent = cross(normal, tangent);
-    // const mat3 TBN = mat3(tangent, bitangent, normal);
+    const vec3 random_vec = texture(u_ssao_noise, fs_in.texcoord * noise_scale).xyz;
 
-    float occlusion = 0.0f;
-    for (int i = 0; i < MAX_KERNEL_SIZE; ++i) {
-        // vec3 sampl = TBN * u_kernel[i];
-        // sampl = frag_pos + sampl * u_radius;
-        vec3 sampl = frag_pos_view_space + u_kernel[i];
+    const vec3 N = normal;
+    const vec3 T = normalize(random_vec - N * dot(random_vec, N));
+    const vec3 B = cross(N, T);
+    const mat3 TBN = mat3(T, B, N);
 
-        vec4 offset = u_projection * vec4(sampl, 1.0f);
-        offset.xyz /= offset.w;
-        offset.xyz = 0.5f * offset.xyz + 0.5f;
+    occlusion = 0.0f;
+    for (int i = 0; i < u_samples_count; ++i) {
+        vec3 sampl = TBN * u_ssao_samples[i];
+        sampl = position + sampl * u_noise_radius;
 
-        const float sample_depth = texture(u_gbuffer.position, offset.xy).z;
+        vec4 offset = u_projection_matrix * vec4(sampl, 1.0f);
+        offset = offset / offset.w;
+        offset.xyz = offset.xyz * 0.5f + 0.5f;
 
-        const float range_check = smoothstep(0.0f, 1.0f, u_radius / abs(frag_pos_view_space.z - sample_depth));
+        const float near_sample_depth = texture(u_gbuffer.position, offset.xy).z;
 
-        if (sample_depth >= sampl.z + u_bias) {
-            occlusion += range_check;
-        }
+        const float range_check = smoothstep(0.0f, 1.0f, u_noise_radius / abs(position.z - near_sample_depth));
+        occlusion += (near_sample_depth >= sampl.z + u_ssao_bias ? 1.0f : 0.0f) * range_check;
     }
 
-    occlusion = 1.0f - (occlusion / MAX_KERNEL_SIZE);
-
-    frag_color = occlusion * occlusion;
+    occlusion = 1.0f - (occlusion / u_samples_count);
+    occlusion = occlusion * occlusion;
 }
