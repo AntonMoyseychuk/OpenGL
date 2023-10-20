@@ -9,78 +9,54 @@ void uv_sphere::generate(uint32_t stacks, uint32_t slices) noexcept {
     this->stacks = stacks;
     this->slices = slices;
 
-    const float theta_step = glm::pi<float>() / stacks;
-    const float phi_step = glm::two_pi<float>() / slices;
-
-    const float texcoord_s_step = 1.0f / slices;
-    const float texcoord_t_step = 1.0f / stacks;
-
     std::vector<mesh::vertex> vertices;
-    vertices.reserve((stacks - 1) * slices + 2);
+    vertices.reserve((stacks + 1) * (slices + 1));
 
-    vertices.emplace_back(mesh::vertex { glm::vec3(0.0f, 1.0f, 0.0f), {}, { 0.5f, 1.0f } });
-    for (uint32_t stack = 0; stack < stacks - 1; ++stack) {
-        const float theta = (stack + 1) * theta_step;
-        const float tex_t = (1.0f - texcoord_t_step) - stack * texcoord_t_step;
+    const float phi_step = glm::two_pi<float>() / slices;
+    const float theta_step = glm::pi<float>() / stacks;
 
-        for (uint32_t slice = 0; slice < slices; ++slice) {
-            vertices.emplace_back(_create_vertex(theta, slice * phi_step, slice * texcoord_s_step, tex_t));
+    for(uint32_t stack = 0; stack <= stacks; ++stack) {
+        const float theta = stack * theta_step;
+        const float xz = glm::sin(theta); 
+        const float y = glm::cos(theta); 
+
+        for(uint32_t slice = 0; slice <= slices; ++slice) {
+            const float phi = slice * phi_step; 
+
+            const float x = xz * glm::cos(phi); 
+            const float z = xz * glm::sin(phi);
+
+            const glm::vec3 normal = glm::normalize(glm::vec3(x, y, z));
+            const glm::vec2 texcoord(static_cast<float>(slice) / slices, static_cast<float>(stack) / stacks);
+
+            vertices.emplace_back(mesh::vertex{glm::vec3(x, y, z), normal, texcoord});
         }
     }
-    vertices.emplace_back(mesh::vertex { glm::vec3(0.0f, -1.0f, 0.0f), {}, { 0.5f, 0.0f } });
 
     std::vector<uint32_t> indices;
     indices.reserve((2 * slices * 3) + ((stacks - 2) * slices * 6));
 
-    for (uint32_t i = 0; i < slices; ++i) {
-        const uint32_t a = i + 1;
-        const uint32_t b = (i + 1) % slices + 1;
-        
-        indices.emplace_back(0);
-        indices.emplace_back(a);
-        indices.emplace_back(b);
-    }
+    for(uint32_t stack = 0; stack < stacks; ++stack) {
+        uint32_t k1 = stack * (slices + 1);
+        uint32_t k2 = k1 + slices + 1;
 
-    for(uint32_t i = 0; i < stacks - 2; ++i) {	
-		uint32_t a_start = i * slices;
-		uint32_t b_start = (i + 1) * slices;
-		
-        for(uint32_t j = 0; j < slices; ++j) {
-			uint32_t a0 = a_start + j + 1;
-			uint32_t a1 = a_start + (j + 1) % slices + 1;
-			uint32_t b0 = b_start + j + 1;
-			uint32_t b1 = b_start + (j + 1) % slices + 1;
+        for(uint32_t slice = 0; slice < slices; ++slice, ++k1, ++k2) {
+            if(stack != 0) {
+                indices.emplace_back(k1 + 1);
+                indices.emplace_back(k2);
+                indices.emplace_back(k1);
+            }
 
-            indices.emplace_back(a0);
-            indices.emplace_back(b1);
-            indices.emplace_back(a1);
-
-            indices.emplace_back(a0);
-            indices.emplace_back(b0);
-            indices.emplace_back(b1);
-		}
-	}
-
-    const uint32_t bottom_index = vertices.size() - 1;
-    for (uint32_t i = 0; i < slices; ++i) {
-        const uint32_t a = i + bottom_index - slices;
-        const uint32_t b = (i + 1) % slices + bottom_index - slices;
-        
-        indices.emplace_back(bottom_index);
-        indices.emplace_back(b);
-        indices.emplace_back(a);
+            if(stack != stacks - 1) {
+                indices.emplace_back(k2 + 1);
+                indices.emplace_back(k2);
+                indices.emplace_back(k1 + 1);
+            }
+        }
     }
 
     ASSERT(indices.size() >= 3, "uv sphere generation error", "index count < 3");
     ASSERT(indices.size() % 3 == 0, "uv sphere generation error", "index count % 3 != 0");
-
-    for (size_t i = 2; i < indices.size(); i += 3) {
-        const glm::vec3 a = vertices[indices[i - 1]].position - vertices[indices[i - 2]].position;
-        const glm::vec3 b = vertices[indices[i - 0]].position - vertices[indices[i - 2]].position;
-        const glm::vec3 normal = glm::normalize(glm::cross(a, b));
-
-        vertices[indices[i - 0]].normal = vertices[indices[i - 1]].normal = vertices[indices[i - 2]].normal = normal;
-    }
 
     mesh.create(vertices, indices);
 }
