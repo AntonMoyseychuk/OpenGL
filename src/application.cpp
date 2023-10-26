@@ -87,71 +87,79 @@ application::application(const std::string_view &title, uint32_t width, uint32_t
     m_proj_settings.far = 100.0f;
     _window_resize_callback(m_window, width, height);
     glfwSetFramebufferSizeCallback(m_window, &_window_resize_callback);
-
-    m_renderer.enable(GL_CLIP_DISTANCE0);
 }
 
 void application::run() noexcept {
     ImGuiIO& io = ImGui::GetIO();
 
-    shader pbr_shader(RESOURCE_DIR "shaders/pbr/pbr.vert", RESOURCE_DIR "shaders/pbr/pbr.frag");
-    pbr_shader.uniform("u_projection_matrix", m_proj_settings.projection_mat);
+    shader terrain_shader(RESOURCE_DIR "shaders/grass/terrain.vert", RESOURCE_DIR "shaders/grass/terrain.frag");
+    shader grass_shader(RESOURCE_DIR "shaders/grass/grass.vert", RESOURCE_DIR "shaders/grass/grass.frag");
 
-    texture_2d albedo_map(RESOURCE_DIR "textures/pbr/rusted_iron/albedo.png", true, true);
-    albedo_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    albedo_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    albedo_map.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    albedo_map.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    albedo_map.generate_mipmap();
+    constexpr const glm::vec3 terrain_min(-10.0f, 0.0f, -10.0f);
+    constexpr const glm::vec3 terrain_max( 10.0f, 0.0f,  10.0f);
+    constexpr const float terrain_width = glm::abs(terrain_max.x - terrain_min.x);
+    constexpr const float terrain_depth = glm::abs(terrain_max.z - terrain_min.z);
+    mesh terrain(
+        std::vector<mesh::vertex> {
+            {                                   terrain_min, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f) },
+            { glm::vec3(terrain_min.x, 0.0f, terrain_max.z), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(0.0f, terrain_max.z), glm::vec3(1.0f, 0.0f, 0.0f) },
+            {                                   terrain_max, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(terrain_max.x, terrain_max.z), glm::vec3(1.0f, 0.0f, 0.0f) },
+            { glm::vec3(terrain_max.x, 0.0f, terrain_min.z), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(terrain_max.x, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f) },
+        },
+        std::vector<uint32_t> {
+            0, 1, 2,
+            0, 2, 3
+        }
+    );
+    texture_2d terrain_texture(RESOURCE_DIR "textures/terrain/grass_tile.png");
+    terrain_texture.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    terrain_texture.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    terrain_texture.set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT);
+    terrain_texture.set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+    terrain_texture.generate_mipmap();
+    terrain_shader.uniform("u_texture", terrain_texture, 0);
 
-    texture_2d normal_map(RESOURCE_DIR "textures/pbr/rusted_iron/normal.png");
-    normal_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    normal_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    normal_map.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    normal_map.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    normal_map.generate_mipmap();
+    const glm::mat4 terrain_transform_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -5.0f, 0.0f)); 
+    const glm::mat3 terrain_normal_matrix = glm::mat3(glm::transpose(glm::inverse(terrain_transform_matrix)));
 
-    texture_2d metallic_map(RESOURCE_DIR "textures/pbr/rusted_iron/metallic.png");
-    metallic_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    metallic_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    metallic_map.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    metallic_map.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    metallic_map.generate_mipmap();
+    constexpr const uint32_t grass_in_raw = 300;
+    constexpr float dx = terrain_width / grass_in_raw, dz = terrain_depth / grass_in_raw;
 
-    texture_2d roughness_map(RESOURCE_DIR "textures/pbr/rusted_iron/roughness.png");
-    roughness_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    roughness_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    roughness_map.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    roughness_map.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    roughness_map.generate_mipmap();
+    std::vector<glm::mat4> grass_transform_matrix((grass_in_raw + 1) * (grass_in_raw + 1) * 2);
+    for (uint32_t z = 0; z <= grass_in_raw; ++z) {
+        for (uint32_t x = 0; x <= grass_in_raw * 2; x += 2) {     
+            const glm::vec3 position1 = glm::clamp(
+                glm::vec3(terrain_min.x + (x + random(-0.5f, 0.5f)) * dx, 0.0f, terrain_min.z + (z + random(-0.5f, 0.5f)) * dz), 
+                terrain_min, 
+                terrain_max
+            );
 
-    texture_2d ao_map(RESOURCE_DIR "textures/pbr/rusted_iron/ao.png");
-    ao_map.set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    ao_map.set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    ao_map.set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    ao_map.set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    ao_map.generate_mipmap();
+            const glm::vec3 position2 = glm::clamp(
+                glm::vec3(terrain_min.x + (x + 1 + random(-0.5f, 0.5f)) * dx, 0.0f, terrain_min.z + (z + random(-0.5f, 0.5f)) * dz), 
+                terrain_min, 
+                terrain_max
+            );
 
-    pbr_shader.uniform("u_material.albedo_map", albedo_map, 0);
-    pbr_shader.uniform("u_material.normal_map", normal_map, 1);
-    pbr_shader.uniform("u_material.metallic_map", metallic_map, 2);
-    pbr_shader.uniform("u_material.roughness_map", roughness_map, 3);
-    pbr_shader.uniform("u_material.ao_map", ao_map, 4);
+            const glm::mat4 grass_translation1 = glm::translate(glm::mat4(1.0f), position1);
+            const glm::mat4 grass_translation2 = glm::translate(glm::mat4(1.0f), position2);
+            const glm::mat4 grass_rotation_scale1 = glm::rotate(glm::mat4(1.0f), glm::radians(random(1.0f, 89.0f)), glm::vec3(0.0f, 1.0f, 0.0f))
+                * glm::scale(glm::mat4(1.0f), glm::vec3(random(0.1f, 1.0f), random(0.1f, 1.0f), 1.0f));
+            const glm::mat4 grass_rotation_scale2 = glm::rotate(glm::mat4(1.0f), glm::radians(random(1.0f, 89.0f)), glm::vec3(0.0f, 1.0f, 0.0f))
+                * glm::scale(glm::mat4(1.0f), glm::vec3(random(0.1f, 1.0f), random(0.1f, 1.0f), 1.0f));
 
-    glm::vec3 light_positions[] = {
-        glm::vec3(-10.0f,  10.0f, 10.0f),
-        glm::vec3( 10.0f,  10.0f, 10.0f),
-        glm::vec3(-10.0f, -10.0f, 10.0f),
-        glm::vec3( 10.0f, -10.0f, 10.0f),
-    };
-    glm::vec3 light_colors[] = {
-        glm::vec3(300.0f, 300.0f, 300.0f),
-        glm::vec3(300.0f, 300.0f, 300.0f),
-        glm::vec3(300.0f, 300.0f, 300.0f),
-        glm::vec3(300.0f, 300.0f, 300.0f)
-    };
+            grass_transform_matrix[x + z * (grass_in_raw + 1)] = terrain_transform_matrix * grass_translation1
+                * grass_rotation_scale1;
+            grass_transform_matrix[x + 1 + z * (grass_in_raw + 1)] = terrain_transform_matrix * grass_translation2
+                * grass_rotation_scale2;
+        }
+    }
+    buffer grass_transform_buffer(GL_SHADER_STORAGE_BUFFER, 
+        grass_transform_matrix.size() * sizeof(grass_transform_matrix[0]), sizeof(grass_transform_matrix[0]), GL_DYNAMIC_DRAW, grass_transform_matrix.data());
 
-    uv_sphere sphere(64, 64);
+    model grass(RESOURCE_DIR "models/terrain/grass_2.obj", std::nullopt);
+
+    glm::vec3 wind_direction(1.0f, 0.0f, 0.0f);
+    float wind_strength = 1.3f;
 
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
@@ -183,26 +191,20 @@ void application::run() noexcept {
 
         m_renderer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        pbr_shader.uniform("u_view_matrix", m_camera.get_view());
-        pbr_shader.uniform("u_camera_position", m_camera.position);
-
-        glm::mat4 model(1.0f);
-        pbr_shader.uniform("u_model_matrix", model);
-        pbr_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(glm::mat3(model))));
-        m_renderer.render(GL_TRIANGLES, pbr_shader, sphere.mesh);
+        terrain_shader.uniform("u_view_matrix", m_camera.get_view());
+        terrain_shader.uniform("u_projection_matrix", m_proj_settings.projection_mat);
+        grass_shader.uniform("u_view_matrix", m_camera.get_view());
+        grass_shader.uniform("u_projection_matrix", m_proj_settings.projection_mat);
+        grass_shader.uniform("u_time", (float)glfwGetTime());
+        grass_shader.uniform("u_wind_strength", wind_strength);
+        grass_shader.uniform("u_wind_direction", glm::normalize(wind_direction));
         
-        for (size_t i = 0; i < sizeof(light_positions) / sizeof(light_positions[0]); ++i) {
-            pbr_shader.uniform("u_lights[" + std::to_string(i) + "].position", light_positions[i]);
-            pbr_shader.uniform("u_lights[" + std::to_string(i) + "].color", light_colors[i]);
-
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, light_positions[i]);
-            model = glm::scale(model, glm::vec3(0.5f));
-            pbr_shader.uniform("u_model_matrix", model);
-            pbr_shader.uniform("u_normal_matrix", glm::transpose(glm::inverse(glm::mat3(model))));
-            m_renderer.render(GL_TRIANGLES, pbr_shader, sphere.mesh);
-        }
-
+        grass_transform_buffer.bind_base(0);
+        m_renderer.render_instanced(GL_TRIANGLES, grass_shader, grass, grass_transform_matrix.size());
+        
+        terrain_shader.uniform("u_model_matrix", terrain_transform_matrix);
+        terrain_shader.uniform("u_normal_matrix", terrain_normal_matrix);
+        m_renderer.render(GL_TRIANGLES, terrain_shader, terrain);
 
     #if 1 //UI
         _imgui_frame_begin();
@@ -238,11 +240,17 @@ void application::run() noexcept {
             } 
         ImGui::End();
 
-        ImGui::Begin("Texture");
-            texture_2d& texture = ao_map;
-            const ImVec2 buffer_size_imvec2(texture.get_width(), texture.get_height());
-            ImGui::Image((void*)(uintptr_t)texture.get_id(), buffer_size_imvec2, ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::Begin("Wind");
+            ImGui::DragFloat3("direction", glm::value_ptr(wind_direction), 0.1f);
+            ImGui::DragFloat("strength", &wind_strength, 0.01f, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max());
+             
         ImGui::End();
+
+        // ImGui::Begin("Texture");
+        //     texture_2d& texture = ao_map;
+        //     const ImVec2 buffer_size_imvec2(texture.get_width(), texture.get_height());
+        //     ImGui::Image((void*)(uintptr_t)texture.get_id(), buffer_size_imvec2, ImVec2(0, 1), ImVec2(1, 0));
+        // ImGui::End();
 
         _imgui_frame_end();
     #endif
