@@ -159,7 +159,10 @@ void application::run() noexcept {
     model grass(RESOURCE_DIR "models/terrain/grass_2.obj", std::nullopt);
 
     glm::vec3 wind_direction(1.0f, 0.0f, 0.0f);
-    float wind_strength = 1.3f;
+    float wind_strength = 0.5f;
+
+    glm::vec3 top_color(0.13f, 0.56f, 0.11f);
+    glm::vec3 bottom_color(0.05f, 0.11f, 0.01f);
 
     while (!glfwWindowShouldClose(m_window) && glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         glfwPollEvents();
@@ -198,6 +201,8 @@ void application::run() noexcept {
         grass_shader.uniform("u_time", (float)glfwGetTime());
         grass_shader.uniform("u_wind_strength", wind_strength);
         grass_shader.uniform("u_wind_direction", glm::normalize(wind_direction));
+        grass_shader.uniform("u_bottom_color", bottom_color);
+        grass_shader.uniform("u_top_color", top_color);
         
         grass_transform_buffer.bind_base(0);
         m_renderer.render_instanced(GL_TRIANGLES, grass_shader, grass, grass_transform_matrix.size());
@@ -243,7 +248,11 @@ void application::run() noexcept {
         ImGui::Begin("Wind");
             ImGui::DragFloat3("direction", glm::value_ptr(wind_direction), 0.1f);
             ImGui::DragFloat("strength", &wind_strength, 0.01f, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max());
-             
+        ImGui::End();
+
+        ImGui::Begin("Grass");
+            ImGui::ColorEdit3("top color", glm::value_ptr(top_color));
+            ImGui::ColorEdit3("bottom color", glm::value_ptr(bottom_color));
         ImGui::End();
 
         // ImGui::Begin("Texture");
