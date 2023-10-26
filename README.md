@@ -1,4 +1,4 @@
 # opengl
-SSAO
+Grass
 
-[SSAO.webm](https://github.com/AntonMoyseychuk/opengl/assets/108875469/e4a122db-982a-4247-a8fb-590615874fdb)
+[grass.webm](https://github.com/AntonMoyseychuk/opengl/assets/108875469/0cc5bd1a-705f-46a6-a3c7-7f73c80bc29d)
