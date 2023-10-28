@@ -38,7 +38,7 @@ void main() {
     const vec3 axis = cross(u_wind_direction, vec3(0.0f, 1.0f, 0.0f));
 
     vec4 quaternion = quaternion_from_axis_angle(axis, angle);
-    vec3 rotated_position = (a_position.y > grass_min.y + 0.001f ? rotate_vector_by_quaternion(a_position - center, quaternion) + center : a_position);
+    vec3 rotated_position = (a_position.y > grass_min.y + 0.001f ? center + rotate_vector_by_quaternion(a_position - center, quaternion) : a_position);
 
     gl_Position = u_projection_matrix * u_view_matrix * u_model_matrix[gl_InstanceID] * vec4(rotated_position, 1.0f);
 }

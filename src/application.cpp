@@ -125,32 +125,39 @@ void application::run() noexcept {
     constexpr const uint32_t grass_in_raw = 300;
     constexpr float dx = terrain_width / grass_in_raw, dz = terrain_depth / grass_in_raw;
 
-    std::vector<glm::mat4> grass_transform_matrix((grass_in_raw + 1) * (grass_in_raw + 1) * 2);
+
+    std::vector<glm::mat4> grass_transform_matrix((grass_in_raw + 1) * (grass_in_raw + 1) * 3);
     for (uint32_t z = 0; z <= grass_in_raw; ++z) {
-        for (uint32_t x = 0; x <= grass_in_raw * 2; x += 2) {     
-            const glm::vec3 position1 = glm::clamp(
-                glm::vec3(terrain_min.x + (x + random(-0.5f, 0.5f)) * dx, 0.0f, terrain_min.z + (z + random(-0.5f, 0.5f)) * dz), 
-                terrain_min, 
-                terrain_max
-            );
+        for (uint32_t x = 0; x <= grass_in_raw * 3; x += 3) {  
+            std::array<glm::vec3, 3> positions = {
+                glm::clamp(glm::vec3(terrain_min.x + (x + random(-0.5f, 0.5f)) * dx, 0.0f, terrain_min.z + (z + random(-0.5f, 0.5f)) * dz), 
+                    terrain_min, 
+                    terrain_max
+                ),
+                glm::clamp(glm::vec3(terrain_min.x + (x + 1 + random(-0.5f, 0.5f)) * dx, 0.0f, terrain_min.z + (z + random(-0.5f, 0.5f)) * dz), 
+                    terrain_min, 
+                    terrain_max
+                ),
+                glm::clamp(glm::vec3(terrain_min.x + (x + 2 + random(-0.5f, 0.5f)) * dx, 0.0f, terrain_min.z + (z + random(-0.5f, 0.5f)) * dz), 
+                    terrain_min, 
+                    terrain_max
+                )
+            };
 
-            const glm::vec3 position2 = glm::clamp(
-                glm::vec3(terrain_min.x + (x + 1 + random(-0.5f, 0.5f)) * dx, 0.0f, terrain_min.z + (z + random(-0.5f, 0.5f)) * dz), 
-                terrain_min, 
-                terrain_max
-            );
+            std::array<glm::mat4, positions.size()> translations;
+            for (size_t i = 0; i < translations.size(); ++i) {
+                translations[i] = glm::translate(glm::mat4(1.0f), positions[i]);
+            }
 
-            const glm::mat4 grass_translation1 = glm::translate(glm::mat4(1.0f), position1);
-            const glm::mat4 grass_translation2 = glm::translate(glm::mat4(1.0f), position2);
-            const glm::mat4 grass_rotation_scale1 = glm::rotate(glm::mat4(1.0f), glm::radians(random(1.0f, 89.0f)), glm::vec3(0.0f, 1.0f, 0.0f))
-                * glm::scale(glm::mat4(1.0f), glm::vec3(random(0.1f, 1.0f), random(0.1f, 1.0f), 1.0f));
-            const glm::mat4 grass_rotation_scale2 = glm::rotate(glm::mat4(1.0f), glm::radians(random(1.0f, 89.0f)), glm::vec3(0.0f, 1.0f, 0.0f))
-                * glm::scale(glm::mat4(1.0f), glm::vec3(random(0.1f, 1.0f), random(0.1f, 1.0f), 1.0f));
+            std::array<glm::mat4, positions.size()> rotation_scale;
+            for (size_t i = 0; i < rotation_scale.size(); ++i) {
+                rotation_scale[i] = glm::rotate(glm::mat4(1.0f), glm::radians(random(1.0f, 89.0f)), glm::vec3(0.0f, 1.0f, 0.0f))
+                    * glm::scale(glm::mat4(1.0f), glm::vec3(random(0.1f, 1.0f), random(0.1f, 1.0f), 1.0f));
+            }
 
-            grass_transform_matrix[x + z * (grass_in_raw + 1)] = terrain_transform_matrix * grass_translation1
-                * grass_rotation_scale1;
-            grass_transform_matrix[x + 1 + z * (grass_in_raw + 1)] = terrain_transform_matrix * grass_translation2
-                * grass_rotation_scale2;
+            for (size_t i = 0; i < 3; ++i) {
+                grass_transform_matrix[x + i + z * (grass_in_raw + 1)] = terrain_transform_matrix * translations[i] * rotation_scale[i];
+            }
         }
     }
     buffer grass_transform_buffer(GL_SHADER_STORAGE_BUFFER, 
