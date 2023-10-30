@@ -1,4 +1,6 @@
 # opengl
-Grass
+Terrain Rendering
 
-[grass.webm](https://github.com/AntonMoyseychuk/opengl/assets/108875469/0cc5bd1a-705f-46a6-a3c7-7f73c80bc29d)
+[Terrain.webm](https://github.com/AntonMoyseychuk/opengl/assets/108875469/e85c91c9-1c98-40b2-a241-46b24d626564)
+
+[water.webm](https://github.com/AntonMoyseychuk/opengl/assets/108875469/e265e227-3e61-402d-bc06-bbb292d8b350)
