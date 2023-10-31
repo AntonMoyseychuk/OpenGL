@@ -101,10 +101,10 @@ void application::run() noexcept {
     constexpr const float terrain_depth = glm::abs(terrain_max.z - terrain_min.z);
     mesh terrain(
         std::vector<mesh::vertex> {
-            {                                   terrain_min, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f) },
-            { glm::vec3(terrain_min.x, 0.0f, terrain_max.z), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(0.0f, terrain_max.z), glm::vec3(1.0f, 0.0f, 0.0f) },
+            {                                   terrain_min, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(         0.0f,          0.0f), glm::vec3(1.0f, 0.0f, 0.0f) },
+            { glm::vec3(terrain_min.x, 0.0f, terrain_max.z), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(         0.0f, terrain_max.z), glm::vec3(1.0f, 0.0f, 0.0f) },
             {                                   terrain_max, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(terrain_max.x, terrain_max.z), glm::vec3(1.0f, 0.0f, 0.0f) },
-            { glm::vec3(terrain_max.x, 0.0f, terrain_min.z), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(terrain_max.x, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f) },
+            { glm::vec3(terrain_max.x, 0.0f, terrain_min.z), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(terrain_max.x,          0.0f), glm::vec3(1.0f, 0.0f, 0.0f) },
         },
         std::vector<uint32_t> {
             0, 1, 2,
